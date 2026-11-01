@@ -1,0 +1,644 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Règles en images SC:TMG</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout : planche de règle — en-tête, légende, grille 3×3 de cases (vue de côté + vue de dessus + verdict), encadré des conséquences. */
+:root{
+  --bg:#e9edf1; --surface:#ffffff; --sunk:#f3f5f8; --ink:#141c25; --muted:#586574; --line:#d0d8e1;
+  --ok:#1f8a4f; --bad:#c62f26; --zone:#f6d6d9; --zone-line:#d98b93; --terrain:#6d5326; --terrain-ink:#ffffff;
+  --high:#cfe2f3; --me:#2c6bc0; --opp:#b8452a; --fly:#7a4fb0; --ground:#b9c1ca; --hint:#2f9e5c; --tpl:#d98a00;
+  --f-display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+  --f-body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1319; --surface:#161e27; --sunk:#111821; --ink:#e2e8ee; --muted:#93a1b0; --line:#2a3644;
+  --ok:#5fcf95; --bad:#ff7a6e; --zone:#3a2228; --zone-line:#a05a64; --terrain:#8a6a33; --terrain-ink:#fff7e6;
+  --high:#1c3247; --me:#6fa8ff; --opp:#ef8a6c; --fly:#b493e6; --ground:#3a4654; --hint:#5fcf95; --tpl:#f0b84a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --surface:#161e27; --sunk:#111821; --ink:#e2e8ee; --muted:#93a1b0; --line:#2a3644;
+  --ok:#5fcf95; --bad:#ff7a6e; --zone:#3a2228; --zone-line:#a05a64; --terrain:#8a6a33; --terrain-ink:#fff7e6;
+  --high:#1c3247; --me:#6fa8ff; --opp:#ef8a6c; --fly:#b493e6; --ground:#3a4654; --hint:#5fcf95; --tpl:#f0b84a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.sheet>header{padding:16px 18px 12px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;justify-content:space-between}
+.sheet>header h2{font-size:24px}
+.sheet>header .ref{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.lead{padding:10px 18px;color:var(--muted);font-size:14px;border-bottom:1px solid var(--line);max-width:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:10px 18px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{flex:none}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}}
+.case{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.case .hd{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px;align-items:start}
+.case .lt{width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--surface);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:16px}
+.case h3{font-size:15px;line-height:1.2}
+.case .rule{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.verdict{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-display);font-weight:700;font-size:15px;align-self:center}
+.verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+.vw{font-family:var(--f-display);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+svg.d{width:100%;height:auto;display:block;border-radius:4px}
+.case p.note{margin:0;font-size:13px;color:var(--muted)}
+.cons{padding:14px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px 24px;font-size:14px}
+.cons h3{grid-column:1/-1;font-size:16px}
+.cons ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.status{margin:14px 0 0;font-size:13px;color:var(--muted)}
+.sheetnav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.sheetnav button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-family:var(--f-display);font-weight:600;font-size:14px;color:var(--ink);cursor:pointer}
+.sheetnav button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.sheetnav .st{font-size:11px;font-weight:600;margin-left:6px;color:var(--ok)}
+.sheetnav button.on .st{color:var(--surface)}
+.sheetnav .draft{color:var(--bad)}
+</style></head><body>
+
+<div class="wrap">
+  <nav class="sheetnav" id="nav" aria-label="Planches"></nav>
+  <div id="sheets"></div>
+</div>
+
+<script>
+const IN = 16;             // 1 pouce = 16 px
+const GY = 92;             // niveau du sol (vue de côté)
+const BLK = 18;            // hauteur d’un niveau de taille
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const col = s => s === 'me' ? 'var(--me)' : s === 'fly' ? 'var(--fly)' : 'var(--opp)';
+
+/* ---------- vue de côté ---------- */
+function side(items, top){
+  top = top ?? 12;
+  let g = `<rect x="0" y="${GY}" width="300" height="10" fill="var(--ground)"/>`;
+  items.forEach(it => {
+    if (it.t === 'zone') g += `<rect x="${it.x}" y="${GY - 60}" width="${it.w}" height="60" fill="var(--zone)"/>`;
+    if (it.t === 'high') g += `<rect x="${it.x}" y="${GY - 60}" width="${it.w}" height="60" fill="var(--high)"/>`;
+    if (it.t === 'block'){ const h = it.h * BLK, y0 = GY - h - (it.base || 0) * BLK;
+      for (let i = 0; i < it.h; i++) g += `<rect x="${it.x}" y="${y0 + i * BLK}" width="${it.w}" height="${BLK}" fill="var(--terrain)" stroke="var(--surface)" stroke-width="1"/>`;
+      if (it.lbl !== false) for (let i = 0; i < it.h; i++) g += `<text x="${it.x + it.w / 2}" y="${GY - (it.base || 0) * BLK - i * BLK - 5}" text-anchor="middle" font-family="var(--f-mono)" font-size="11" font-weight="700" fill="var(--terrain-ink)">${(it.base || 0) + i + 1}</text>`;
+      if (it.access) g += `<path d="M${it.access} ${GY} l0 -${BLK * (it.h + (it.base||0))}" stroke="var(--hint)" stroke-width="3" stroke-dasharray="3 3"/><text x="${it.access + 4}" y="${GY + 8}" font-size="8" fill="var(--ink)" font-family="var(--f-mono)">ACCESS POINT</text>`; }
+    if (it.t === 'mini'){ const by = GY - (it.lv || 0) * BLK, h = it.sz * BLK - 2, w = it.w || 22;
+      if (it.fly){ g += `<line x1="${it.x}" y1="${by}" x2="${it.x}" y2="${by - 26}" stroke="var(--muted)" stroke-width="2"/><rect x="${it.x - w / 2 - 2}" y="${by - 2}" width="${w + 4}" height="3" fill="var(--muted)"/>`; }
+      const top = it.fly ? by - 26 - h : by - h;
+      g += `<rect x="${it.x - w / 2}" y="${top}" width="${w}" height="${h}" rx="6" fill="${col(it.s)}"/>`;
+      if (!it.fly) g += `<rect x="${it.x - w / 2 - 3}" y="${by - 3}" width="${w + 6}" height="3" fill="var(--ink)"/>`;
+      g += `<text x="${it.x}" y="${top + h / 2 + 4}" text-anchor="middle" font-family="var(--f-mono)" font-size="10" font-weight="700" fill="var(--surface)">${it.fly ? 'vol' : it.sz}</text>`; }
+    if (it.t === 'line') g += `<line x1="${it.x1}" y1="${it.y}" x2="${it.x2}" y2="${it.y2 ?? it.y}" stroke="${it.ok ? 'var(--ok)' : 'var(--bad)'}" stroke-width="3" ${it.ok ? '' : 'stroke-dasharray="7 5"'}/>`;
+    if (it.t === 'dim') g += dim(it.x1, it.x2, it.y, it.txt);
+    if (it.t === 'smk') g += `<rect x="${it.x - 10}" y="${GY - 4}" width="20" height="4" fill="var(--ink)"/><text x="${it.x}" y="${GY - 8}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="var(--f-body)">marqueur</text>`;
+    if (it.t === 'txt') g += `<text x="${it.x}" y="${it.y}" text-anchor="${it.a || 'middle'}" font-size="10" fill="var(--muted)" font-family="var(--f-body)">${esc(it.s)}</text>`;
+  });
+  return `<svg class="d" viewBox="50 ${top} 240 ${104 - top}" role="img" aria-label="Vue de côté">${g}</svg>`;
+}
+/* ---------- vue de dessus ---------- */
+function topv(items, H, dy){
+  H = H || 76;
+  const bg = `<rect x="50" y="0" width="240" height="${H}" fill="var(--sunk)" stroke="var(--line)"/>`;
+  let g = '';
+  items.forEach(it => {
+    if (it.t === 'er') g += `<circle cx="${it.x}" cy="${it.y}" r="${it.r + IN}" fill="var(--zone)" stroke="var(--zone-line)" stroke-dasharray="4 3"/>`;
+    if (it.t === 'high') g += `<rect x="${it.x}" y="0" width="${it.w}" height="76" fill="var(--high)"/>`;
+    if (it.t === 'rect') g += `<rect x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="var(--terrain)"/>` + (it.lbl ? `<text x="${it.x + it.w / 2}" y="${it.y + it.h / 2 + 4}" text-anchor="middle" font-family="var(--f-mono)" font-size="10" font-weight="700" fill="var(--terrain-ink)">${it.lbl}</text>` : '');
+    if (it.t === 'access') g += `<rect x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="none" stroke="var(--hint)" stroke-width="2.5" stroke-dasharray="4 3"/>`;
+    if (it.t === 'base') g += `<circle cx="${it.x}" cy="${it.y}" r="${it.r}" fill="${col(it.s)}" stroke="var(--ink)" stroke-width="2.5"/>` + (it.lbl ? `<text x="${it.x}" y="${it.y + 4}" text-anchor="middle" font-family="var(--f-mono)" font-size="10" font-weight="700" fill="var(--surface)">${it.lbl}</text>` : '');
+    if (it.t === 'line') g += `<line x1="${it.x1}" y1="${it.y1}" x2="${it.x2}" y2="${it.y2}" stroke="${it.ok ? 'var(--ok)' : 'var(--bad)'}" stroke-width="3" ${it.ok ? '' : 'stroke-dasharray="7 5"'}/>`;
+    if (it.t === 'dim') g += dim(it.x1, it.x2, it.y, it.txt);
+    if (it.t === 'ghost') g += `<circle cx="${it.x}" cy="${it.y}" r="${it.r}" fill="none" stroke="${col(it.s)}" stroke-width="2" stroke-dasharray="3 3"/>`;
+    if (it.t === 'reach') g += `<circle cx="${it.x}" cy="${it.y}" r="${it.r}" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="2 4"/>`;
+    if (it.t === 'path'){ const pts = it.pts.map(p => p.join(',')).join(' '), c = it.ok === undefined ? 'var(--muted)' : it.ok ? 'var(--ok)' : 'var(--bad)';
+      g += `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="2.5" ${it.ok === false ? 'stroke-dasharray="6 4"' : ''} marker-end="url(#arw-${it.ok === undefined ? 'n' : it.ok ? 'ok' : 'ko'})"/>`; }
+    if (it.t === 'ring') g += `<circle cx="${it.x}" cy="${it.y}" r="${R + 4}" fill="none" stroke="${it.ok ? 'var(--ok)' : 'var(--bad)'}" stroke-width="2.5" ${it.ok ? '' : 'stroke-dasharray="4 3"'}/>`;
+    if (it.t === 'die') g += `<rect x="${it.x - 7}" y="${it.y - 7}" width="14" height="14" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/><text x="${it.x}" y="${it.y + 4}" text-anchor="middle" font-family="var(--f-mono)" font-size="10" font-weight="700" fill="var(--ink)">${it.n}</text>`;
+    if (it.t === 'bt') g += `<circle cx="${it.x}" cy="${it.y}" r="${it.r || 30}" fill="var(--tpl)" fill-opacity=".22" stroke="var(--tpl)" stroke-width="2"/><circle cx="${it.x}" cy="${it.y}" r="2" fill="var(--tpl)"/>`;
+    if (it.t === 'ft'){ const {x, y, L, w0, w1} = it; g += `<path d="M${x} ${y - w0} L${x + L} ${y - w1} A${w1} ${w1} 0 0 1 ${x + L} ${y + w1} L${x} ${y + w0} Z" fill="var(--tpl)" fill-opacity=".22" stroke="var(--tpl)" stroke-width="2"/>`; }
+    if (it.t === 'sring') g += `<circle cx="${it.x}" cy="${it.y}" r="${R + 4}" fill="none" stroke="var(--tpl)" stroke-width="2.5" stroke-dasharray="5 2"/>`;
+    if (it.t === 'cz') g += `<circle cx="${it.x}" cy="${it.y}" r="${R + 3 * IN}" fill="var(--high)" fill-opacity=".7" stroke="var(--hint)" stroke-width="1.5" stroke-dasharray="5 3"/>`;
+    if (it.t === 'mk') g += (it.o ? `<circle cx="${it.x}" cy="${it.y}" r="${R + 4}" fill="none" stroke="${col(it.o)}" stroke-width="4"/>` : '') + `<circle cx="${it.x}" cy="${it.y}" r="${R}" fill="var(--ink)"/><path d="M${it.x} ${it.y - 6} L${it.x + 6} ${it.y} L${it.x} ${it.y + 6} L${it.x - 6} ${it.y} Z" fill="var(--surface)"/>`;
+    if (it.t === 'zoi') g += `<rect x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" fill="var(--opp)" fill-opacity=".13" stroke="var(--opp)" stroke-width="1.5" stroke-dasharray="5 3"/>`;
+    if (it.t === 'edge') g += `<line x1="${it.x1}" y1="${it.y1}" x2="${it.x2}" y2="${it.y2}" stroke="${col(it.s)}" stroke-width="5"/>`;
+    if (it.t === 'lmk') g += `<path d="M${it.x + it.dx * 14} ${it.y} L${it.x} ${it.y} L${it.x} ${it.y + 14}" fill="none" stroke="var(--ink)" stroke-width="4"/>`;
+    if (it.t === 'grass') g += `<rect x="${it.x}" y="${it.y}" width="${it.w}" height="${it.h}" rx="6" fill="var(--hint)" fill-opacity=".35" stroke="var(--hint)" stroke-width="1.5"/><text x="${it.x + it.w / 2}" y="${it.y + 12}" text-anchor="middle" font-family="var(--f-mono)" font-size="9" font-weight="700" fill="var(--ink)">GRASS 2</text>`;
+    if (it.t === 'cross') g += `<path d="M${it.x-6} ${it.y-6} l12 12 M${it.x+6} ${it.y-6} l-12 12" stroke="var(--bad)" stroke-width="3"/>`;
+    if (it.t === 'lbl') g += `<text x="${it.x}" y="${it.y}" text-anchor="${it.a || 'middle'}" font-family="${it.mono ? 'var(--f-mono)' : 'var(--f-body)'}" font-size="${it.fs || 10}" font-weight="${it.b ? 700 : 500}" fill="${it.c || 'var(--ink)'}">${esc(it.s)}</text>`;
+    if (it.t === 'tag') g += `<text x="${it.x}" y="${it.y + 3}" text-anchor="middle" font-family="var(--f-mono)" font-size="9" font-weight="700" fill="var(--surface)">${esc(it.s)}</text>`;
+  });
+  const defs = `<defs>${['ok','ko','n'].map(k => `<marker id="arw-${k}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${k === 'ok' ? 'var(--ok)' : k === 'ko' ? 'var(--bad)' : 'var(--muted)'}"/></marker>`).join('')}</defs>`;
+  return `<svg class="d" viewBox="50 0 240 ${H}" role="img" aria-label="Vue de dessus">${defs}${bg}<g transform="translate(0,${dy || 0})">${g}</g></svg>`;
+}
+function dim(x1, x2, y, txt){
+  return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--muted)" stroke-width="1"/><line x1="${x1}" y1="${y - 4}" x2="${x1}" y2="${y + 4}" stroke="var(--muted)"/><line x1="${x2}" y1="${y - 4}" x2="${x2}" y2="${y + 4}" stroke="var(--muted)"/>
+    <text x="${(x1 + x2) / 2}" y="${y - 7}" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="var(--muted)">${txt}</text>`;
+}
+
+/* ---------- les cas ---------- */
+const R = 10; // rayon d’un socle de 32 mm en vue de dessus
+const ENG_CASES = [
+ {k:'A', t:'Ground contre Ground à 1" ou moins', r:'7.2', ok:true,
+  s:[{t:'zone',x:116,w:IN},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:150,sz:1,s:'opp'},{t:'line',x1:117,x2:139,y:GY-9,ok:true},{t:'dim',x1:116,x2:132,y:28,txt:'1"'}],
+  p:[{t:'er',x:105,y:38,r:R},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:140,y:38,r:R,s:'opp'},{t:'line',x1:115,y1:38,x2:130,y2:38,ok:true}],
+  n:'Les socles sont à 1" ou moins l’un de l’autre : les deux figurines sont engagées.'},
+ {k:'B', t:'Plus de 1" entre les socles', r:'7.2', ok:false,
+  s:[{t:'zone',x:116,w:IN},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:190,sz:1,s:'opp'},{t:'line',x1:117,x2:179,y:GY-9,ok:false},{t:'dim',x1:116,x2:132,y:28,txt:'1"'}],
+  p:[{t:'er',x:105,y:38,r:R},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:185,y:38,r:R,s:'opp'},{t:'line',x1:115,y1:38,x2:175,y2:38,ok:false}],
+  n:'Le socle ennemi est hors de l’Engagement Range : pas d’engagement.'},
+ {k:'C', t:'Une figurine suffit pour toute l’unité', r:'7.2 · ENGAGED', ok:true,
+  s:[{t:'zone',x:166,w:IN},{t:'mini',x:70,sz:1,s:'me'},{t:'mini',x:110,sz:1,s:'me'},{t:'mini',x:155,sz:1,s:'me'},{t:'mini',x:198,sz:1,s:'opp'},{t:'mini',x:236,sz:1,s:'opp'},{t:'line',x1:167,x2:187,y:GY-9,ok:true}],
+  p:[{t:'er',x:155,y:38,r:R},{t:'base',x:75,y:30,r:R,s:'me'},{t:'base',x:110,y:50,r:R,s:'me'},{t:'base',x:155,y:38,r:R,s:'me'},{t:'base',x:190,y:38,r:R,s:'opp'},{t:'base',x:230,y:26,r:R,s:'opp'},{t:'line',x1:165,y1:38,x2:180,y2:38,ok:true}],
+  n:'Dès qu’une figurine est engagée, ses deux unités entières sont engagées, même les figurines éloignées.'},
+ {k:'D', t:'Une unité volante n’est jamais engagée', r:'7.2.1 · FLYING', ok:false,
+  s:[{t:'zone',x:116,w:IN},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:140,sz:2,s:'fly',fly:true},{t:'line',x1:117,x2:129,y:GY-9,ok:false}],
+  p:[{t:'er',x:105,y:38,r:R},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:132,y:38,r:R,s:'fly',lbl:'vol'},{t:'line',x1:115,y1:38,x2:122,y2:38,ok:false}],
+  n:'Ground n’engage que Ground. Un volant peut même finir au contact sans aucun effet sur l’une ou l’autre unité.'},
+ {k:'E', t:'Décor de taille 0 ou 1 entre les deux', r:'7.2.1', ok:true,
+  s:[{t:'zone',x:116,w:IN},{t:'block',x:121,w:8,h:1},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:145,sz:1,s:'opp'},{t:'line',x1:117,x2:134,y:GY-26,ok:true}],
+  p:[{t:'er',x:105,y:38,r:R},{t:'rect',x:121,y:8,w:8,h:60},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:142,y:38,r:R,s:'opp'},{t:'line',x1:115,y1:38,x2:132,y2:38,ok:true}],
+  n:'Un muret bas (taille 0 ou 1) n’empêche pas l’engagement si les socles sont à 1".'},
+ {k:'F', t:'Décor de taille 2+ entre les deux', r:'7.2.1', ok:false,
+  s:[{t:'zone',x:116,w:IN},{t:'block',x:121,w:8,h:2},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:145,sz:1,s:'opp'},{t:'line',x1:117,x2:134,y:GY-9,ok:false}],
+  p:[{t:'er',x:105,y:38,r:R},{t:'rect',x:121,y:8,w:8,h:60},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:142,y:38,r:R,s:'opp'},{t:'line',x1:115,y1:38,x2:132,y2:38,ok:false}],
+  n:'Même à 1", un mur de taille 2 ou plus entre les figurines empêche l’engagement.'},
+ {k:'G', t:'HIGH GROUND contre GROUND LEVEL', r:'7.2.1 · HIGH GROUND', ok:false,
+  s:[{t:'block',x:120,w:150,h:3},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:132,sz:1,s:'opp',lv:3},{t:'line',x1:117,x2:121,y:GY-9,y2:GY-60,ok:false},{t:'txt',x:195,y:20,s:'HIGH GROUND (taille 3+)'}],
+  p:[{t:'rect',x:120,y:4,w:170,h:68},{t:'er',x:105,y:38,r:R},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:134,y:38,r:R,s:'opp'},{t:'line',x1:115,y1:38,x2:124,y2:38,ok:false}],
+  n:'Une figurine sur HIGH GROUND et une au sol ne s’engagent jamais, même socles collés au pied du décor.'},
+ {k:'H', t:'MID GROUND avec un ACCESS POINT commun', r:'7.2.1 · MID GROUND · ACCESS POINT', ok:true,
+  s:[{t:'block',x:120,w:150,h:1,access:124},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:140,sz:1,s:'opp',lv:1},{t:'line',x1:117,x2:129,y:GY-26,ok:true},{t:'txt',x:210,y:60,s:'MID GROUND (taille 1–2)'}],
+  p:[{t:'rect',x:120,y:4,w:170,h:68},{t:'access',x:116,y:26,w:16,h:24},{t:'er',x:105,y:38,r:R},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:142,y:38,r:R,s:'opp'},{t:'line',x1:115,y1:38,x2:132,y2:38,ok:true}],
+  n:'Entre MID GROUND et le sol (ou HIGH GROUND), l’engagement n’existe que si les deux figurines touchent le même ACCESS POINT (rampe, échelle…).'},
+ {k:'I', t:'MID GROUND sans ACCESS POINT commun', r:'7.2.1 · MID GROUND', ok:false,
+  s:[{t:'block',x:120,w:150,h:1},{t:'mini',x:105,sz:1,s:'me'},{t:'mini',x:140,sz:1,s:'opp',lv:1},{t:'line',x1:117,x2:129,y:GY-26,ok:false},{t:'txt',x:210,y:60,s:'MID GROUND (taille 1–2)'}],
+  p:[{t:'rect',x:120,y:4,w:170,h:68},{t:'access',x:230,y:26,w:16,h:24},{t:'er',x:105,y:38,r:R},{t:'base',x:105,y:38,r:R,s:'me'},{t:'base',x:142,y:38,r:R,s:'opp'},{t:'line',x1:115,y1:38,x2:132,y2:38,ok:false}],
+  n:'Même à 1", sans ACCESS POINT commun entre leurs élévations, les figurines ne sont pas engagées.'}
+];
+
+/* ---------- planche 2 : Charge ---------- */
+const C2 = (x, y, s, lbl) => ({t:'base', x, y, r:R, s, lbl});
+const CHG_CASES = [
+ {k:'A', t:'Distance de charge = Speed + 1D6', r:'8.7.7 · étape 2', ok:true, v:'Charge réussie', H:100,
+  p:[{t:'ghost',x:70,y:50,r:R,s:'me'},{t:'path',pts:[[80,50],[176,50]],ok:true},C2(186,50,'me','M'),C2(207,50,'opp'),{t:'dim',x1:70,x2:182,y:78,txt:'Speed 4" + dé 3 = 7"'},{t:'lbl',x:70,y:30,s:'départ',c:'var(--muted)'}],
+  n:'Lance 1D6 et ajoute la Speed. Le modèle de tête (M) doit pouvoir finir entièrement dans cette distance, à 1" de la cible.'},
+ {k:'B', t:'Distance trop courte', r:'8.7.7 · étape 3', ok:false, v:'Charge ratée', H:100,
+  p:[C2(70,50,'me','M'),{t:'path',pts:[[80,50],[150,50]],ok:false},{t:'ghost',x:160,y:50,r:R,s:'me'},C2(240,50,'opp'),{t:'dim',x1:70,x2:155,y:78,txt:'Speed 4" + dé 1 = 5"'},{t:'cross',x:200,y:50}],
+  n:'Si le modèle de tête ne peut pas atteindre 1" de chaque cible, la charge échoue : l’unité ne bouge pas et son activation se termine.'},
+ {k:'C', t:'On mesure le chemin réel', r:'8.7.7 · étape 2 · 4.6', ok:false, v:'Charge ratée', H:100,
+  p:[{t:'rect',x:120,y:20,w:24,h:62,lbl:'2'},C2(80,50,'me','M'),{t:'path',pts:[[90,50],[108,14],[156,14],[176,42]],ok:false},C2(190,50,'opp'),{t:'lbl',x:132,y:96,s:'tout droit : 5" · en contournant : 8"',c:'var(--muted)',fs:9}],
+  n:'La distance se mesure le long du trajet, en contournant ce qui est infranchissable (décor de taille 2+, autres figurines). En ligne droite, ça passerait ; en vrai, non.'},
+ {k:'D', t:'Pas besoin de ligne de vue', r:'8.7.7 · étape 1', ok:true, v:'Charge possible', H:100,
+  p:[{t:'rect',x:132,y:28,w:12,h:54,lbl:'2'},C2(90,60,'me','M'),{t:'path',pts:[[100,56],[126,18],[158,18],[176,48]],ok:true},C2(180,62,'opp'),{t:'lbl',x:138,y:96,s:'cible cachée derrière le mur',c:'var(--muted)',fs:9}],
+  n:'Une charge ne demande pas de voir la cible : il suffit que la distance permette de l’atteindre en contournant le décor.'},
+ {k:'E', t:'Charger plusieurs unités', r:'8.7.7 · étapes 1 et 3', ok:true, v:'Charge réussie', H:100,
+  p:[{t:'ghost',x:70,y:50,r:R,s:'me'},{t:'path',pts:[[80,50],[168,50]],ok:true},{t:'er',x:180,y:50,r:R},C2(180,50,'me','M'),C2(202,34,'opp','X'),C2(202,68,'opp','Y')],
+  n:'Toutes les cibles se déclarent avant de lancer le dé. À l’arrivée, le modèle de tête doit être à 1" de CHAQUE cible déclarée (X et Y).'},
+ {k:'F', t:'Une des cibles reste hors de portée', r:'8.7.7 · étape 3', ok:false, v:'Charge ratée', H:100,
+  p:[C2(70,50,'me','M'),{t:'path',pts:[[80,50],[168,50]],ok:false},{t:'er',x:180,y:50,r:R},{t:'ghost',x:180,y:50,r:R,s:'me'},C2(202,50,'opp','X'),C2(262,30,'opp','Y'),{t:'cross',x:240,y:40}],
+  n:'Si une seule des cibles déclarées n’est pas à 1" du modèle de tête à l’arrivée, toute la charge échoue, même contre X.'},
+ {k:'G', t:'Une unité ennemie non déclarée à 1"', r:'8.7.7 · étape 3', ok:false, v:'Position interdite', H:100,
+  p:[C2(70,50,'me','M'),{t:'path',pts:[[80,50],[168,50]],ok:false},{t:'er',x:180,y:50,r:R},{t:'ghost',x:180,y:50,r:R,s:'me'},C2(202,50,'opp','X'),C2(184,74,'opp','Z'),{t:'lbl',x:220,y:92,s:'Z : non déclarée',c:'var(--bad)',fs:9}],
+  n:'Le modèle de tête ne peut pas finir à 1" d’une unité ennemie qui n’a pas été déclarée comme cible. Il faut un autre placement, sinon la charge échoue.'},
+ {k:'H', t:'Placer le reste de l’unité', r:'8.7.7 · étape 4', ok:true, v:'Ordre de placement', H:100,
+  p:[{t:'rect',x:212,y:6,w:66,h:88},{t:'lbl',x:245,y:16,s:'unité ennemie',c:'var(--terrain-ink)',fs:9},C2(224,30,'opp'),C2(224,52,'opp'),C2(224,74,'opp'),
+     C2(202,52,'me','M'),C2(202,30,'me','A'),C2(202,74,'me','A'),C2(176,40,'me','B'),C2(160,64,'me','C')],
+  n:'M d’abord socle à socle avec sa cible. Puis les autres : A socle à socle si possible, sinon B à 1" de la cible, sinon C au plus près du modèle de tête, en cohésion. Aucune ne peut finir à 1" d’une unité non déclarée.'},
+ {k:'I', t:'Qui ne peut pas charger', r:'8.7.7 · FLYING · ENGAGED', ok:false, v:'Pas de charge', H:100,
+  p:[C2(80,26,'fly','vol'),{t:'path',pts:[[90,26],[150,26]],ok:false},C2(162,26,'opp'),{t:'cross',x:122,y:26},
+     C2(80,70,'me'),{t:'path',pts:[[90,70],[150,70]],ok:false},C2(162,70,'fly','vol'),{t:'cross',x:122,y:70},{t:'lbl',x:121,y:53,s:'un volant ne charge pas',fs:9,c:'var(--muted)'},{t:'lbl',x:121,y:95,s:'une cible volante est interdite',fs:9,c:'var(--muted)'}],
+  n:'Seule une unité Ground non engagée peut charger, et uniquement des unités Ground. Une unité déjà engagée ne charge pas.'}
+];
+const ENG_LEGEND = `
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--ok)" stroke-width="3"/></svg>Engagées</span>
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--bad)" stroke-width="3" stroke-dasharray="7 5"/></svg>Pas engagées</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--zone)" stroke="var(--zone-line)" stroke-dasharray="4 3"/></svg>Engagement Range (1")</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--fly)"/></svg>Volant</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>
+  <span><svg width="20" height="14"><rect x="1" y="1" width="18" height="12" fill="none" stroke="var(--hint)" stroke-width="2" stroke-dasharray="4 3"/></svg>ACCESS POINT</span>`;
+const CHG_LEGEND = `
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--ok)" stroke-width="3"/></svg>Trajet possible</span>
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--bad)" stroke-width="3" stroke-dasharray="7 5"/></svg>Trajet impossible</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="var(--me)" stroke-width="2" stroke-dasharray="3 3"/></svg>Position de départ ou visée</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (M = modèle de tête)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--zone)" stroke="var(--zone-line)" stroke-dasharray="4 3"/></svg>1" autour du modèle de tête</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>`;
+const RG = (x, y, ok) => ({t:'ring', x, y, ok});
+const ER = (x, y) => ({t:'er', x, y, r:R});
+const L9 = (x, y, s, a) => ({t:'lbl', x, y, s, fs:9, c:'var(--muted)', a});
+const CBT_CASES = [
+ {k:'A', t:'Fighting Rank', r:'8.8.1 · étape 2', ok:true, v:'Frappe', H:100,
+  p:[ER(205,50),C2(205,50,'opp'),RG(171,50,true),C2(171,50,'me','A'),{t:'dim',x1:181,x2:195,y:90,txt:'≤ 1"'}],
+  n:'Une figurine à 1" ou moins d’une figurine ennemie est dans le Fighting Rank : elle frappe. Pas besoin de ligne de vue.'},
+ {k:'B', t:'Supporting Rank', r:'8.8.1 · étape 2', ok:true, v:'Frappe', H:100,
+  p:[ER(215,50),C2(215,50,'opp'),RG(181,50,true),C2(181,50,'me','A'),RG(161,50,true),C2(161,50,'me','B'),L9(161,84,'B touche A')],
+  n:'Une figurine socle à socle avec une figurine amie de la même unité qui est dans le Fighting Rank est dans le Supporting Rank : elle frappe aussi.'},
+ {k:'C', t:'Ni l’un ni l’autre', r:'8.8.1 · étape 2', ok:false, v:'C ne frappe pas', H:100,
+  p:[ER(225,50),C2(225,50,'opp'),RG(191,50,true),C2(191,50,'me','A'),RG(171,50,true),C2(171,50,'me','B'),RG(125,50,false),C2(125,50,'me','C'),L9(125,84,'ni à 1", ni au contact')],
+  n:'C n’est ni à 1" d’un ennemi, ni socle à socle avec A : il ne participe pas à l’attaque (exemple des Zerglings du livre).'},
+ {k:'D', t:'Pas de chaîne de soutien', r:'8.8.1 · étape 2', ok:false, v:'C ne frappe pas', H:100,
+  p:[ER(230,50),C2(230,50,'opp'),RG(196,50,true),C2(196,50,'me','A'),RG(176,50,true),C2(176,50,'me','B'),RG(156,50,false),C2(156,50,'me','C'),L9(156,84,'C touche B, pas A')],
+  n:'Le soutien doit toucher une figurine du Fighting Rank. B est en Supporting Rank, pas en Fighting Rank : C, qui ne touche que B, ne frappe pas.'},
+ {k:'E', t:'Close Ranks : jusqu’à 3"', r:'8.8 · étape 1', ok:true, v:'Avance autorisée', H:100,
+  p:[C2(240,34,'opp','X'),C2(240,58,'opp','X'),C2(206,34,'me','A'),{t:'ghost',x:162,y:66,r:R,s:'me'},{t:'path',pts:[[172,66],[196,66]],ok:true},C2(208,66,'me','M'),{t:'dim',x1:162,x2:208,y:92,txt:'≤ 3"'}],
+  n:'Avant de frapper, l’unité peut avancer son modèle de tête (M) de 3" maximum. Il doit finir plus près de l’unité avec laquelle il est engagé.'},
+ {k:'F', t:'Pas de nouvel engagement', r:'8.8 · étape 1', ok:false, v:'Mouvement interdit', H:100,
+  p:[C2(240,26,'opp','X'),C2(208,26,'me','A'),ER(250,74),C2(250,74,'opp','Y'),{t:'ghost',x:150,y:74,r:R,s:'me'},{t:'path',pts:[[160,74],[214,74]],ok:false},{t:'cross',x:186,y:74},L9(105,40,'Y n’était pas engagée')],
+  n:'Close Ranks ne peut pas engager une unité ennemie qui n’était pas déjà engagée au début de la phase (ici Y). Il ne permet pas non plus de se désengager.'},
+ {k:'G', t:'Les figurines au contact sont bloquées', r:'8.8 · étape 1', ok:false, v:'A ne bouge pas', H:100,
+  p:[C2(220,40,'opp'),C2(220,62,'opp'),C2(200,40,'me','A'),{t:'path',pts:[[188,40],[128,40]],ok:false},{t:'cross',x:160,y:40},L9(150,92,'A est socle à socle : épinglée')],
+  n:'Les figurines déjà socle à socle avec un ennemi au début de cette étape ne sont pas déplacées : elles sont physiquement épinglées.'},
+ {k:'H', t:'Replacer le reste de l’unité', r:'8.8 · étape 1', ok:true, v:'Ordre de placement', H:100,
+  p:[C2(240,28,'opp'),C2(240,50,'opp'),C2(240,72,'opp'),C2(220,50,'me','M'),C2(220,28,'me','1'),C2(220,72,'me','1'),C2(203,39,'me','2'),C2(203,61,'me','2'),L9(130,94,'1 : contact ennemi · 2 : contact ami')],
+  n:'Puis le reste se replace en cohésion : 1) socle à socle avec un ennemi si possible ; 2) sinon socle à socle avec une figurine amie de l’unité qui est à 1" de l’ennemi. Les liens de cohésion peuvent traverser les ennemis engagés.'},
+ {k:'I', t:'Engagé avec plusieurs unités', r:'8.8.1 · étape 4', ok:true, v:'Chacun frappe son voisin', H:100,
+  p:[C2(250,26,'opp','X'),C2(250,78,'opp','Y'),C2(216,26,'me','a'),C2(196,26,'me','c'),C2(216,78,'me','b'),L9(60,30,'a et c frappent X','start'),L9(60,82,'b frappe Y','start')],
+  n:'Une figurine n’attaque que l’unité avec laquelle elle est en Fighting Rank (ou qu’elle soutient). Le dé de Surge va à une seule cible, déclarée avant le jet.'}
+];
+const CBT_LEGEND = `
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--ok)" stroke-width="2.5"/></svg>Frappe</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="4 3"/></svg>Ne frappe pas</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--zone)" stroke="var(--zone-line)" stroke-dasharray="4 3"/></svg>Engagement Range (1")</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="var(--me)" stroke-width="2" stroke-dasharray="3 3"/></svg>Position de départ</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (M = modèle de tête)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie</span>`;
+const X2 = (x, y) => ({t:'cross', x, y});
+const CAS_CASES = [
+ {k:'A', t:'Unité non engagée : seulement les visibles', r:'8.7.4 · étape 5', ok:false, v:'B ne peut pas être retirée', H:100,
+  p:[C2(70,50,'opp'),{t:'rect',x:150,y:52,w:9,h:44,lbl:''},{t:'line',x1:80,y1:47,x2:188,y2:30,ok:true},{t:'line',x1:80,y1:54,x2:150,y2:68,ok:false},RG(200,28,true),C2(200,28,'me','A'),RG(176,76,false),C2(176,76,'me','B')],
+  n:'Contre une unité non engagée, on ne retire que des figurines visibles par l’attaquant. B est derrière le décor : elle ne peut pas être retirée.'},
+ {k:'B', t:'Dégâts en trop : perdus', r:'8.7.4 · étape 5', ok:false, v:'Rien ne passe à B', H:100,
+  p:[C2(70,50,'opp'),{t:'rect',x:150,y:58,w:9,h:40,lbl:''},C2(200,20,'me','A'),X2(200,20),C2(222,40,'me','A'),X2(222,40),C2(176,80,'me','B'),L9(120,22,'4 dégâts, PV 1')],
+  n:'4 dégâts contre des figurines à 1 PV : les 2 visibles (A) sont retirées, les 2 dégâts restants sont perdus. Ils ne passent jamais aux figurines non visibles.'},
+ {k:'C', t:'Pas assez pour tuer : marqueur', r:'8.7.4 · étape 5', ok:true, v:'Marqueur de dégâts', H:100,
+  p:[C2(150,50,'me'),X2(150,50),C2(175,50,'me'),C2(200,50,'me'),{t:'die',x:232,y:50,n:1},L9(175,84,'3 dégâts, PV 2 : 1 retirée, reste 1')],
+  n:'S’il reste des dégâts qui ne suffisent pas à tuer la figurine suivante, on les note avec un marqueur (un D6 posé à côté de l’unité). Ils s’ajoutent à la prochaine attaque.'},
+ {k:'D', t:'Unité engagée : ordre strict', r:'8.7.5', ok:true, v:'1, puis 2, puis 3', H:100,
+  p:[ER(250,50),C2(250,50,'opp'),C2(230,50,'me','3'),C2(224,30,'me','2'),C2(160,50,'me','1'),RG(160,50,true),L9(160,84,'hors de portée d’abord')],
+  n:'1) les figurines à plus de 1" de tout ennemi ; 2) celles à 1" mais pas au contact ; 3) celles socle à socle avec un ennemi, en dernier.'},
+ {k:'E', t:'Engagée : la visibilité ne compte plus', r:'8.7.5', ok:true, v:'Retirée quand même', H:100,
+  p:[ER(250,50),C2(70,50,'opp'),{t:'rect',x:130,y:30,w:9,h:40,lbl:''},RG(155,50,true),C2(155,50,'me','1'),C2(230,50,'me','3'),C2(250,50,'opp'),L9(155,84,'cachée, mais priorité 1')],
+  n:'Quand l’unité est engagée, on ignore les règles de visibilité : la figurine cachée derrière le décor est retirée en premier, car elle est en priorité 1.'},
+ {k:'F', t:'Quelle que soit la source', r:'8.7.5', ok:true, v:'Même ordre au tir', H:100,
+  p:[ER(250,50),C2(70,26,'opp'),{t:'path',pts:[[82,30],[140,46]]},C2(160,50,'me','1'),RG(160,50,true),C2(224,30,'me','2'),C2(230,50,'me','3'),C2(250,50,'opp'),L9(140,84,'un tir sur une unité engagée')],
+  n:'L’ordre s’applique à toutes les pertes d’une unité engagée, tir compris. On ne peut donc pas sacrifier la figurine qui retient l’ennemi pour s’échapper.'},
+ {k:'G', t:'Ne pas casser un engagement', r:'8.7.5 · exemple du livre', ok:false, v:'B protégée', H:100,
+  p:[ER(252,84),C2(234,22,'opp','Z'),C2(234,50,'opp','Z'),C2(252,84,'opp','H'),RG(214,22,true),C2(214,22,'me','A'),RG(214,50,true),C2(214,50,'me','A'),RG(220,84,false),C2(220,84,'me','B'),L9(120,88,'seule B tient H')],
+  n:'B est en priorité 2, mais la retirer romprait l’engagement avec l’unité H. Tant qu’il existe une autre perte valable (ici les A, même en priorité 3), B ne peut pas être choisie.'},
+ {k:'H', t:'Dernière perte valable', r:'8.7.5 · exemple du livre', ok:true, v:'Au choix', H:100,
+  p:[ER(252,84),C2(234,36,'opp','Z'),C2(252,84,'opp','H'),RG(214,36,true),C2(214,36,'me','A'),RG(220,84,true),C2(220,84,'me','B'),L9(120,60,'A tient Z, B tient H')],
+  n:'Quand il ne reste plus d’autre perte valable, le défenseur choisit librement entre le dernier A et B, même si cela rompt un engagement.'},
+ {k:'I', t:'Pertes et cohésion', r:'4.4', ok:true, v:'Reste en cohésion', H:100,
+  p:[C2(90,50,'me','M'),C2(130,50,'me'),X2(130,50),C2(170,50,'me'),X2(170,50),C2(210,50,'me'),{t:'dim',x1:90,x2:210,y:84,txt:'plus de 3"'}],
+  n:'Les pertes, quelle qu’en soit la source, ne déclenchent jamais de test de cohésion et ne rendent jamais une unité hors cohésion. Elle sera vérifiée à son prochain repositionnement.'}
+];
+const CAS_LEGEND = `
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--ok)" stroke-width="2.5"/></svg>Peut être retirée</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="4 3"/></svg>Ne peut pas (encore) être retirée</span>
+  <span><svg width="14" height="14"><path d="M2 2 L12 12 M12 2 L2 12" stroke="var(--bad)" stroke-width="3"/></svg>Retirée</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (chiffre = priorité)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--zone)" stroke="var(--zone-line)" stroke-dasharray="4 3"/></svg>Engagement Range (1")</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor</span>`;
+const SP = (x, y) => ({t:'sring', x, y});
+const TPL_CASES = [
+ {k:'A', t:'Blast Template : placement', r:'8.7.6 · étape 1 · exemple du livre', ok:true, v:'2 Main + 1 Spillover', H:100,
+  p:[C2(70,50,'me'),{t:'bt',x:200,y:50},RG(200,50,true),C2(200,50,'opp','Z'),RG(228,62,true),C2(228,62,'opp','Z'),SP(178,80),C2(178,80,'opp','R'),RG(150,26,false),C2(150,26,'opp','Z'),L9(58,30,'Siege Tank','start')],
+  n:'Le gabarit couvre le plus possible du socle de la figurine visée ; le centre de ce socle est le Target Point. Les Zerglings (Z) couverts forment la Main target ; le Roach (R) d’une autre unité est résolu en Spillover.'},
+ {k:'B', t:'Décaler pour toucher plus', r:'8.7.6 · étape 1', ok:false, v:'Placement interdit', H:100,
+  p:[C2(70,50,'me'),{t:'bt',x:228,y:56},C2(200,50,'opp','Z'),C2(228,62,'opp','Z'),C2(252,40,'opp','Z'),{t:'ghost',x:200,y:50,r:30,s:'me'},L9(170,92,'il doit rester centré sur la cible')],
+  n:'On ne peut pas décaler le gabarit pour attraper plus de figurines : il doit couvrir le plus possible du socle de la figurine visée.'},
+ {k:'C', t:'Couvert en partie = affecté', r:'8.7.6 · étape 3', ok:true, v:'Affectée', H:100,
+  p:[{t:'bt',x:200,y:50},RG(200,50,true),C2(200,50,'opp','Z'),RG(232,30,true),C2(232,30,'opp','Z'),RG(246,78,false),C2(246,78,'opp','Z'),L9(120,88,'un bout de socle suffit')],
+  n:'Une figurine est affectée dès que son socle est couvert, même partiellement. Un socle qui n’est pas touché par le gabarit ne l’est pas.'},
+ {k:'D', t:'Spillover : tes unités aussi', r:'8.7.6 · étape 2', ok:false, v:'Ta figurine est touchée', H:100,
+  p:[C2(70,50,'me'),{t:'bt',x:200,y:50},RG(200,50,true),C2(200,50,'opp','Z'),SP(222,74),C2(222,74,'me','M'),L9(120,88,'figurine amie sous le gabarit')],
+  n:'Toute autre figurine couverte, amie ou ennemie, est résolue en Spillover, à condition d’être au même niveau et d’avoir le même Combat Tag que la cible principale.'},
+ {k:'E', t:'Ligne depuis le socle visé', r:'8.7.6 · étape 3', ok:false, v:'Pas affectée', H:100,
+  p:[{t:'bt',x:186,y:50,r:36},RG(186,50,true),C2(186,50,'opp','Z'),{t:'rect',x:199,y:36,w:5,h:28,lbl:''},RG(218,50,false),C2(218,50,'opp','Z'),{t:'lbl',x:201,y:31,s:'2',fs:9,b:true,mono:true,c:'var(--terrain)'},L9(130,90,'un décor de taille 2+ bloque')],
+  n:'Pour un BT, on trace une ligne du socle de la figurine visée à chaque figurine couverte. Si un décor de taille 2 ou plus la bloque, la figurine n’est pas affectée.'},
+ {k:'F', t:'Volants et autres niveaux', r:'8.7.6 · étapes 1 et 3', ok:false, v:'Pas affecté', H:100,
+  p:[{t:'bt',x:200,y:50},RG(200,50,true),C2(200,50,'opp','Z'),RG(224,72,false),C2(224,72,'fly','vol'),L9(150,92,'gabarit au sol : volant ignoré')],
+  n:'Le gabarit n’affecte que le niveau du Target Point. Les volants ne sont sur aucun niveau : un gabarit au sol ne les touche pas, sauf arme Target ALL ou Flying.'},
+ {k:'G', t:'Flamer Template : placement', r:'8.7.6 · étape 1 · exemple du livre', ok:true, v:'2 affectées', H:100,
+  p:[C2(80,50,'me'),{t:'ft',x:90,y:50,L:120,w0:4,w1:24},RG(170,46,true),C2(170,46,'opp','Z'),RG(198,60,true),C2(198,60,'opp','Z'),RG(150,88,false),C2(150,88,'opp','Z'),L9(80,30,'Firebat')],
+  n:'Le bout étroit du FT est collé au bord du socle du tireur et pointé vers la cible ; le centre du socle visé est le Target Point. Les Zerglings couverts sont la Main target.'},
+ {k:'H', t:'FT : ligne depuis le tireur', r:'8.7.6 · étape 3', ok:false, v:'Bloquée par le décor', H:100,
+  p:[C2(80,50,'me'),{t:'ft',x:90,y:50,L:120,w0:4,w1:24},{t:'rect',x:150,y:38,w:6,h:24,lbl:''},RG(185,50,false),C2(185,50,'opp','Z'),RG(136,62,true),C2(136,62,'opp','Z'),L9(150,92,'décor de taille 2+ dans le cône')],
+  n:'Pour un FT, la ligne part du socle du tireur et traverse le gabarit jusqu’à chaque figurine. Derrière un décor de taille 2 ou plus, la figurine n’est pas affectée.'},
+ {k:'I', t:'Combien de dés ?', r:'8.7.6 · étapes 4 et 5', ok:true, v:'Pas de dé de Surge', H:100,
+  p:[{t:'bt',x:228,y:50,r:34},C2(228,50,'opp','Z'),C2(250,66,'opp','Z'),C2(206,66,'opp','Z'),C2(254,28,'opp','R'),L9(56,40,'Main Z : 3 dés + mod. RoA','start'),L9(56,54,'Surge = 3 (si le tag colle)','start'),L9(56,76,'Spillover R : 1 dé','start'),L9(56,90,'sans mod. RoA, sans Surge','start')],
+  n:'Main target : autant de dés que de figurines affectées, plus les modificateurs de RoA ; pas de dé de Surge, le résultat de Surge vaut le nombre de figurines affectées. Chaque unité en Spillover : un lot séparé, 1 dé par figurine, sans RoA ni Surge.'}
+];
+const TPL_LEGEND = `
+  <span><svg width="22" height="14"><rect width="22" height="14" rx="7" fill="var(--tpl)" fill-opacity=".22" stroke="var(--tpl)" stroke-width="2"/></svg>Gabarit (BT rond, FT en cône)</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--ok)" stroke-width="2.5"/></svg>Affectée (Main target)</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--tpl)" stroke-width="2.5" stroke-dasharray="5 2"/></svg>Affectée en Spillover</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="4 3"/></svg>Pas affectée</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (le tireur)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--fly)"/></svg>Volant</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor</span>`;
+const MK = (x, y, o) => ({t:'mk', x, y, o});
+const CZ = (x, y) => ({t:'cz', x, y});
+const MKR_CASES = [
+ {k:'A', t:'À 3" du marqueur', r:'8.9.1', ok:true, v:'Conteste', H:140, dy:20,
+  p:[CZ(150,50),MK(150,50),RG(214,50,true),C2(214,50,'me','M'),C2(236,50,'me'),{t:'dim',x1:160,x2:204,y:88,txt:'≤ 3"'},L9(250,20,'une seule suffit')],
+  n:'Il faut au moins une figurine de l’unité à 3" ou moins du marqueur. On mesure du bord du socle au bord physique du marqueur, à l’horizontale.'},
+ {k:'B', t:'Trop loin', r:'8.9.1', ok:false, v:'Ne conteste pas', H:140, dy:20,
+  p:[CZ(130,50),MK(130,50),RG(206,50,false),C2(206,50,'me'),{t:'dim',x1:140,x2:196,y:88,txt:'3,5"'}],
+  n:'Si aucune figurine de l’unité n’est à 3" du marqueur, l’unité ne conteste pas, même si elle en est toute proche.'},
+ {k:'C', t:'Ligne de vue vers le marqueur', r:'8.9.1', ok:false, v:'Ne conteste pas', H:140, dy:20,
+  p:[CZ(140,50),MK(140,50),{t:'rect',x:166,y:22,w:7,h:56,lbl:''},{t:'line',x1:150,y1:50,x2:186,y2:50,ok:false},RG(196,50,false),C2(196,50,'me'),L9(170,117,'décor entre la figurine et le marqueur')],
+  n:'La figurine doit voir le marqueur. Pour tracer la ligne de vue, le marqueur compte comme un objet de taille 0 : un décor qui bloque la vue empêche de contester.'},
+ {k:'D', t:'Même niveau que le marqueur', r:'8.9.1', ok:false, v:'Ne conteste pas', H:140, dy:20,
+  s:[{t:'smk',x:130},{t:'block',x:170,w:70,h:1},{t:'mini',x:200,sz:1,s:'me',lv:1}],
+  p:[CZ(130,50),MK(130,50),{t:'rect',x:170,y:14,w:70,h:72,lbl:'1'},RG(196,50,false),C2(196,50,'me')],
+  n:'La figurine doit être au même niveau que le marqueur. Ici, elle est à moins de 3" mais perchée sur un décor : elle ne conteste pas.'},
+ {k:'E', t:'Unité hors cohésion', r:'8.9.1 · 4.4', ok:false, v:'Ne conteste pas', H:140, dy:20,
+  p:[CZ(200,50),MK(200,50),RG(150,50,false),C2(150,50,'me'),RG(72,50,false),C2(72,50,'me','M'),{t:'dim',x1:72,x2:150,y:84,txt:'> 3"'},L9(110,114,'loin du modèle de tête')],
+  n:'L’unité doit être en cohésion. Hors cohésion, elle ne peut ni contester ni contrôler un marqueur, même avec une figurine dessus.'},
+ {k:'F', t:'Jamais pour certaines unités', r:'8.9.1 · FLYING · BURROWED · Réserves', ok:false, v:'Ne conteste pas', H:140, dy:20,
+  p:[CZ(170,50),MK(170,50),RG(208,40,false),C2(208,40,'fly','vol'),L9(170,117,'volant, BURROWED ou en Réserves')],
+  n:'Une unité volante, une unité BURROWED ou une unité en Réserves ne peut jamais contester ni contrôler un marqueur.'},
+ {k:'G', t:'On compte la Supply, pas les figurines', r:'8.9.1 · exemple du livre', ok:false, v:'L’adversaire contrôle', H:140, dy:20,
+  p:[CZ(170,50),MK(170,50),C2(118,40,'me'),C2(118,62,'me'),C2(98,50,'me'),C2(226,50,'opp'),L9(98,114,'Marines : Supply 0'),L9(240,114,'Ravagers : 1')],
+  n:'Chaque joueur additionne la Supply actuelle de toutes ses unités qui contestent. Le plus haut total contrôle : ici 1 contre 0, peu importe le nombre de figurines.'},
+ {k:'H', t:'Égalité', r:'8.9.1', ok:false, v:'Contesté : rien ne change', H:140, dy:20,
+  p:[CZ(170,50),MK(170,50,'me'),C2(118,50,'me'),C2(222,50,'opp'),L9(110,114,'Supply 2'),L9(232,114,'Supply 2')],
+  n:'En cas d’égalité, le marqueur est contesté : il reste à celui qui le tenait déjà (ici toi), ou reste neutre s’il n’a jamais été pris.'},
+ {k:'I', t:'Contrôle collant', r:'8.9.1 · Sticky Control', ok:true, v:'Le marqueur reste à toi', H:140, dy:20,
+  p:[CZ(120,50),MK(120,50,'me'),{t:'ghost',x:170,y:50,r:R,s:'me'},{t:'path',pts:[[180,50],[226,50]]},C2(238,50,'me'),L9(120,114,'pion de faction posé')],
+  n:'Un marqueur contrôlé reste à toi même si tes unités s’en vont, jusqu’à ce que l’adversaire le reprenne en finissant une phase de Score avec une Supply plus élevée. Il ne redevient jamais neutre.'}
+];
+const MKR_LEGEND = `
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--ink)"/><path d="M7 3 L11 7 L7 11 L3 7 Z" fill="var(--surface)"/></svg>Marqueur de mission</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" rx="7" fill="var(--high)" stroke="var(--hint)" stroke-dasharray="5 3"/></svg>3" autour du marqueur</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--me)" stroke-width="4"/></svg>Marqueur que tu contrôles</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--ok)" stroke-width="2.5"/></svg>Conteste</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="4 3"/></svg>Ne conteste pas</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (M = modèle de tête)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>`;
+const ED = (x, s) => ({t:'edge', x1:x, y1:0, x2:x, y2:100, s});
+const GH = (x, y) => ({t:'ghost', x, y, r:R, s:'me'});
+const DEP_CASES = [
+ {k:'A', t:'Entrer par son Entry Edge', r:'8.5.5', ok:true, v:'Deploy', H:100,
+  p:[ED(72,'me'),GH(62,50),{t:'path',pts:[[74,50],[130,50]],ok:true},C2(142,50,'me','M'),{t:'dim',x1:72,x2:152,y:84,txt:'Speed 5"'},L9(78,14,'ton Entry Edge','start')],
+  n:'Le modèle de tête part contre ton Entry Edge, hors de la table, puis avance de sa Speed maximum en suivant les règles normales de Move.'},
+ {k:'B', t:'Le reste de l’unité en cohésion', r:'8.5.5 · 4.4', ok:true, v:'Unité en place', H:100,
+  p:[ED(64,'me'),{t:'reach',x:134,y:50,r:R+48},C2(134,50,'me','M'),C2(112,36,'me'),C2(112,64,'me'),C2(92,50,'me'),L9(200,94,'3" autour de M')],
+  n:'Le modèle de tête entre en premier, puis on place le reste de l’unité en cohésion : chaque figurine entièrement à 3" du modèle de tête, avec un lien valide.'},
+ {k:'C', t:'Supply disponible', r:'8.3.2 · 8.5.5', ok:false, v:'Ne peut pas entrer', H:100,
+  p:[ED(72,'me'),GH(62,50),X2(62,50),L9(90,24,'Supply Pool : 10','start'),L9(90,40,'Unités sur la table : 8','start'),L9(90,56,'Disponible : 10 − 8 = 2','start'),L9(90,80,'Unité à Supply 3 : trop chère','start')],
+  n:'Supply disponible = Supply Pool − Supply totale de tes unités sur la table. Une unité n’entre que si sa Supply actuelle tient dedans. Les pertes et destructions libèrent de la Supply.'},
+ {k:'D', t:'Pas dans la Zone of Influence adverse', r:'8.3.3 · 5.6', ok:false, v:'Arrivée interdite', H:100,
+  p:[{t:'zoi',x:190,y:0,w:96,h:100},ED(286,'opp'),C2(150,50,'me','T'),{t:'path',pts:[[162,50],[214,50]],ok:false},GH(226,50),X2(200,50),L9(238,14,'Zone of Influence'),L9(120,84,'transport, SUMMON…')],
+  n:'Une unité qui arrive de Réserves ne peut pas finir son activation dans la Zone of Influence adverse (6" depuis son Entry Edge). Cela vaut pour toutes les arrivées : bord de table, transport ou SUMMON.'},
+ {k:'E', t:'Juste à la limite', r:'8.3.3', ok:true, v:'Arrivée autorisée', H:100,
+  p:[{t:'zoi',x:190,y:0,w:96,h:100},ED(286,'opp'),C2(178,50,'me','M'),{t:'dim',x1:190,x2:286,y:84,txt:'6"'},L9(238,14,'Zone of Influence')],
+  n:'Ici, toute l’unité finit hors de la zone : l’arrivée est autorisée.'},
+ {k:'F', t:'Déjà sur la table', r:'5.6 · glossaire', ok:true, v:'Mouvement autorisé', H:100,
+  p:[{t:'zoi',x:190,y:0,w:96,h:100},ED(286,'opp'),GH(140,50),{t:'path',pts:[[150,50],[218,50]],ok:true},C2(230,50,'me','M'),L9(140,84,'Move au round suivant')],
+  n:'La Zone of Influence ne gêne pas les unités déjà sur la table : elle ne bloque ni le mouvement, ni la ligne de vue, ni aucune autre règle.'},
+ {k:'G', t:'Entry Edge partiel', r:'5.6 · Zone of Influence Markers', ok:true, v:'Zone délimitée', H:110,
+  p:[{t:'zoi',x:110,y:4,w:120,h:96},{t:'edge',x1:110,y1:4,x2:230,y2:4,s:'opp'},{t:'lmk',x:110,y:4,dx:1},{t:'lmk',x:230,y:4,dx:-1},L9(170,58,'6" depuis le bord'),L9(80,30,'marqueur'),L9(80,42,'en L')],
+  n:'Quand l’Entry Edge ne couvre pas tout le bord de table, on pose des Zone of Influence Markers en L aux coins de l’Entry Edge, exactement comme sur la Deployment Card.'},
+ {k:'H', t:'Impossible de placer l’unité', r:'8.3.3 · 8.5.5', ok:false, v:'Pas de déploiement ici', H:100,
+  p:[ED(64,'me'),{t:'reach',x:150,y:50,r:R+48},{t:'rect',x:100,y:0,w:110,h:37,lbl:'3'},{t:'rect',x:100,y:63,w:110,h:37,lbl:'3'},{t:'rect',x:162,y:37,w:48,h:26,lbl:''},C2(150,50,'me','M'),C2(128,50,'me'),C2(107,50,'me'),GH(80,28),X2(80,28),GH(80,72),X2(80,72),L9(250,46,'plus de place'),L9(250,58,'à 3" de M')],
+  n:'Une unité ne finit jamais un Deploy hors cohésion. Si toutes ses figurines ne peuvent pas être placées légalement en cohésion, elle ne peut pas être déployée à cet endroit.'},
+ {k:'I', t:'Dernier round', r:'8.3.1', ok:true, v:'Supply illimitée', H:100,
+  p:[ED(64,'me'),C2(110,26,'me'),C2(110,50,'me'),C2(110,74,'me'),C2(150,38,'me'),C2(150,62,'me'),L9(220,40,'tout ce qui reste'),L9(220,54,'en Réserves peut entrer')],
+  n:'Au dernier round de la partie (fixé par la Mission Card), le Supply Pool devient illimité : toutes les unités restantes peuvent entrer, toujours en alternant les activations.'}
+];
+const DEP_LEGEND = `
+  <span><svg width="20" height="14"><line x1="4" y1="0" x2="4" y2="14" stroke="var(--me)" stroke-width="5"/></svg>Ton Entry Edge</span>
+  <span><svg width="20" height="14"><line x1="16" y1="0" x2="16" y2="14" stroke="var(--opp)" stroke-width="5"/></svg>Entry Edge adverse</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--opp)" fill-opacity=".13" stroke="var(--opp)" stroke-dasharray="5 3"/></svg>Zone of Influence adverse (6")</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="var(--me)" stroke-width="2" stroke-dasharray="3 3"/></svg>Position de départ ou impossible</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (M = modèle de tête)</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>`;
+const TRAP = [{t:'rect',x:156,y:30,w:32,h:40,lbl:'2'},C2(222,50,'opp'),C2(200,28,'opp'),C2(200,72,'opp')];
+const DIS_CASES = [
+ {k:'A', t:'Sortir de l’Engagement Range', r:'8.5.4', ok:true, v:'Désengagée', H:100,
+  p:[ER(240,36),ER(240,64),C2(240,36,'opp'),C2(240,64,'opp'),GH(218,50),{t:'path',pts:[[206,50],[162,50]],ok:true},C2(150,50,'me','M'),C2(130,36,'me'),C2(130,64,'me')],
+  n:'En phase de Mouvement, une unité engagée peut se désengager : elle fait un Move normal et chaque figurine doit finir strictement hors de l’Engagement Range de toutes les unités ennemies.'},
+ {k:'B', t:'Strictement hors de portée', r:'8.5.4', ok:false, v:'Figurine détruite', H:100,
+  p:[ER(240,50),C2(240,50,'opp'),C2(140,50,'me','M'),C2(204,50,'me'),X2(204,50),{t:'dim',x1:214,x2:230,y:84,txt:'1"'},L9(150,84,'pile à 1" : pas assez')],
+  n:'Une figurine qui finit à exactement 1" est encore dans l’Engagement Range : elle est retirée et compte comme détruite.'},
+ {k:'C', t:'Une figurine coincée', r:'8.5.4', ok:false, v:'Elle seule est détruite', H:110,
+  p:[...TRAP,C2(200,50,'me','a'),X2(200,50),GH(230,92),{t:'path',pts:[[218,92],[132,92]],ok:true},C2(120,92,'me','M'),C2(100,80,'me'),L9(100,20,'a ne peut pas sortir')],
+  n:'Une figurine qui ne peut pas finir hors de portée (bloquée par les ennemis et le décor) est retirée et détruite. Les autres, sorties, ne sont pas affectées : l’unité continue.'},
+ {k:'D', t:'Le modèle de tête coincé', r:'8.5.4', ok:false, v:'Disengage ratée', H:110,
+  p:[...TRAP,C2(200,50,'me','M'),X2(200,50),C2(232,90,'me'),C2(212,94,'me'),L9(100,20,'M ne peut pas sortir'),L9(100,94,'l’unité ne bouge pas')],
+  n:'Si le modèle de tête lui-même ne peut pas sortir de l’Engagement Range, le Disengage échoue : l’unité ne bouge pas, le modèle de tête est retiré, et l’activation se termine.'},
+ {k:'E', t:'La pénalité', r:'8.5.4', ok:false, v:'Pas de tir ni de charge', H:100,
+  p:[C2(90,50,'me','M'),L9(120,32,'Phase d’Assaut suivante :','start'),L9(130,54,'✕ Ranged Attack','start'),L9(130,72,'✕ Charge','start')],
+  n:'Une unité qui s’est désengagée ne peut ni faire de Ranged Attack, ni Charger pendant la phase d’Assaut qui suit… sauf si elle a la Tactical Mass.'},
+ {k:'F', t:'Tactical Mass', r:'8.5.4 · glossaire', ok:true, v:'Pas de pénalité', H:100,
+  p:[C2(196,38,'me','M'),C2(196,62,'me'),C2(176,50,'me'),C2(218,38,'opp'),C2(218,62,'opp'),L9(150,90,'Toi : Supply 4'),L9(240,90,'Lui : 3')],
+  n:'Si, au moment où le Disengage est déclaré, la Supply actuelle de ton unité dépasse la Supply cumulée de toutes les unités ennemies engagées avec elle, tu ignores la pénalité.'},
+ {k:'G', t:'On cumule tous les ennemis', r:'8.5.4 · glossaire', ok:false, v:'Pénalité', H:100,
+  p:[C2(196,26,'me','M'),C2(196,74,'me'),C2(178,50,'me'),C2(218,26,'opp','X'),C2(218,74,'opp','Y'),L9(140,94,'Toi : Supply 4'),L9(240,50,'X 2 + Y 3 = 5')],
+  n:'On additionne la Supply de toutes les unités ennemies avec lesquelles ton unité est engagée : ici 4 contre 2 + 3 = 5, la pénalité s’applique.'},
+ {k:'H', t:'Égalité', r:'8.5.4 · glossaire', ok:false, v:'Pénalité', H:100,
+  p:[C2(196,38,'me','M'),C2(196,62,'me'),C2(218,38,'opp'),C2(218,62,'opp'),L9(150,90,'Toi : Supply 3'),L9(240,90,'Lui : 3')],
+  n:'Il faut dépasser strictement : à égalité, pas de Tactical Mass, la pénalité s’applique.'},
+ {k:'I', t:'Unités BURROWED', r:'BURROWED', ok:true, v:'Compte pour 0', H:100,
+  p:[C2(196,50,'me','M'),C2(176,50,'me'),C2(218,50,'opp','B'),L9(150,90,'Toi : Supply 1'),L9(240,90,'B : 4 → 0'),L9(240,24,'BURROWED')],
+  n:'Une unité BURROWED compte une Supply de 0 pour les tests de Disengage. Ici, 1 contre 0 : Tactical Mass. Une unité BURROWED qui se désengage compte elle aussi 0.'}
+];
+const DIS_LEGEND = `
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--ok)" stroke-width="3"/></svg>Mouvement</span>
+  <span><svg width="14" height="14"><path d="M2 2 L12 12 M12 2 L2 12" stroke="var(--bad)" stroke-width="3"/></svg>Figurine retirée (détruite)</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--zone)" stroke="var(--zone-line)" stroke-dasharray="4 3"/></svg>Engagement Range (1")</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="var(--me)" stroke-width="2" stroke-dasharray="3 3"/></svg>Position de départ</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (M = modèle de tête)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>`;
+const RC = (x, y, w, h, lbl) => ({t:'rect', x, y, w, h, lbl});
+const MOV_CASES = [
+ {k:'A', t:'Le modèle de tête mesure son vrai trajet', r:'8.5.3 · étape 1', ok:true, v:'Move', H:100,
+  p:[RC(124,14,10,62,'2'),GH(76,40),{t:'path',pts:[[86,44],[118,88],[146,88],[176,56]],ok:true},C2(186,50,'me','M'),L9(240,88,'trajet ≤ Speed')],
+  n:'Le modèle de tête avance jusqu’à la Speed de l’unité, mesurée le long du trajet réel. Aucune partie de son socle ne peut parcourir plus que la Speed.'},
+ {k:'B', t:'Traverser des figurines', r:'8.5.3 · étape 1', ok:true, v:'Seulement sa propre unité', H:100,
+  p:[GH(76,28),{t:'path',pts:[[86,28],[178,28]],ok:true},C2(124,28,'me'),C2(190,28,'me','M'),GH(76,74),{t:'path',pts:[[86,74],[110,74]],ok:false},C2(124,74,'me','u'),X2(100,74),L9(124,52,'même unité : OK'),L9(212,78,'u : autre unité')],
+  n:'Le modèle de tête peut traverser les figurines de sa propre unité, mais pas les ennemis ni les figurines d’autres unités amies. Ground et Flying se traversent mutuellement.'},
+ {k:'C', t:'Taille du décor', r:'8.5.3 · Terrain interactions', ok:true, v:'Taille 0–1 : on passe', H:100,
+  p:[RC(120,6,20,40,''),{t:'lbl',x:130,y:43,s:'1',c:'var(--terrain-ink)',b:true,mono:true},GH(76,28),{t:'path',pts:[[86,28],[178,28]],ok:true},C2(190,28,'me','M'),RC(120,58,20,36,'2'),GH(76,76),{t:'path',pts:[[86,76],[114,76]],ok:false},X2(100,76),L9(220,80,'2+ : infranchissable')],
+  n:'Décor de taille 0 ou 1 : on le traverse librement, sans pouvoir finir dessus. Taille 2 ou plus : on ne passe pas à travers (sauf GRASS, voir H).'},
+ {k:'D', t:'Gap Clearance : petites unités', r:'4.6', ok:true, v:'Passe', H:100,
+  p:[RC(124,0,28,34,'2'),RC(124,66,28,34,'2'),GH(80,50),{t:'path',pts:[[90,50],[178,50]],ok:true},C2(190,50,'me','M'),L9(138,63,'2"'),L9(56,16,'Size 1–2 : 1" suffit','start')],
+  n:'Une unité de Size 2 ou moins passe dans un passage d’au moins 1" de large. Ici le passage fait 2" : ça passe.'},
+ {k:'E', t:'Gap Clearance : grosses unités', r:'4.6', ok:false, v:'Ne passe pas', H:100,
+  p:[RC(124,0,28,34,'2'),RC(124,66,28,34,'2'),{t:'ghost',x:84,y:50,r:16,s:'me'},{t:'base',x:84,y:50,r:16,s:'me',lbl:'S3'},{t:'path',pts:[[102,50],[118,50]],ok:false},X2(138,50),L9(200,90,'Size 3+ : il faut 3"')],
+  n:'Une unité de Size 3 ou plus a besoin d’un passage d’au moins 3". Un passage de 2" la bloque, même si son socle y rentrerait. Cela vaut pour Move, Run, Charge, Disengage et Close Ranks.'},
+ {k:'F', t:'Changer de niveau', r:'8.5.3 · ACCESS POINT', ok:true, v:'Par l’ACCESS POINT', H:100,
+  s:[{t:'block',x:160,w:90,h:1,access:162},{t:'mini',x:100,sz:1,s:'me'},{t:'mini',x:210,sz:1,s:'me',lv:1}],
+  p:[RC(160,14,90,72,'1'),{t:'access',x:155,y:38,w:10,h:24},GH(100,50),{t:'path',pts:[[110,50],[198,50]],ok:true},C2(210,50,'me','M')],
+  n:'Une figurine ne change de niveau qu’en passant par un ACCESS POINT (échelle, porte, rampe…). Sans ACCESS POINT, elle ne monte pas sur le décor.'},
+ {k:'G', t:'Les autres figurines sont posées', r:'8.5.3 · étape 2', ok:true, v:'Posées, pas déplacées', H:100,
+  p:[RC(130,0,12,100,''),{t:'lbl',x:136,y:90,s:'3',c:'var(--terrain-ink)',b:true,mono:true},GH(76,34),GH(76,66),{t:'path',pts:[[88,34],[176,34]]},{t:'path',pts:[[88,66],[176,66]]},C2(208,50,'me','M'),C2(188,34,'me'),C2(188,66,'me')],
+  n:'Après le modèle de tête, on prend les autres figurines et on les pose en cohésion autour de lui. Elles ignorent les obstacles, mais doivent finir en position légale : pas de chevauchement, sur la table, pas à 1" d’un ennemi.'},
+ {k:'H', t:'GRASS', r:'8.5.3 · glossaire GRASS', ok:true, v:'Passe, mais la détruit', H:100,
+  p:[{t:'grass',x:118,y:16,w:48,h:68},GH(76,50),{t:'path',pts:[[86,50],[178,50]],ok:true},C2(190,50,'me','M'),L9(142,96,'retirée du jeu')],
+  n:'GRASS (taille 2) bloque la vue mais pas le mouvement. Si le modèle de tête la traverse, ou si une figurine finit dessus, elle est retirée du jeu pour le reste de la partie.'},
+ {k:'I', t:'Les volants', r:'8.5.3 · 4.6', ok:true, v:'Point à point', H:100,
+  p:[RC(124,0,14,100,''),{t:'lbl',x:131,y:90,s:'3',c:'var(--terrain-ink)',b:true,mono:true},GH(76,50),{t:'path',pts:[[86,50],[178,50]],ok:true},C2(190,50,'fly','vol'),L9(230,90,'ignore le décor')],
+  n:'Un volant va d’un point à un autre en ignorant décor, figurines et Gap Clearance, mais doit finir en position légale et à au moins 1" des volants ennemis. Survoler une GRASS ne la détruit pas ; finir dessus, si.'}
+];
+const MOV_LEGEND = `
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--ok)" stroke-width="3"/></svg>Trajet possible</span>
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--bad)" stroke-width="3" stroke-dasharray="7 5"/></svg>Trajet impossible</span>
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--muted)" stroke-width="3"/></svg>Figurine posée</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="var(--me)" stroke-width="2" stroke-dasharray="3 3"/></svg>Position de départ</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (M = modèle de tête)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--fly)"/></svg>Volant</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" rx="4" fill="var(--hint)" fill-opacity=".35" stroke="var(--hint)"/></svg>GRASS</span>
+  <span><svg width="20" height="14"><rect x="1" y="1" width="18" height="12" fill="none" stroke="var(--hint)" stroke-width="2" stroke-dasharray="4 3"/></svg>ACCESS POINT</span>`;
+const MI = (x, sz, s, o) => Object.assign({t:'mini', x, sz, s}, o || {});
+const BK = (x, w, h, o) => Object.assign({t:'block', x, w, h}, o || {});
+const TX = (x, y, s, a) => ({t:'txt', x, y, s, a});
+const LN = (x1, y1, x2, y2, ok) => ({t:'line', x1, y1, x2, y2, ok});
+const LOS_CASES = [
+ {k:'A', t:'Rien sur la ligne', r:'7.1', ok:true, v:'Visible',
+  s:[MI(80,2,'me'),MI(250,2,'opp')],
+  p:[C2(80,38,'me'),C2(250,38,'opp'),LN(90,38,240,38,true)],
+  n:'On trace une ligne droite, vue de dessus, de n’importe quel point du socle du tireur à n’importe quel point du socle de la cible. Si elle ne traverse aucun décor bloquant, la cible est visible.'},
+ {k:'B', t:'Full Cover', r:'7.1.1 · exemple du livre', ok:false, v:'Pas visible',
+  s:[MI(80,2,'me'),BK(160,14,2),MI(250,2,'opp'),TX(210,24,'mur 2 ≥ 2 et 2')],
+  p:[C2(80,38,'me'),RC(160,8,14,60,''),{t:'lbl',x:167,y:62,s:'2',c:'var(--terrain-ink)',b:true,mono:true},C2(250,38,'opp'),LN(90,38,240,38,false)],
+  n:'Le décor bloque si sa taille effective est au moins égale à celle du tireur ET de la cible (ici Marauder 2 et Roach 2 contre un mur de taille 2). Aucun des deux ne voit l’autre.'},
+ {k:'C', t:'Plus grand que le décor', r:'7.1.1 · exemple du livre', ok:true, v:'Visible',
+  s:[MI(80,3,'me'),BK(160,14,2),MI(250,2,'opp'),TX(210,24,'Goliath 3 > mur 2')],
+  p:[C2(80,38,'me'),RC(160,8,14,60,''),{t:'lbl',x:167,y:62,s:'2',c:'var(--terrain-ink)',b:true,mono:true},C2(250,38,'opp'),LN(90,38,240,38,true)],
+  n:'Le Goliath (taille 3) est plus grand que le mur (taille 2) : pas de Full Cover. S’il n’y a pas de Direct Cover, la ligne de vue passe, dans les deux sens.'},
+ {k:'D', t:'Direct Cover', r:'7.1.1 · exemple du livre', ok:false, v:'Pas visible',
+  s:[MI(80,3,'me'),{t:'zone',x:222,w:IN},BK(210,12,2),MI(244,2,'opp'),{t:'dim',x1:222,x2:238,y:28,txt:'1"'}],
+  p:[C2(80,38,'me'),RC(210,8,12,60,''),{t:'lbl',x:216,y:62,s:'2',c:'var(--terrain-ink)',b:true,mono:true},C2(244,38,'opp'),LN(90,38,234,38,false)],
+  n:'Si la ligne traverse un décor et que l’un des deux modèles est à 1" de ce décor, elle est bloquée quand ce décor est au moins aussi grand que ce modèle. Ici le Marine (2) est collé au mur (2).'},
+ {k:'E', t:'Close Quarters', r:'7.1.1 · exemple du livre', ok:true, v:'Visible',
+  s:[{t:'zone',x:144,w:IN},{t:'zone',x:170,w:IN},MI(146,3,'me'),BK(160,10,2),MI(182,2,'opp'),TX(240,24,'à 1" du même mur')],
+  p:[C2(146,38,'me'),RC(160,8,10,60,''),{t:'lbl',x:165,y:62,s:'2',c:'var(--terrain-ink)',b:true,mono:true},C2(182,38,'opp'),LN(156,38,172,38,true),L9(240,64,'et à 3" l’un de l’autre')],
+  n:'Si les deux modèles sont à 1" du même décor ET à 3" l’un de l’autre, on ignore Direct Cover, Elevation et Dead Zone : ligne de vue normale. Ici le Goliath voit le Roach.'},
+ {k:'F', t:'Taille effective en hauteur', r:'7.1.2', ok:true, v:'Visible', st:-6,
+  s:[BK(58,64,3),MI(90,2,'me',{lv:3}),BK(176,12,4),MI(250,2,'opp'),TX(250,10,'Marine 2 + 3 = 5')],
+  p:[RC(58,8,64,60,''),{t:'lbl',x:90,y:62,s:'3',c:'var(--terrain-ink)',b:true,mono:true},C2(90,38,'me'),RC(176,8,12,60,''),{t:'lbl',x:182,y:62,s:'4',c:'var(--terrain-ink)',b:true,mono:true},C2(250,38,'opp'),LN(100,38,240,38,true)],
+  n:'Sur un décor, la taille effective = taille du modèle + taille du décor. Le Marine (2) sur un HIGH GROUND (3) a une taille effective de 5 : il voit par-dessus un mur de taille 4.'},
+ {k:'G', t:'Elevation Dead Zone', r:'7.1.1 · exemple du livre', ok:false, v:'Pas visible',
+  s:[BK(58,102,3),MI(75,2,'me',{lv:3}),{t:'zone',x:160,w:IN},MI(176,1,'opp'),TX(240,24,'pied du décor')],
+  p:[RC(58,8,102,60,''),{t:'lbl',x:109,y:62,s:'3',c:'var(--terrain-ink)',b:true,mono:true},C2(75,38,'me'),C2(176,38,'opp'),LN(85,38,166,38,false),L9(230,64,'plus de 3" entre eux')],
+  n:'Un modèle sur HIGH GROUND (3+) ne voit pas un modèle au sol qui est à 1" du pied du même décor, et inversement, sauf s’ils sont à 3" l’un de l’autre (Close Quarters).'},
+ {k:'H', t:'Les décors ne s’additionnent pas', r:'7.1.1', ok:true, v:'Visible',
+  s:[MI(80,2,'me'),BK(140,12,1),BK(196,12,1),MI(250,2,'opp'),TX(170,24,'1 + 1 ne fait pas 2')],
+  p:[C2(80,38,'me'),RC(140,8,12,60,''),{t:'lbl',x:146,y:62,s:'1',c:'var(--terrain-ink)',b:true,mono:true},RC(196,8,12,60,''),{t:'lbl',x:202,y:62,s:'1',c:'var(--terrain-ink)',b:true,mono:true},C2(250,38,'opp'),LN(90,38,240,38,true)],
+  n:'Chaque décor est évalué seul : on n’additionne ni les tailles ni les proximités. Si aucun décor ne bloque à lui seul, la ligne de vue passe.'},
+ {k:'I', t:'Les volants', r:'7.1.4', ok:true, v:'Visible',
+  s:[MI(80,2,'me'),BK(160,14,3),MI(250,2,'fly',{fly:true})],
+  p:[C2(80,38,'me'),RC(160,8,14,60,''),{t:'lbl',x:167,y:62,s:'3',c:'var(--terrain-ink)',b:true,mono:true},C2(250,38,'fly','vol'),LN(90,38,240,38,true)],
+  n:'Contre un volant, on ignore Full Cover, et un volant ne reçoit jamais de Direct Cover. Il subit quand même le Direct Cover ou la Dead Zone qui s’applique à l’autre modèle.'}
+];
+const LOS_LEGEND = `
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--ok)" stroke-width="3"/></svg>Ligne de vue</span>
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--bad)" stroke-width="3" stroke-dasharray="7 5"/></svg>Ligne bloquée</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--zone)" stroke="var(--zone-line)" stroke-dasharray="4 3"/></svg>1" autour du décor</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Tireur</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Cible</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--fly)"/></svg>Volant</span>
+  <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>
+  <span>Figurine de côté : chiffre = taille</span>`;
+const SHEETS = [
+ {id:'engagement', name:'Engagement', ok:true, ref:'Livre de règles · 7.2 et 7.2.1 · glossaire ENGAGED', yes:'Engagées', no:'Pas engagées',
+  lead:'Deux figurines ennemies sont engagées quand l’une est à 1" (Engagement Range) de l’autre, mesuré à l’horizontale, vue de dessus. Les cases suivantes montrent quand c’est vrai… et quand ça ne l’est pas.',
+  legend:ENG_LEGEND, cases:ENG_CASES,
+  cons:['Ce que ça change pour une unité engagée',[
+   ['Elle ne peut pas faire de Move normal : en phase de Mouvement, c’est <b>Disengage</b> ou <b>Hold</b>.','En phase d’Assaut, elle ne peut viser au tir que les unités avec lesquelles elle est engagée (pas d’arme BULKY).'],
+   ['Une unité non engagée ne peut pas tirer sur une unité engagée (sauf PINPOINT).','Une cible engagée qui subit un tir peut faire un jet d’Evade.'],
+   ['En phase de Combat, elle doit obligatoirement attaquer.','Sauf mention contraire, aucun mouvement ni PLACE ne peut finir à 1" d’une figurine ennemie : seule la Charge y amène.']]]},
+ {id:'charge', name:'Charge', ok:true, ref:'Livre de règles · 8.7.7 · Quick Reference 12.4', yes:'', no:'',
+  lead:'En phase d’Assaut, une unité Ground non engagée se déplace dans l’Engagement Range d’unités ennemies. Toutes les vues sont de dessus, comme sur la table.',
+  legend:CHG_LEGEND, cases:CHG_CASES,
+  cons:['La séquence complète',[
+   ['<b>1. Déclarer</b> toutes les cibles (unités Ground), sans besoin de ligne de vue.','<b>2. Choisir</b> le modèle de tête et une figurine cible par unité visée.'],
+   ['<b>3. Lancer</b> 1D6 + Speed : distance mesurée sur le trajet réel.','<b>4. Vérifier</b> : entièrement dans la distance, à 1" de chaque cible, sans chevauchement, pas à 1" d’une unité non déclarée.'],
+   ['<b>5. Placer</b> le modèle de tête puis le reste (socle à socle → à 1" → cohésion).','<b>Échec</b> : l’unité ne bouge pas, activation terminée. <b>Réussite</b> : résoudre IMPACT si l’unité a DEVASTATING CHARGE.']]]},
+ {id:'combat', name:'Rangs de combat', ok:true, ref:'Livre de règles · 8.8 et 8.8.1 · Quick Reference', yes:'', no:'',
+  lead:'En phase de Combat, chaque unité engagée peut d’abord resserrer les rangs (Close Ranks), puis seules certaines figurines frappent : celles du Fighting Rank et du Supporting Rank. Toutes les vues sont de dessus.',
+  legend:CBT_LEGEND, cases:CBT_CASES,
+  cons:['Le déroulé de la phase de Combat',[
+   ['Toute unité engagée <b>doit</b> être activée ; les joueurs alternent, le premier joueur choisit qui commence.','<b>1. Close Ranks</b> (optionnel), <b>2. désigner les attaquants</b>, sans ligne de vue.'],
+   ['<b>3. Lancer</b> comme au tir, avec les seules armes de phase de Combat (une au choix si plusieurs). Pas d’Evade, sauf capacité qui l’accorde.','<b>4. Plusieurs unités</b> : chaque figurine frappe son voisin ; le dé de Surge ne se partage pas. <b>5. Pertes</b> : règles des unités engagées.'],
+   ['<b>6. Après</b> : plus aucune figurine à 1" → l’unité est désengagée ; si elle n’avait pas encore été activée, elle passe.','Les volants ne sont jamais engagés. Une unité BURROWED engagée ne frappe que si elle fait Close Ranks, ce qui retire BURROWED.']]]},
+ {id:'pertes', name:'Retrait des pertes', ok:true, ref:'Livre de règles · 8.7.4 étape 5 · 8.7.5 · Quick Reference 12.7', yes:'', no:'',
+  lead:'C’est le défenseur qui retire ses figurines, une par une. Les règles changent selon que l’unité touchée est engagée ou non. Toutes les vues sont de dessus ; ici, l’unité qui subit les pertes est la tienne (en bleu).',
+  legend:CAS_LEGEND, cases:CAS_CASES,
+  cons:['En résumé',[
+   ['<b>Non engagée</b> : uniquement des figurines visibles par l’attaquant.','Tant que le total de dégâts atteint les PV d’une figurine, on en retire une et on soustrait ses PV.'],
+   ['Toutes les visibles détruites → le reste est perdu. Pas assez pour tuer → <b>marqueur de dégâts</b>.','<b>Engagée</b> : on ignore la visibilité ; ordre strict 1 → 2 → 3.'],
+   ['On ne retire pas une figurine qui romprait l’engagement avec une unité ennemie, s’il existe une autre perte valable.','Les pertes ne provoquent jamais de test de cohésion.']]]},
+ {id:'gabarits', name:'Gabarits BT et FT', ok:true, ref:'Livre de règles · 8.7.6 · Quick Reference 12.8', yes:'', no:'',
+  lead:'Les armes à gabarit (Blast Template, BT, et Flamer Template, FT) touchent toutes les figurines dont le socle est couvert. Les gabarits sont dessinés schématiquement : utilise toujours le gabarit physique. Toutes les vues sont de dessus.',
+  legend:TPL_LEGEND, cases:TPL_CASES,
+  cons:['La séquence complète',[
+   ['<b>1. Aligner</b> : BT au maximum sur le socle visé ; FT collé au socle du tireur, pointé vers la cible.','<b>2. Déclarer</b> la cible principale ; toute autre figurine couverte, de même niveau et même Combat Tag, part en Spillover.'],
+   ['<b>3. Affectées</b> : socle couvert (même en partie), même niveau que le Target Point, ligne non bloquée par un décor de taille 2+, type de cible valide.','<b>4. Dés</b> : Main = figurines affectées + modificateurs de RoA ; Spillover = figurines affectées de l’unité, sans modificateur.'],
+   ['<b>5. Résoudre</b> : jet pour toucher normal ; pas de dé de Surge, Surge = figurines affectées de la Main target si le tag colle.','Le Spillover n’a jamais de Surge, et chaque unité touchée est un lot séparé.']]]},
+ {id:'marqueurs', name:'Contrôle des marqueurs', ok:true, ref:'Livre de règles · 8.9.1 · glossaire', yes:'', no:'',
+  lead:'Pendant la phase de Score, on regarde qui contrôle chaque marqueur de mission. On compte la Supply actuelle des unités qui le contestent, pas le nombre de figurines. Toutes les vues sont de dessus, sauf mention.',
+  legend:MKR_LEGEND, cases:MKR_CASES,
+  cons:['En résumé',[
+   ['<b>Pour contester</b>, une unité doit être sur la table (pas en Réserves) et en cohésion.','Il lui faut aussi au moins une figurine à 3" du marqueur, qui le voit (marqueur de taille 0) et au même niveau que lui.'],
+   ['<b>Calcul</b> : chaque joueur additionne la Supply actuelle de ses unités qui contestent ; le plus haut total contrôle.','<b>Égalité</b> : contesté, aucun changement. Une unité à Supply 0 contrôle quand même si personne ne conteste.'],
+   ['<b>Contrôle collant</b> : on pose un pion de faction ; le marqueur reste à toi jusqu’à ce que l’adversaire le reprenne.','Volants et unités BURROWED ne contestent et ne contrôlent jamais.']]]},
+ {id:'deploiement', name:'Déploiement et Zone of Influence', ok:true, ref:'Livre de règles · 8.3 · 8.5.5 · 5.6 · glossaire', yes:'', no:'',
+  lead:'Aucune unité ne commence sur la table : tout part des Réserves et entre pendant la phase de Mouvement par l’action Deploy, si la Supply le permet. Toutes les vues sont de dessus ; la largeur de table n’est pas à l’échelle.',
+  legend:DEP_LEGEND, cases:DEP_CASES,
+  cons:['L’action Deploy',[
+   ['<b>1. Supply</b> : la Supply actuelle de l’unité doit tenir dans la Supply disponible (Pool − unités sur la table).','<b>2. Entrée</b> : modèle de tête contre ton Entry Edge, hors table, puis Move jusqu’à sa Speed.'],
+   ['<b>3. Cohésion</b> : le reste de l’unité est placé en cohésion ; sinon, pas de déploiement à cet endroit.','<b>4. Zone of Influence</b> : l’unité ne peut pas finir son activation dans celle de l’adversaire (6" depuis son Entry Edge).'],
+   ['La restriction vaut pour toute arrivée (bord, transport, SUMMON), mais jamais pour les unités déjà sur la table.','Round 1 : Pool = Supply de départ de la Mission Card ; puis + Escalation chaque round ; dernier round : illimité.']]]},
+ {id:'disengage', name:'Disengage et Tactical Mass', ok:true, ref:'Livre de règles · 8.5.4 · glossaire TACTICAL MASS, BURROWED', yes:'', no:'',
+  lead:'En phase de Mouvement, une unité engagée ne peut pas faire de Move normal : elle peut se désengager (Disengage) ou rester (Hold). Se désengager coûte cher, sauf si l’unité a la Tactical Mass. Toutes les vues sont de dessus.',
+  legend:DIS_LEGEND, cases:DIS_CASES,
+  cons:['En résumé',[
+   ['<b>1. Move normal</b> (règles de Move standard).','<b>2.</b> Chaque figurine qui ne finit pas <b>strictement</b> hors de l’Engagement Range de tous les ennemis est détruite.'],
+   ['<b>3.</b> Si c’est le modèle de tête : échec, l’unité ne bouge pas, il est retiré, fin de l’activation.','<b>Pénalité</b> : ni Ranged Attack ni Charge à la phase d’Assaut suivante.'],
+   ['<b>Tactical Mass</b> : Supply actuelle &gt; Supply cumulée de tous les ennemis engagés, au moment de la déclaration → pas de pénalité.','Une unité BURROWED compte 0 Supply pour ces tests.']]]},
+ {id:'mouvement', name:'Mouvement', ok:true, ref:'Livre de règles · 8.5.3 · 4.6 · glossaire GRASS, ACCESS POINT', yes:'', no:'',
+  lead:'Ces règles servent pour tout déplacement « normal » : Move, Deploy, Run, et en partie Charge, Disengage et Close Ranks. On bouge d’abord le modèle de tête, puis on pose le reste de l’unité. Vues de dessus, sauf mention.',
+  legend:MOV_LEGEND, cases:MOV_CASES,
+  cons:['Le modèle de tête ne peut pas…',[
+   ['…dépasser la Speed (trajet réel, aucune partie du socle plus loin).','…traverser des ennemis ou une autre unité amie, ni un décor de taille 2+ (sauf GRASS).'],
+   ['…passer un passage trop étroit (1" pour Size ≤ 2, 3" pour Size 3+).','…changer de niveau sans ACCESS POINT.'],
+   ['…finir sur un décor (son emprise), sur un autre socle, ou en partie hors de la table.','…finir à 1" d’une unité ennemie Ground (sauf Charge).']]]},
+ {id:'ldv', name:'Ligne de vue et couvert', ok:true, ref:'Livre de règles · 7.1 à 7.1.4', yes:'', no:'',
+  lead:'La ligne de vue se trace vue de dessus (2D), mais on compare les tailles : celle du tireur, de la cible et du décor traversé. La vue de côté sert seulement à visualiser les tailles.',
+  legend:LOS_LEGEND, cases:LOS_CASES,
+  cons:['La méthode',[
+   ['<b>1.</b> Tracer une ligne d’un socle à l’autre, vue de dessus. Aucun décor de taille 1+ traversé → visible.','<b>2. Full Cover</b> : un décor ≥ taille effective du tireur ET de la cible bloque.'],
+   ['<b>3. Direct Cover</b> : un modèle à 1" du décor traversé, avec un décor ≥ sa taille → bloqué.','<b>4. Close Quarters</b> : à 1" du même décor et à 3" l’un de l’autre → ligne de vue normale.'],
+   ['<b>Taille effective</b> = taille + taille du décor sur lequel on se tient. <b>Dead Zone</b> : HIGH GROUND contre modèle au pied du même décor.','<b>HIGH GROUND Cover</b> : une unité entièrement sur HIGH GROUND a un jet d’Evade contre les tirs venant d’en bas (jamais pour les volants).']]]}
+];
+let cur = (() => { try { return localStorage.getItem('planche') || 'ldv'; } catch(e){ return 'ldv'; } })();
+function renderSheets(){
+  const sh = SHEETS.find(x => x.id === cur) || SHEETS[0];
+  document.getElementById('nav').innerHTML = SHEETS.map((x, i) => `<button data-sh="${x.id}" class="${x.id === sh.id ? 'on' : ''}">${i + 1}. ${esc(x.name)}<span class="st ${x.ok ? '' : 'draft'}">${x.ok ? '✓ validée' : 'brouillon'}</span></button>`).join('');
+  document.getElementById('sheets').innerHTML = `<section class="sheet" id="${sh.id}">
+    <header><h2>${esc(sh.name)}</h2><span class="ref">${esc(sh.ref)}</span></header>
+    <p class="lead">${esc(sh.lead)}</p><div class="legend">${sh.legend}</div>
+    <div class="grid">${sh.cases.map(c => `<article class="case">
+      <div class="hd"><span class="lt">${c.k}</span><div><h3>${esc(c.t)}</h3><span class="rule">${esc(c.r)}</span></div></div>
+      <span class="verdict ${c.ok ? 'ok' : 'bad'}">${c.ok ? '✓' : '✕'} ${esc(c.v || (c.ok ? sh.yes : sh.no))}</span>
+      ${c.s ? `<span class="vw">Vue de côté</span>${side(c.s, c.st)}` : ''}
+      <span class="vw">Vue de dessus</span>${topv(c.p, c.H, c.dy)}
+      <p class="note">${esc(c.n)}</p></article>`).join('')}</div>
+    <div class="cons"><h3>${esc(sh.cons[0])}</h3>${sh.cons[1].map(col => `<ul>${col.map(li => `<li>${li}</li>`).join('')}</ul>`).join('')}</div></section>
+    <p class="status">Planche ${SHEETS.indexOf(sh) + 1} — ${sh.ok ? 'validée' : 'brouillon à valider'}.</p>`;
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-sh]'); if (!b) return; cur = b.dataset.sh; try { localStorage.setItem('planche', cur); } catch(e){} renderSheets(); window.scrollTo({top:0}); });
+renderSheets();
+</script>
+</body></html>

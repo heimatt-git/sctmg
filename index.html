@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SC:TMG – Outils de jeu</title>
+<meta name="description" content="Builder de listes, aide de jeu et règles illustrées pour StarCraft: Tabletop Miniatures Game.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#e9edf1; --surface:#ffffff; --sunk:#f3f5f8; --ink:#141c25; --muted:#586574; --line:#d0d8e1;
+  --accent:#a86200; --zerg:#8a3fa0; --terran:#2c6bc0; --protoss:#b08600;
+  --f-display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+  --f-body:"Barlow","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1319; --surface:#161e27; --sunk:#111821; --ink:#e2e8ee; --muted:#93a1b0; --line:#2a3644;
+  --accent:#f0a43c; --zerg:#c47ddb; --terran:#6fa8ff; --protoss:#e8c14f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --surface:#161e27; --sunk:#111821; --ink:#e2e8ee; --muted:#93a1b0; --line:#2a3644;
+  --accent:#f0a43c; --zerg:#c47ddb; --terran:#6fa8ff; --protoss:#e8c14f; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:40px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
+header{margin-bottom:28px}
+.kicker{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 6px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,5vw,42px);line-height:1.1;margin:0 0 10px;text-wrap:balance}
+.lead{color:var(--muted);max-width:60ch;margin:0}
+.races{display:flex;gap:6px;margin-top:14px}
+.races span{height:4px;width:44px;border-radius:2px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+a.app{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;color:inherit;text-decoration:none;transition:border-color .15s,transform .15s}
+a.app:hover,a.app:focus-visible{border-color:var(--accent);transform:translateY(-2px)}
+a.app:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ico{width:44px;height:44px;border-radius:8px;background:var(--sunk);border:1px solid var(--line);display:grid;place-items:center}
+.ico svg{width:24px;height:24px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+a.app h2{font-family:var(--f-display);font-size:22px;margin:0}
+a.app p{margin:0;color:var(--muted);font-size:15px}
+a.app ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:2px}
+.go{margin-top:auto;padding-top:6px;font-family:var(--f-display);font-weight:600;color:var(--accent)}
+footer{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
+footer a{color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">StarCraft: Tabletop Miniatures Game</p>
+    <h1>Outils de jeu</h1>
+    <p class="lead">Prépare ta liste, joue ta partie pas à pas et révise les règles en images. Tout fonctionne dans le navigateur, sur ordinateur comme sur téléphone.</p>
+    <div class="races" aria-hidden="true"><span style="background:var(--zerg)"></span><span style="background:var(--terran)"></span><span style="background:var(--protoss)"></span></div>
+  </header>
+
+  <main class="grid">
+    <a class="app" href="builder/">
+      <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+      <h2>Builder de listes</h2>
+      <p>Construis ton armée Zerg, Terran ou Protoss avec les coûts officiels.</p>
+      <ul><li>Construction manuelle ou génération automatique</li><li>Gestion de ta collection</li><li>Export PDF, PNG et liste pour l’aide de jeu</li></ul>
+      <span class="go">Ouvrir le builder →</span>
+    </a>
+    <a class="app" href="aide-de-jeu/">
+      <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+      <h2>Aide de jeu</h2>
+      <p>La console de partie : rounds, phases, supply, PV et logigramme d’activation.</p>
+      <ul><li>Résolution des attaques pas à pas</li><li>Comparateur de cibles</li><li>Mots-clés cliquables, missions en français</li></ul>
+      <span class="go">Ouvrir l’aide de jeu →</span>
+    </a>
+    <a class="app" href="regles-en-images/">
+      <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/><path d="M11.5 12h2"/></svg></div>
+      <h2>Règles en images</h2>
+      <p>Dix planches illustrées, vérifiées sur le livre de règles.</p>
+      <ul><li>Engagement, charge, combat, pertes</li><li>Gabarits, marqueurs, déploiement</li><li>Disengage, mouvement, ligne de vue</li></ul>
+      <span class="go">Voir les planches →</span>
+    </a>
+  </main>
+
+  <footer>
+    <span>Outil de fan non officiel. StarCraft est une marque de Blizzard Entertainment ; le jeu de figurines est édité par Archon Studio.</span>
+    <a href="StarCraft-TMG-Database.json">Base de données (JSON)</a>
+  </footer>
+</div>
+</body>
+</html>
