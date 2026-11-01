@@ -230,6 +230,8 @@ td.kw{white-space:normal;min-width:140px}
 .budget .slot{font-size:11px;padding:1px 5px}
 .budget .pill{font-size:12px;padding:2px 8px}
 @media (max-width:700px){.budget .in{gap:3px 10px;font-size:12px} .bud-m .bar{width:40px}}
+
+.top.floating{position:fixed;left:0;right:0;top:0;z-index:6;padding:calc(6px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px));box-shadow:0 4px 12px rgba(0,0,0,.12)}
 .actmenu{position:relative}
 .actmenu>summary{list-style:none;cursor:pointer}
 .actmenu>summary::-webkit-details-marker{display:none}
@@ -271,6 +273,7 @@ td.kw{white-space:normal;min-width:140px}
     <nav class="seg" id="views" role="tablist" aria-label="Vue"></nav>
     <button class="hdtog" id="hdTog" type="button" aria-expanded="true" aria-label="Réduire le bandeau">▴</button>
   </header>
+  <div id="hdSpacer"></div>
   <div class="budget" id="budget" hidden></div>
   <main id="main" style="display:grid;gap:14px"></main>
 </div>
@@ -945,7 +948,7 @@ document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]');if(!b||b.tagName==='SELECT'||b.tagName==='INPUT')return;
   const a=b.dataset.act,v=b.dataset.v,L=curList();
   switch(a){
-    case 'race':if(hdCompact&&v===state.race){setHd(false);return;}state.race=v;break;
+    case 'race':if(topEl().classList.contains('compact')&&v===state.race){toggleHd();return;}state.race=v;break;
     case 'view':state.view=v;break;
     case 'add-unit':L.units.push({uid:state.nextUid++,key:v,comp:0,up:[]});touch();break;
     case 'add-tac':L.tactical.push(v);touch();break;
@@ -1247,18 +1250,26 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementB
     m.textContent=c==='declined'?'Enregistrement annulé.':c==='rate_limited'?'Une demande est déjà ouverte, réessayez dans un instant.':'Export impossible ici. Réessayez, ou utilisez « Copier le récap ».';}
   finally{btns.forEach(b=>b.disabled=false);}};});
 
-/* ---------- bandeau repliable, masquage au défilement, barre de budget ---------- */
+/* ---------- bandeau repliable, barre de budget ----------
+   Ordinateur : bouton ▴/▾ (mémorisé) + masquage du bandeau au défilement.
+   Téléphone : tout en haut, bandeau déplié ; dès qu'on défile, bandeau replié fixé en haut + barre de budget, sans va-et-vient. */
 const HDK='sctmg-builder-hd', isPhone=()=>matchMedia('(max-width:700px)').matches;
-let hdCompact=(()=>{try{const v=localStorage.getItem(HDK);if(v)return v==='1';}catch(e){}return isPhone();})();
-let lastC=null, lastPhone=isPhone();
+let hdCompact=(()=>{try{const v=localStorage.getItem(HDK);if(v)return v==='1';}catch(e){}return false;})();
+let lastC=null, lastPhone=isPhone(), floatOn=false, manualOpen=false, topCompact=false;
 function topEl(){return document.querySelector('.top');}
-function applyHd(){const t=topEl(),b=document.getElementById('hdTog');if(!t||!b)return;t.classList.toggle('compact',hdCompact);
-  b.textContent=hdCompact?'▾':'▴';b.setAttribute('aria-expanded',hdCompact?'false':'true');b.setAttribute('aria-label',hdCompact?'Afficher tout le bandeau':'Réduire le bandeau');b.title=b.getAttribute('aria-label');syncHd();}
-function setHd(v){hdCompact=v;try{localStorage.setItem(HDK,v?'1':'0');}catch(e){}topEl().classList.remove('hid');applyHd();}
+function isCompact(){return isPhone()?(floatOn?!manualOpen:topCompact):hdCompact;}
+function applyHd(){const t=topEl(),b=document.getElementById('hdTog');if(!t||!b)return;const c=isCompact();
+  t.classList.toggle('compact',c);t.classList.toggle('floating',isPhone()&&floatOn);
+  b.textContent=c?'▾':'▴';b.setAttribute('aria-expanded',c?'false':'true');b.setAttribute('aria-label',c?'Afficher tout le bandeau':'Réduire le bandeau');b.title=b.getAttribute('aria-label');syncHd();}
+function toggleHd(){if(isPhone()){if(floatOn)manualOpen=!manualOpen;else topCompact=!topCompact;}
+  else{hdCompact=!hdCompact;try{localStorage.setItem(HDK,hdCompact?'1':'0');}catch(e){}topEl().classList.remove('hid');}applyHd();}
+function setFloat(on){const t=topEl(),sp=document.getElementById('hdSpacer');if(!t||on===floatOn)return;
+  if(sp)sp.style.height=on?(t.offsetHeight+(parseFloat(getComputedStyle(t.parentElement).rowGap)||0))+'px':'0px';floatOn=on;manualOpen=false;topCompact=false;applyHd();}
 function syncHd(){const t=topEl();if(!t)return;const h=t.classList.contains('hid')?0:Math.max(0,t.getBoundingClientRect().bottom);
   document.documentElement.style.setProperty('--hdH',h+'px');syncBudget();}
 function syncBudget(){const bd=document.getElementById('budget'),st=document.querySelector('.strip');if(!bd)return;
   if(state.view!=='list'||!st||!lastC){bd.hidden=true;return;}
+  if(isPhone()){bd.hidden=!floatOn;return;}
   const hdH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdH'))||0;
   const ref=st.querySelector('.cell')||st;bd.hidden=!(ref.getBoundingClientRect().bottom<hdH+4);}
 function updateBudget(){const bd=document.getElementById('budget');if(!bd)return;const c=lastC;if(state.view!=='list'||!c){bd.hidden=true;return;}
@@ -1270,14 +1281,16 @@ function updateBudget(){const bd=document.getElementById('budget');if(!bd)return
   syncBudget();}
 function actionsHTML(btns){return isPhone()?`<details class="actmenu"><summary class="btn">Actions ▾</summary><div class="actlist">${btns}</div></details>`:btns;}
 let lastY=scrollY,ticking=false;
-addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{ticking=false;const y=scrollY,t=topEl();
-  if(t){if(y>lastY+6&&y>90)t.classList.add('hid');else if(y<lastY-6||y<40)t.classList.remove('hid');}
+addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{ticking=false;const y=scrollY,t=topEl();if(!t)return;
+  if(isPhone()){t.classList.remove('hid');const want=floatOn?y>4:y>16;
+    if(want!==floatOn)setFloat(want);else if(floatOn&&manualOpen&&Math.abs(y-lastY)>10){manualOpen=false;applyHd();}}
+  else{if(y>lastY+6&&y>90)t.classList.add('hid');else if(y<lastY-6||y<40)t.classList.remove('hid');}
   lastY=y;syncHd();});},{passive:true});
-addEventListener('resize',()=>{const p=isPhone();if(p!==lastPhone){lastPhone=p;render();}syncHd();});
+addEventListener('resize',()=>{const p=isPhone();if(p!==lastPhone){lastPhone=p;const sp=document.getElementById('hdSpacer');if(sp)sp.style.height='0px';floatOn=false;manualOpen=false;topCompact=false;topEl().classList.remove('hid');render();}syncHd();});
 document.addEventListener('transitionend',e=>{if(e.target===topEl())syncHd();});
 document.addEventListener('click',e=>{
-  if(e.target.closest('#hdTog')){setHd(!hdCompact);return;}
-  if(e.target.closest('#budJump')){const s=document.querySelector('.strip');if(s){const hdH=topEl().getBoundingClientRect().height;scrollTo({top:scrollY+s.getBoundingClientRect().top-hdH-8,behavior:'smooth'});}return;}
+  if(e.target.closest('#hdTog')){toggleHd();return;}
+  if(e.target.closest('#budJump')){const s=document.querySelector('.strip');if(s){const hdH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdH'))||0;scrollTo({top:Math.max(0,scrollY+s.getBoundingClientRect().top-hdH-8),behavior:'smooth'});}return;}
   const a=e.target.closest('.actmenu [data-act]');if(a&&a.dataset.act!=='clear'){const d=a.closest('details');if(d)d.open=false;}
   if(!e.target.closest('.actmenu'))document.querySelectorAll('details.actmenu[open]').forEach(d=>d.open=false);
 },true);
