@@ -20,4 +20,13 @@ Chaque application est un fichier HTML autonome (aucune compilation). Les donné
 
 Les parties en cours et les réglages sont enregistrés dans le navigateur (localStorage).
 
+## Installer sur téléphone
+
+Le site est une application web installable (PWA) qui fonctionne aussi hors connexion après la première visite.
+
+- **Android (Chrome)** : ouvrir le site, menu ⋮ → *Installer l’application* (ou *Ajouter à l’écran d’accueil*).
+- **iPhone (Safari)** : ouvrir le site, bouton Partager → *Sur l’écran d’accueil*.
+
+Chaque application a un bouton ⌂ pour revenir à l’accueil.
+
 StarCraft est une marque de Blizzard Entertainment. Projet de fan, sans lien avec Blizzard ni Archon Studio.
