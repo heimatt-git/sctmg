@@ -207,6 +207,34 @@ td.kw{white-space:normal;min-width:140px}
 .msg{font-weight:600;font-size:13px}
 .msg.ok{color:var(--ok)} .msg.err{color:var(--err)} .msg.warn{color:var(--warn)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* bandeau repliable + barre de budget fixe + menu Actions */
+.top{transition:transform .2s ease}
+.top.hid{transform:translateY(calc(-100% - env(safe-area-inset-top,0px) - 2px))}
+.hdtog{order:9;width:34px;height:34px;flex:none;border:1px solid var(--line);background:var(--surface);border-radius:4px;font-size:15px;line-height:1;display:inline-grid;place-items:center;color:var(--ink)}
+.hdtog:hover{border-color:var(--acc)}
+.top.compact{padding-block:6px;gap:6px 10px}
+.top.compact .sub{display:none}
+.top.compact .brand h1{font-size:17px}
+.top.compact .seg button{padding:4px 9px;font-size:13px}
+.top.compact #races button[aria-selected="false"]{display:none}
+.top.compact .skinbtn{display:none}
+@media (max-width:700px){.top.compact .brand h1,.top.compact .brand-mark{display:none} .top.compact .brand{margin-right:0} .top.compact{gap:6px;flex-wrap:nowrap} .top.compact #views{margin-right:auto} .top.compact .seg button{padding:4px 7px;font-size:12px;letter-spacing:.03em}}
+.budget{position:fixed;left:0;right:0;top:var(--hdH,0px);z-index:4;background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 6px 14px rgba(0,0,0,.14);padding:6px max(16px,env(safe-area-inset-left,0px));transition:top .2s ease}
+.budget .in{max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;font-size:13px;width:100%;border:0;background:none;padding:0;text-align:left;color:inherit;cursor:pointer}
+.bud-m{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.bud-m .lbl{font-family:var(--f-body)}
+.bud-m .bar{width:54px;height:5px}
+.bud-m b.over{color:var(--err)}
+.budget .slots{gap:4px}
+.budget .slot{font-size:11px;padding:1px 5px}
+.budget .pill{font-size:12px;padding:2px 8px}
+@media (max-width:700px){.budget .in{gap:3px 10px;font-size:12px} .bud-m .bar{width:40px}}
+.actmenu{position:relative}
+.actmenu>summary{list-style:none;cursor:pointer}
+.actmenu>summary::-webkit-details-marker{display:none}
+.actmenu .actlist{position:absolute;right:0;top:calc(100% + 4px);z-index:6;display:grid;gap:6px;min-width:220px;padding:8px;background:var(--surface);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.actmenu .actlist .btn{justify-content:flex-start}
 </style>
 
 <style>[hidden]{display:none!important}body{margin:0}</style><style>/* ---------- skin Terran commun (accueil, builder, règles en images) ---------- */
@@ -241,7 +269,9 @@ td.kw{white-space:normal;min-width:140px}
     <div class="brand"><a class="homelnk" href="../" aria-label="Accueil" title="Accueil">⌂</a><span class="brand-mark">TMG</span><div><h1>Army Builder</h1><p class="sub" id="sub"></p></div></div>
     <button class="skinbtn" id="skinBtn" type="button" aria-pressed="false" title="Changer de skin">Skin Terran</button><nav class="seg" id="races" role="tablist" aria-label="Race"></nav>
     <nav class="seg" id="views" role="tablist" aria-label="Vue"></nav>
+    <button class="hdtog" id="hdTog" type="button" aria-expanded="true" aria-label="Réduire le bandeau">▴</button>
   </header>
+  <div class="budget" id="budget" hidden></div>
   <main id="main" style="display:grid;gap:14px"></main>
 </div>
 
@@ -412,7 +442,7 @@ function renderHeader(){
 
 /* ---------- list view ---------- */
 function renderList(){
-  const c=compute(),{R,L,F,race}=c;
+  const c=compute(),{R,L,F,race}=c;lastC=c;
   const errs=c.issues.filter(i=>i[0]==='err').length,warns=c.issues.filter(i=>i[0]==='warn').length;
   const status=errs?`<span class="pill err">${errs} problème${errs>1?'s':''} de règles</span>`:warns?`<span class="pill warn">Légale · ${warns} manque${warns>1?'s':''} en collection</span>`:`<span class="pill ok">Liste légale</span>`;
   const scales=Object.keys(DB.army_building_rules.engagement_scales);
@@ -424,11 +454,11 @@ function renderList(){
     <label class="field"><span>Format</span><select id="f-scale" data-act="scale">${scales.map(s=>{const sc=DB.army_building_rules.engagement_scales[s];return `<option value="${s}" ${s===state.scale?'selected':''}>${SCALEFR[s]||s} · ${sc.mineral_limit}</option>`;}).join('')}</select></label>
     ${typeof DB.army_building_rules.engagement_scales[state.scale].mineral_limit!=='number'?`<label class="field"><span>Plafond minéraux</span><input type="number" id="f-custom" min="2001" step="50" value="${limitOf()}" data-act="custom"></label>`:''}
     <span class="spacer"></span>
-    <button class="btn primary" data-act="fiche">Fiche PDF / image</button>
+    ${actionsHTML(`<button class="btn primary" data-act="fiche">Fiche PDF / image</button>
     <button class="btn" data-act="recap">Copier le récap</button>
     <button class="btn" data-act="export-list">Exporter la liste</button>
     <button class="btn" data-act="import">Importer</button>
-    <button class="btn danger" data-act="clear">Vider la liste</button>
+    <button class="btn danger" data-act="clear">Vider la liste</button>`)}
   </section>
   <section class="strip" aria-label="Budget">
     ${meter('Minéraux',c.min,c.lim)}${meter('Gas',c.gas,c.gasCap)}
@@ -904,7 +934,7 @@ function loadGen(i){const x=genRes&&genRes.lists[i];if(!x)return;const race=genR
   state.race=race;state.view='list';openSheets.clear();render();window.scrollTo(0,0);}
 
 /* ---------- main render ---------- */
-function render(){renderHeader();document.getElementById('main').innerHTML=state.view==='list'?renderList():state.view==='gen'?renderGen():renderCollection();save();}
+function render(){renderHeader();if(state.view!=='list')lastC=null;document.getElementById('main').innerHTML=state.view==='list'?renderList():state.view==='gen'?renderGen():renderCollection();save();updateBudget();applyHd();}
 
 /* ---------- mutations ---------- */
 const curList=()=>state.lists[state.race];
@@ -915,7 +945,7 @@ document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]');if(!b||b.tagName==='SELECT'||b.tagName==='INPUT')return;
   const a=b.dataset.act,v=b.dataset.v,L=curList();
   switch(a){
-    case 'race':state.race=v;break;
+    case 'race':if(hdCompact&&v===state.race){setHd(false);return;}state.race=v;break;
     case 'view':state.view=v;break;
     case 'add-unit':L.units.push({uid:state.nextUid++,key:v,comp:0,up:[]});touch();break;
     case 'add-tac':L.tactical.push(v);touch();break;
@@ -1216,6 +1246,42 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementB
   catch(e){const c=e&&e.code;m.className='msg '+(c==='declined'?'warn':'err');
     m.textContent=c==='declined'?'Enregistrement annulé.':c==='rate_limited'?'Une demande est déjà ouverte, réessayez dans un instant.':'Export impossible ici. Réessayez, ou utilisez « Copier le récap ».';}
   finally{btns.forEach(b=>b.disabled=false);}};});
+
+/* ---------- bandeau repliable, masquage au défilement, barre de budget ---------- */
+const HDK='sctmg-builder-hd', isPhone=()=>matchMedia('(max-width:700px)').matches;
+let hdCompact=(()=>{try{const v=localStorage.getItem(HDK);if(v)return v==='1';}catch(e){}return isPhone();})();
+let lastC=null, lastPhone=isPhone();
+function topEl(){return document.querySelector('.top');}
+function applyHd(){const t=topEl(),b=document.getElementById('hdTog');if(!t||!b)return;t.classList.toggle('compact',hdCompact);
+  b.textContent=hdCompact?'▾':'▴';b.setAttribute('aria-expanded',hdCompact?'false':'true');b.setAttribute('aria-label',hdCompact?'Afficher tout le bandeau':'Réduire le bandeau');b.title=b.getAttribute('aria-label');syncHd();}
+function setHd(v){hdCompact=v;try{localStorage.setItem(HDK,v?'1':'0');}catch(e){}topEl().classList.remove('hid');applyHd();}
+function syncHd(){const t=topEl();if(!t)return;const h=t.classList.contains('hid')?0:Math.max(0,t.getBoundingClientRect().bottom);
+  document.documentElement.style.setProperty('--hdH',h+'px');syncBudget();}
+function syncBudget(){const bd=document.getElementById('budget'),st=document.querySelector('.strip');if(!bd)return;
+  if(state.view!=='list'||!st||!lastC){bd.hidden=true;return;}
+  const hdH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdH'))||0;
+  const ref=st.querySelector('.cell')||st;bd.hidden=!(ref.getBoundingClientRect().bottom<hdH+4);}
+function updateBudget(){const bd=document.getElementById('budget');if(!bd)return;const c=lastC;if(state.view!=='list'||!c){bd.hidden=true;return;}
+  const errs=c.issues.filter(i=>i[0]==='err').length,warns=c.issues.filter(i=>i[0]==='warn').length;
+  const st=errs?`<span class="pill err">${errs} problème${errs>1?'s':''}</span>`:warns?`<span class="pill warn">Légale</span>`:`<span class="pill ok">Légale</span>`;
+  const m=(l,u,lim)=>`<span class="bud-m"><span class="lbl">${l}</span><b class="${u>lim?'over':''}">${u}</b>/${lim}<span class="bar ${u>lim?'over':''}"><i style="width:${Math.min(100,lim?u/lim*100:0)}%"></i></span></span>`;
+  const slots=SLOTS.filter(s=>c.avail[s]||c.used[s]).map(s=>`<span class="slot ${c.used[s]>c.avail[s]?'over':c.used[s]===c.avail[s]?'full':''}"><b>${SLOTFR[s]}</b>${c.used[s]}/${c.avail[s]}</span>`).join('');
+  bd.innerHTML=`<button class="in" type="button" id="budJump" aria-label="Budget de la liste : afficher le détail">${m('Min.',c.min,c.lim)}${m('Gas',c.gas,c.gasCap)}<span class="slots">${slots}</span><span class="bud-m"><span class="lbl">Supply</span><b>${c.pool}</b></span>${st}</button>`;
+  syncBudget();}
+function actionsHTML(btns){return isPhone()?`<details class="actmenu"><summary class="btn">Actions ▾</summary><div class="actlist">${btns}</div></details>`:btns;}
+let lastY=scrollY,ticking=false;
+addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{ticking=false;const y=scrollY,t=topEl();
+  if(t){if(y>lastY+6&&y>90)t.classList.add('hid');else if(y<lastY-6||y<40)t.classList.remove('hid');}
+  lastY=y;syncHd();});},{passive:true});
+addEventListener('resize',()=>{const p=isPhone();if(p!==lastPhone){lastPhone=p;render();}syncHd();});
+document.addEventListener('transitionend',e=>{if(e.target===topEl())syncHd();});
+document.addEventListener('click',e=>{
+  if(e.target.closest('#hdTog')){setHd(!hdCompact);return;}
+  if(e.target.closest('#budJump')){const s=document.querySelector('.strip');if(s){const hdH=topEl().getBoundingClientRect().height;scrollTo({top:scrollY+s.getBoundingClientRect().top-hdH-8,behavior:'smooth'});}return;}
+  const a=e.target.closest('.actmenu [data-act]');if(a&&a.dataset.act!=='clear'){const d=a.closest('details');if(d)d.open=false;}
+  if(!e.target.closest('.actmenu'))document.querySelectorAll('details.actmenu[open]').forEach(d=>d.open=false);
+},true);
+
 render();
 })();
 </script>
