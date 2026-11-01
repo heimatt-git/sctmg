@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><link rel="manifest" href="../manifest.webmanifest"><meta name="theme-color" content="#0e1319"><link rel="icon" type="image/svg+xml" href="../icons/icon.svg"><link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png"><link rel="apple-touch-icon" href="../icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="SC:TMG"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>StarCraft TMG Builder</title>
+<html lang="fr"><head><meta charset="utf-8"><link rel="manifest" href="../manifest.webmanifest"><meta name="theme-color" content="#0e1319"><link rel="icon" type="image/svg+xml" href="../icons/icon.svg"><link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png"><link rel="apple-touch-icon" href="../icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="SC:TMG"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><script>try{if(localStorage.getItem('sctmg-skin')==='terran')document.documentElement.setAttribute('data-skin','terran')}catch(e){}</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>StarCraft TMG Builder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
@@ -209,10 +209,37 @@ td.kw{white-space:normal;min-width:140px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<style>[hidden]{display:none!important}body{margin:0}</style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body><div class="app" id="app" data-race="ZERG">
+<style>[hidden]{display:none!important}body{margin:0}</style><style>/* ---------- skin Terran commun (accueil, builder, règles en images) ---------- */
+.skinbtn{border:1px solid var(--line);background:var(--sunk,var(--surface-2,transparent));color:var(--ink);border-radius:6px;padding:6px 10px;min-height:32px;font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
+:root[data-skin="terran"]{
+  --bg:#030813; --surface:#08172f; --sunk:#06122a; --surface-2:#06122a; --ink:#cfe6ff; --muted:#7fa6d0; --line:#1f63b5;
+  --accent:#ffb23b; --ok:#7de08a; --ok-bg:#10261a; --warn:#ffb23b; --warn-bg:#2a2210; --bad:#ff7b47; --err:#ff7b47; --err-bg:#2a1710;
+  --zerg:#c98be3; --terran:#46b4ff; --protoss:#e2b642;
+  --zone:#3a2228; --zone-line:#a05a64; --terrain:#8a6a33; --terrain-ink:#fff7e6; --high:#1c3247; --me:#6fa8ff; --opp:#ef8a6c; --fly:#b493e6; --ground:#3a4654; --hint:#5fcf95; --tpl:#f0b84a;
+  color-scheme:dark}
+:root[data-skin="terran"] body{background:radial-gradient(ellipse at 50% -5%,#0f2c58 0%,#07142b 45%,#030813 100%) fixed;color:var(--ink)}
+:root[data-skin="terran"] h1,:root[data-skin="terran"] h2,:root[data-skin="terran"] h3{text-transform:uppercase;letter-spacing:.08em}
+:root[data-skin="terran"] h1{color:#fff;text-shadow:0 0 12px #46b4ff}
+:root[data-skin="terran"] .skinbtn{background:#08172f;border-color:#46b4ff;color:#46b4ff;box-shadow:0 0 10px rgba(70,180,255,.35)}
+:root[data-skin="terran"] .homelnk{border-color:#1f63b5;color:#46b4ff}
+/* accueil */
+:root[data-skin="terran"] a.app{background:linear-gradient(180deg,#0c2347 0%,#06132a 100%);border-color:#1f63b5;box-shadow:inset 0 0 14px rgba(70,180,255,.1)}
+:root[data-skin="terran"] a.app:hover,:root[data-skin="terran"] a.app:focus-visible{border-color:#46b4ff;box-shadow:0 0 14px rgba(70,180,255,.4)}
+:root[data-skin="terran"] .ico{background:#06122a;border-color:#1f63b5}
+:root[data-skin="terran"] .kicker,:root[data-skin="terran"] .go{color:#ffb23b}
+/* builder */
+:root[data-skin="terran"] .top{background:linear-gradient(180deg,#0b1f40 0%,#06132a 100%);border-bottom-color:#2a7fd6;box-shadow:0 4px 18px rgba(70,180,255,.18)}
+:root[data-skin="terran"] .seg{background:#08172f;border-color:#1f63b5}
+:root[data-skin="terran"] .seg button[aria-selected="true"],:root[data-skin="terran"] .seg button.on{box-shadow:0 0 12px rgba(70,180,255,.45)}
+/* règles en images */
+:root[data-skin="terran"] .sheet{background:linear-gradient(180deg,#0c2347 0%,#06132a 100%);border-color:#1f63b5}
+:root[data-skin="terran"] .sheetnav button{background:#08172f;border-color:#1f63b5;color:#cfe6ff}
+:root[data-skin="terran"] .sheetnav button.on{background:linear-gradient(180deg,#123b73 0%,#0a2145 100%);border-color:#46b4ff;color:#fff;box-shadow:0 0 12px rgba(70,180,255,.45)}
+:root[data-skin="terran"] .case .lt{background:#46b4ff;color:#04141c}
+</style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body><div class="app" id="app" data-race="ZERG">
   <header class="top">
     <div class="brand"><a class="homelnk" href="../" aria-label="Accueil" title="Accueil">⌂</a><span class="brand-mark">TMG</span><div><h1>Army Builder</h1><p class="sub" id="sub"></p></div></div>
-    <nav class="seg" id="races" role="tablist" aria-label="Race"></nav>
+    <button class="skinbtn" id="skinBtn" type="button" aria-pressed="false" title="Changer de skin">Skin Terran</button><nav class="seg" id="races" role="tablist" aria-label="Race"></nav>
     <nav class="seg" id="views" role="tablist" aria-label="Vue"></nav>
   </header>
   <main id="main" style="display:grid;gap:14px"></main>
@@ -1192,4 +1219,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementB
 render();
 })();
 </script>
-<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('../sw.js',{scope:'../'}).catch(()=>{}));</script></body></html>
+<script>(function(){const root=document.documentElement,btn=document.getElementById('skinBtn'),KEY='sctmg-skin';if(!btn)return;
+function apply(on){if(on)root.setAttribute('data-skin','terran');else root.removeAttribute('data-skin');btn.setAttribute('aria-pressed',on?'true':'false');btn.textContent=on?'Skin original':'Skin Terran';}
+let on=false;try{on=localStorage.getItem(KEY)==='terran'}catch(e){}apply(on);
+btn.addEventListener('click',()=>{on=!on;apply(on);try{localStorage.setItem(KEY,on?'terran':'original')}catch(e){}});})();</script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('../sw.js',{scope:'../'}).catch(()=>{}));</script></body></html>
