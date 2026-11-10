@@ -437,6 +437,20 @@ details.reac>summary{cursor:pointer;font-weight:600}
 .fiche-t{font-size:20px;margin:0}
 .fiche-h{font-family:var(--f-display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;padding-top:8px;border-top:1px solid var(--line)}
 .unit .nm .btn{margin-left:auto}
+
+/* ---------- plan de jeu ---------- */
+.plan{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.plan-sec{min-width:0;overflow-wrap:anywhere;border:1px solid var(--line);border-left:3px solid var(--race);border-radius:var(--r);padding:10px 12px;background:var(--surface)}
+.plan-sec h3{font-size:16px;margin:0 0 8px}
+.plan .pt{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.plan .pt th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding:5px 6px}
+.plan .pt th:nth-child(1){width:22%}.plan .pt th:nth-child(2){width:12%}
+.plan .pt td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top;white-space:normal}
+.plan .pt i,.plan .pl-list i{color:var(--muted);font-style:normal;font-size:12px}
+.plan .pl-list{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13.5px}
+.plan .pl-ph{margin:10px 0 4px;font-family:var(--f-display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--race)}
+.plan .pl-note,.plan .pl-foot{font-size:12px;color:var(--muted);margin:6px 0 0}
+@media (max-width:700px){.plan .pt thead{display:none}.plan .pt,.plan .pt tbody{display:block}.plan .pt tr{display:grid;border-bottom:1px solid var(--line);padding:6px 0}.plan .pt td{border:0;padding:2px 0}}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -970,7 +984,7 @@ function renderGame(){
     <div class="row" style="margin-top:12px"><button class="btn pri" id="newGameSetup">Commencer une nouvelle partie avec ces réglages</button></div>
     <div id="ngConfirm" hidden class="note warn" style="margin-top:8px">Le round, les PV, le journal et l’état des unités repartent à zéro. <button class="btn" id="ngYes">Oui, commencer</button> <button class="btn ghost" id="ngNo">Non</button></div></div>
   <div class="panel"><h2>${esc(d.name)}</h2><p class="sub">Tu es <b>${COLFR[myCol()]}</b>. Bandes colorées : Entry Edges et Zone of Influence (6"). Marqueurs 1 et 3 rouges, 2 et 4 bleus, 5 neutre. Pointillés : marqueur désactivé.</p>${mapSVG()}</div></div>
-  <div class="cols"><div class="panel"><h2>Ma liste</h2><p class="sub">${myL._sample ? '<b>Exemple affiché.</b> ' : ''}${esc(RACEFR[S.race])} · ${S.units.length} unités · ${S.cards.length} cartes. Charge l’export JSON du builder.</p>
+  <div class="cols"><div class="panel"><h2>Ma liste</h2><p class="sub">${myL._sample ? '<b>Exemple affiché.</b> ' : ''}${esc(RACEFR[S.race])} · ${S.units.length} unités · ${S.cards.length} cartes. Charge l’export JSON du builder.</p><div class="row" style="margin-bottom:10px">${planBtn('pri')}<span class="small muted">Rôles, ordre d’entrée, capacités, cibles et menaces face à l’armée adverse.</span></div>
       <div class="row"><input type="file" id="fileMe" accept=".json,application/json"></div>
       <textarea class="paste" id="pasteMe" placeholder='Ou colle ici le contenu du fichier {"type":"sctmg-list", …}'></textarea>
       <div class="row" style="margin-top:6px"><button class="btn" id="goPasteMe">Charger le texte collé</button></div></div>
@@ -1346,14 +1360,14 @@ function renderPhase(){
   const sw = specialWin();
   let h = sw ? `<div class="note warn"><span class="lbl">Victoire anticipée</span>${sw === 'me' ? 'Tu mènes' : 'L’adversaire mène'} de ${Math.abs(S.vp.me - S.vp.opp)} PV : la condition spéciale de la mission (+${mission().special_win_lead}) est atteinte. La partie se termine au contrôle de fin de partie.</div>` : '';
   if (SIMPLE()){
-    h += `<div class="panel phasehd"><div class="row" style="justify-content:space-between"><h2>Phase ${p.n} — ${p.t}</h2><span class="pill ${S.fpm === 'me' ? 'ok' : 'warn'}">1er : ${S.fpm === 'me' ? 'toi' : 'adversaire'}</span></div><p class="sub" style="margin:4px 0 0">${info.goal}</p></div>`;
+    h += `<div class="panel phasehd"><div class="row" style="justify-content:space-between"><h2>Phase ${p.n} — ${p.t}</h2><span class="row" style="gap:6px">${planBtn('small')}<span class="pill ${S.fpm === 'me' ? 'ok' : 'warn'}">1er : ${S.fpm === 'me' ? 'toi' : 'adversaire'}</span></span></div><p class="sub" style="margin:4px 0 0">${info.goal}</p></div>`;
     if (p.id === 'start') h += `<div class="phase-compact">${renderStart()}</div>`;
     else if (p.id === 'score') h += `<div class="phase-compact">${renderScore()}</div>`;
     else h += renderActivationSimple();
     return h;
   }
   h += `<div class="panel"><div class="row" style="justify-content:space-between"><h2>Round ${S.round}/${lastRound()} · Phase ${p.n} — ${p.t}</h2>
-    <span class="pill ${S.fpm === 'me' ? 'ok' : 'warn'}">Marqueur Premier joueur : ${S.fpm === 'me' ? 'toi' : 'adversaire'}</span></div>
+    <span class="row" style="gap:6px">${planBtn('small')}<span class="pill ${S.fpm === 'me' ? 'ok' : 'warn'}">Marqueur Premier joueur : ${S.fpm === 'me' ? 'toi' : 'adversaire'}</span></span></div>
     <p class="sub">${info.goal}</p><details ${U.seqOpen === false ? '' : 'open'} id="seqBox"><summary class="small">Déroulé de la phase</summary><ol class="seq">${info.seq.map(s => `<li><span>${s}</span></li>`).join('')}</ol>
     ${info.tip ? `<div class="note tip" style="margin-top:10px"><span class="lbl">Conseil</span>${esc(info.tip)}</div>` : ''}</details></div>`;
   if (p.id === 'start') h += renderStart();
@@ -1458,6 +1472,234 @@ function renderOver(){
   return `<div class="panel"><h2>Partie terminée — ${w}</h2><p class="sub">Score final : <b class="mono">${S.vp.me}</b> contre <b class="mono">${S.vp.opp}</b>.</p>
     <div class="row"><button class="btn pri" data-tab="log">Voir le bilan</button><button class="btn" id="newGame">Nouvelle partie avec les mêmes listes</button></div></div>`;
 }
+
+/* ================= Plan de jeu (commun builder + aide de jeu) =================
+   buildPlanHTML(ctx) → HTML. Tout est déduit des cartes (DB) et des règles du livre :
+   aucune règle ou effet n'est inventé ; les recommandations sont des heuristiques signalées comme telles. */
+var PLAN = (function(){
+  const E = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const NM = (k, o) => (o && o.display_name) || String(k).replace(/_/g, ' ').replace(/\b([a-z])/g, m => m.toUpperCase());
+  const ROLE = {'DAMAGE DEALER':'Dégâts', TANK:'Tank', TACTICIAN:'Tacticien', LIFESAVER:'Soutien'};
+  const PHASE = {MOVEMENT:'Mouvement', ASSAULT:'Assaut', COMBAT:'Combat', ANY:'Toute phase', SCORING:'Score'};
+  const TYPE = {ACTIVE:'Active', PASSIVE:'Passive', REACTION:'Réaction'};
+  const DEFAULTS = {Skirmish:{start:3, inc:1, rounds:5}, Standard:{start:6, inc:2, rounds:5}, Grand_Offensive:{start:6, inc:2, rounds:5}};
+  const SCALEFR = {Skirmish:'Skirmish', Standard:'Standard', Grand_Offensive:'Grand Offensive'};
+
+  function supplyFor(def, n){ if (!n) return 0; const p = def.supply_profile || []; for (const b of p) if (n >= b.models_min && n <= b.models_max) return b.supply; return p.length ? p[p.length-1].supply : 0; }
+  function weaponsOf(def, ups){
+    const out = [];
+    Object.entries(def.weapons || {}).forEach(([k, w]) => {
+      if (w.requires_upgrade && !ups.includes(w.requires_upgrade)) return;
+      const rep = ups.map(x => [x, (def.upgrades||{})[x]]).find(([x, up]) => up && up.weapon_replacement && up.for_weapon === k && !up.specialist);
+      out.push(rep ? Object.assign({name: NM(rep[0], rep[1]), phase: rep[1].phase || w.phase}, rep[1].weapon_replacement) : Object.assign({name: NM(k)}, w));
+    });
+    ups.forEach(x => { const up = (def.upgrades||{})[x]; if (!up) return;
+      if (up.weapon_replacement && up.specialist) out.push(Object.assign({name: NM(x, up), phase: up.phase || 'ASSAULT', one: true}, up.weapon_replacement));
+      if (up.weapon_added) out.push(Object.assign({name: NM(x, up), phase: up.phase || 'ASSAULT', one: !!up.specialist}, up.weapon_added)); });
+    return out;
+  }
+  function abilitiesOf(def, ups){
+    const out = Object.entries(def.abilities || {}).map(([k, a]) => Object.assign({key:k, name: NM(k, a)}, a));
+    ups.forEach(x => { const up = (def.upgrades||{})[x]; if (up && up.upgrade_kind === 'ABILITY') out.push({key:x, name: NM(x, up), type: up.type, phase: up.phase, cost: up.cost, text: up.text, builder_effect: up.builder_effect}); });
+    return out;
+  }
+  const costN = a => a && a.cost ? Object.values(a.cost)[0] || 0 : 0;
+  const isTpl = w => /\b(BT|FT)\b/.test(String(w.roa) + ' ' + String(w.s_dice));
+  const kwHas = (w, k) => (w.keywords || []).some(x => String(x).toUpperCase().startsWith(k));
+  const short = (t, n) => { t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length <= n) return t; const cut = t.slice(0, n); const i = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf(' ')); return cut.slice(0, i > n * 0.6 ? i : n).replace(/[ ,;:.]+$/, '') + '…'; };
+
+  /* ---------- analyse d'une unité ---------- */
+  function profile(u){
+    const d = u.def, ws = weaponsOf(d, u.upgrades), tags = d.combat_tags || [];
+    const fly = tags.includes('Flying'), ranged = ws.filter(w => w.phase === 'ASSAULT'), melee = ws.filter(w => w.phase === 'COMBAT');
+    const rng = Math.max(0, ...ranged.map(w => typeof w.rng === 'number' ? w.rng : 0));
+    const aa = ranged.some(w => /^(all|flying)$/i.test(w.target || ''));
+    const ag = ranged.some(w => /^(all|ground)$/i.test(w.target || ''));
+    const surge = [...new Set(ranged.concat(melee).flatMap(w => [].concat(w.surge_type || [])).filter(Boolean))];
+    const tpl = ranged.some(isTpl), pierce = ws.some(w => kwHas(w, 'PIERCE')), indirect = ws.some(w => kwHas(w, 'INDIRECT'));
+    const canCharge = !fly && melee.some(w => (parseInt(w.roa, 10) || 0) >= 1);
+    const roaMax = a => Math.max(0, ...a.map(w => parseInt(w.roa, 10) || 0));
+    const meleeStrong = canCharge && (roaMax(melee) >= roaMax(ranged.filter(w => !isTpl(w))) || melee.some(w => w.surge_type || kwHas(w, 'PIERCE')));
+    const sup = supplyFor(d, u.models), sp = d.stats.speed;
+    return {u, d, ws, tags, fly, ranged, melee, rng, aa, ag, surge, tpl, pierce, indirect, canCharge, meleeStrong, sup, sp, role: d.combat_role, abs: abilitiesOf(d, u.upgrades)};
+  }
+  function strengths(p){
+    const s = [];
+    if (p.rng) s.push(`tir ${p.rng}"`);
+    if (p.aa) s.push('anti-aérien');
+    if (p.surge.length) s.push('Surge ' + p.surge.join('/'));
+    if (p.tpl) s.push('gabarit');
+    if (p.pierce) s.push('PIERCE');
+    if (p.indirect) s.push('tir indirect');
+    if (p.meleeStrong) s.push(`corps à corps (charge ${p.sp + 1}–${p.sp + 6}")`);
+    if (p.fly) s.push('volant');
+    return s;
+  }
+  function advice(p){
+    const t = [];
+    if (p.fly) t.push('Harcèle et chasse les cibles isolées. Un volant ne conteste ni ne contrôle les marqueurs.');
+    else if (p.role === 'TANK') t.push('Tiens les marqueurs exposés et encaisse : son supply pèse lourd sur un marqueur.');
+    else if (p.role === 'LIFESAVER') t.push('Reste près des unités qu’elle soutient ; évite la ligne de front.');
+    else if (p.role === 'TACTICIAN') t.push('Joue-la pour ses capacités : place-la là où elles touchent le plus d’unités.');
+    if (p.role === 'DAMAGE DEALER' || (!p.fly && p.role !== 'TANK')){
+      if (p.rng >= 12 && !p.meleeStrong) t.push(`Reste à distance (portée ${p.rng}") derrière un couvert et tire chaque round.`);
+      else if (p.rng && p.meleeStrong) t.push(`Tire en approche, puis charge quand la cible est à ${p.sp + 3}" ou moins (2 chances sur 3).`);
+      else if (p.rng && p.rng < 12) t.push(`Portée courte (${p.rng}") : avance de couvert en couvert avant de tirer.`);
+      else if (!p.rng && p.meleeStrong) t.push(`Avance à couvert et charge : finis ton Move à ${p.sp + 3}" de la cible pour 2 chances sur 3.`);
+    }
+    if (!p.fly && p.sup <= 1) t.push('Peu chère en supply : idéale pour contester un marqueur tôt.');
+    if (p.tpl) t.push('Vise les unités groupées ou plusieurs unités serrées autour d’un marqueur (Spillover).');
+    return t.join(' ');
+  }
+
+  /* ---------- ordre d'entrée ---------- */
+  function deployment(P, M){
+    const list = P.filter(p => !p.u.summoned).map(p => p);
+    const left = list.slice(), rounds = [];
+    let onTable = 0;
+    for (let r = 1; r <= M.rounds; r++){
+      const last = r === M.rounds, pool = last ? Infinity : M.start + (r - 1) * M.inc;
+      let av = pool === Infinity ? Infinity : pool - onTable;
+      const order = left.slice().sort((a, b) => r === 1
+        ? (a.sup - b.sup) || ((a.fly ? 1 : 0) - (b.fly ? 1 : 0)) || (b.sp - a.sp)
+        : (b.sup - a.sup) || ((a.fly ? 1 : 0) - (b.fly ? 1 : 0)));
+      const ins = [];
+      order.forEach(p => { if (p.sup <= av){ ins.push(p); av -= p.sup; onTable += p.sup; left.splice(left.indexOf(p), 1); } });
+      let why = '';
+      if (r === 1) why = ins.length ? 'Unités peu chères d’abord : contester les marqueurs tôt et voir ce que fait l’adversaire (conseil du livre).' : 'Supply trop faible : aucune unité n’entre au round 1.';
+      else if (last) why = ins.length ? 'Dernier round : supply illimité, tout ce qui reste entre. Une unité encore en réserve au score compte comme détruite.' : 'Tout est déjà sur la table.';
+      else if (!ins.length && !left.length) why = 'Toute l’armée est déjà sur la table : le supply en plus permet de remplacer les pertes (rien d’autre à faire entrer).';
+      else why = ins.length ? `Le pool monte à ${pool} : place pour ${ins.map(p => p.u.name).slice(0, 2).join(' et ')}.` : `Pool ${pool} : rien ne rentre encore, garde la réserve ou attends des pertes.`;
+      rounds.push({r, pool, ins, onTable, why});
+    }
+    return rounds;
+  }
+
+  /* ---------- rendu ---------- */
+  function build(ctx){
+    const T = ctx.cls || {}, tbl = T.table || 'pt', ul = T.list || 'pl-list';
+    const fr = ctx.fr || (() => null);
+    const P = ctx.units.map(profile);
+    const M = ctx.mission;
+    const res = ctx.resName || 'ressource', resTot = ctx.resTotal || 0;
+    const secs = [];
+    const H = (t, body) => secs.push(`<section class="plan-sec"><h3>${E(t)}</h3>${body}</section>`);
+
+    /* en bref */
+    const holders = P.filter(p => !p.fly && !p.u.summoned);
+    const supTot = P.filter(p => !p.u.summoned).reduce((a, p) => a + p.sup, 0);
+    H('En bref', `<ul class="${ul}">
+      <li><b>Mission</b> : ${M.isDefault ? `valeurs par défaut ${E(SCALEFR[M.scale] || M.scale || '')} (supply ${M.start}, +${M.inc} par round, ${M.rounds} rounds). Renseigne ta Mission Card pour affiner.` : `${M.name ? E(M.name) + ' · ' : ''}supply ${M.start} au round 1, +${M.inc} par round, ${M.rounds} rounds.`}</li>
+      <li><b>Armée</b> : ${P.length} unités, supply total ${supTot} · ${holders.length} unités au sol pour tenir les marqueurs.</li>
+      <li><b>Ressource</b> : ${resTot} ${E(res)} par round (Faction Card + Tactical Cards).</li></ul>`);
+
+    /* rôles */
+    H('Rôle de chaque unité', `<table class="${tbl}"><thead><tr><th>Unité</th><th>Rôle</th><th>Atouts</th><th>Ce qu’elle doit faire</th></tr></thead><tbody>${
+      P.map(p => `<tr><td><b>${E(p.u.name)}</b><br><i>${p.u.models} fig. · supply ${p.sup}${p.u.summoned ? ' · invoquée' : ''}</i></td><td>${E(ROLE[p.role] || p.role || '–')}</td><td>${E(strengths(p).join(' · ') || '–')}</td><td>${E(advice(p) || 'Polyvalente : adapte-la au besoin du round.')}</td></tr>`).join('')}</tbody></table>`);
+
+    /* déploiement */
+    const D = deployment(P, M);
+    H('Ordre d’entrée en jeu', `<table class="${tbl}"><thead><tr><th>Round</th><th>Pool</th><th>Entrent</th><th>Pourquoi</th></tr></thead><tbody>${
+      D.map(x => `<tr><td><b>${x.r}</b></td><td>${x.pool === Infinity ? '∞' : x.pool}</td><td>${x.ins.length ? x.ins.map(p => `${E(p.u.name)} <i>(${p.sup})</i>`).join(', ') : '–'}</td><td>${E(x.why)}</td></tr>`).join('')}</tbody></table>
+      <p class="pl-note">Calcul sans pertes : chaque unité détruite libère du supply et permet d’entrer plus tôt. Les invocations n’entrent pas par ce plan.</p>`);
+
+    /* capacités */
+    const all = [];
+    P.forEach(p => p.abs.forEach(a => all.push({src: p.u.name, a, p})));
+    (ctx.cards || []).forEach(c => Object.entries(c.def.abilities || {}).forEach(([k, a]) => all.push({src: NM(c.key, c.def), a: Object.assign({key:k, name: NM(k, a)}, a), card: true})));
+    const usable = all.filter(x => x.a.type && x.a.type !== 'PASSIVE');
+    const passive = all.filter(x => x.a.type === 'PASSIVE');
+    const byPh = {};
+    usable.forEach(x => (byPh[x.a.phase || 'ANY'] = byPh[x.a.phase || 'ANY'] || []).push(x));
+    const order = ['MOVEMENT', 'ASSAULT', 'COMBAT', 'ANY'].concat(Object.keys(byPh).filter(k => !['MOVEMENT','ASSAULT','COMBAT','ANY'].includes(k)));
+    let capH = order.filter(k => byPh[k]).map(k => `<p class="pl-ph">${E(PHASE[k] || k)}</p><ul class="${ul}">${byPh[k].map(x => `<li><b>${E(x.a.name)}</b> <i>(${E(x.src)} · ${E(TYPE[x.a.type] || x.a.type)}${costN(x.a) ? ' · ' + costN(x.a) + ' ' + E(res) : ' · gratuite'})</i> — ${E(short(fr(x.a.text) || x.a.text, 170))}</li>`).join('')}</ul>`).join('');
+    /* budget par round, d'après l'ordre d'entrée */
+    const onAt = r => new Set(D.filter(x => x.r <= r).flatMap(x => x.ins.map(p => p.u.name)));
+    const budget = D.map(x => { const on = onAt(x.r); const need = usable.filter(y => costN(y.a) > 0 && (y.card || on.has(y.src))).reduce((a, y) => a + costN(y.a), 0); return {r: x.r, need}; });
+    const over = budget.filter(b => b.need > resTot);
+    capH += `<p class="pl-ph">Budget de ${E(res)}</p><ul class="${ul}"><li>Tu génères <b>${resTot} ${E(res)}</b> par round. Toutes tes capacités payantes coûtent ${budget.map(b => `${b.need} au round ${b.r}`).join(', ')} si tu les utilises toutes une fois.</li>${
+      over.length ? `<li><b>Tu ne pourras pas tout payer</b> ${over.length === budget.length ? 'à aucun round' : 'dès le round ' + over[0].r} : choisis chaque round les capacités des unités qui agissent vraiment (cible à portée, charge possible). Les moins chères d’abord : ${usable.filter(y => costN(y.a) > 0).sort((a, b) => costN(a.a) - costN(b.a)).slice(0, 4).map(y => E(y.a.name) + ' (' + costN(y.a) + ')').join(', ')}.</li>` : '<li>Ton budget couvre toutes tes capacités payantes : utilise-les chaque round, la ressource non dépensée est perdue au nettoyage.</li>'}</ul>`;
+    if (passive.length) capH += `<p class="pl-ph">Toujours actives (rien à payer)</p><p>${passive.map(x => `${E(x.a.name)} <i>(${E(x.src)})</i>`).join(' · ')}</p>`;
+    H('Capacités à utiliser', capH || '<p>Aucune capacité active dans la liste.</p>');
+
+    /* associations */
+    const syn = [];
+    const names = P.map(p => ({p, words: [p.u.name, NM(p.u.key)].map(s => s.replace(/\s*\(.*\)$/, ''))}));
+    all.forEach(x => {
+      const t = String(x.a.text || '');
+      names.forEach(n => { if (n.p.u.name === x.src) return; if (n.words.some(w => w.length > 3 && new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?\\b', 'i').test(t))) syn.push(`<b>${E(x.a.name)}</b> (${E(x.src)}) agit avec <b>${E(n.p.u.name)}</b>.`); });
+      const fm = t.match(/Friendly ((?:[A-Z][a-z]+ )*?)(Biological|Mechanical|Light|Armoured|Psionic|Ground|Flying)\b/);
+      if (fm){ const tag = fm[2], who = P.filter(p => p.u.name !== x.src && p.tags.includes(tag)).map(p => p.u.name); if (who.length) syn.push(`<b>${E(x.a.name)}</b> (${E(x.src)}) cible les unités amies ${E(tag)} : ${E(who.join(', '))}.`); }
+    });
+    const creepNeed = all.filter(x => !x.card && /ON CREEP/.test(x.a.text || ''));
+    if (creepNeed.length && (ctx.creep || []).length) syn.push(`Creep : ${E([...new Set(creepNeed.map(x => x.src))].join(', '))} gagne(nt) des effets ON CREEP. Étends le creep vers les marqueurs et les zones de combat.`);
+    H('Associations utiles', syn.length ? `<ul class="${ul}">${[...new Set(syn)].slice(0, 10).map(s => `<li>${s}</li>`).join('')}</ul>` : '<p>Pas d’association directe repérée entre les cartes de la liste.</p>');
+
+    /* points faibles */
+    const weak = [];
+    if (!P.some(p => p.aa)) weak.push('Aucune arme ne touche les volants : face à une armée aérienne, tu subiras sans riposter. Couvre-toi avec le décor.');
+    else if (P.filter(p => p.aa).length === 1) weak.push(`Une seule unité anti-aérienne (${E(P.find(p => p.aa).u.name)}) : protège-la, c’est elle qui gère les volants.`);
+    if (holders.length < 3) weak.push(`Seulement ${holders.length} unité(s) au sol pour tenir les marqueurs : choisis 2 marqueurs à tenir plutôt que de te disperser.`);
+    D.filter(x => x.r === M.rounds).forEach(x => x.ins.forEach(q => weak.push(`${E(q.u.name)} (supply ${q.sup}) n’entre qu’au dernier round sans pertes : envisage une unité moins chère, ou compte sur tes pertes pour la faire entrer plus tôt.`)));
+    if (!P.some(p => p.meleeStrong)) weak.push('Pas d’unité de charge : tu subis le corps à corps sans pouvoir l’imposer. Garde tes distances.');
+    const sg = new Set(P.flatMap(p => p.surge));
+    if (!sg.has('Armoured')) weak.push('Pas de Surge contre Armoured : les cibles blindées encaisseront tes tirs.');
+    if (!sg.has('Light')) weak.push('Pas de Surge contre Light : l’infanterie légère nombreuse sera longue à réduire.');
+    if (Math.max(0, ...P.map(p => p.rng)) < 12 && P.some(p => p.rng)) weak.push('Portée courte (moins de 12") : avance à couvert pour ne pas te faire tirer dessus avant de pouvoir répondre.');
+    if (creepNeed.length && !(ctx.creep || []).length) weak.push('Des capacités demandent ON CREEP mais aucune Creep Card n’est choisie.');
+    H('Points faibles', weak.length ? `<ul class="${ul}">${weak.map(s => `<li>${s}</li>`).join('')}</ul>` : '<p>Pas de point faible évident d’après les cartes : la partie se jouera sur le placement.</p>');
+
+    /* conseils */
+    const tips = ['Passe tôt en phase de Mouvement quand tes unités clés sont placées : tu prends le marqueur Premier joueur et tires en premier à l’Assaut (conseil du livre).'];
+    if (P.some(p => p.meleeStrong)) tips.push('En phase de Combat, n’oublie pas Close Ranks : 3" pour mettre plus de figurines au contact.');
+    if (P.some(p => p.rng)) tips.push('Si une unité n’a ni cible ni charge, fais un Run plutôt qu’un Hold : elle se rapproche d’un marqueur ou d’une charge (conseil du livre).');
+    if (P.some(p => p.tpl)) tips.push('Ton adversaire aussi peut grouper ses unités sur un marqueur : c’est là que tes gabarits rapportent le plus.');
+    if (P.some(p => p.fly)) tips.push('Tes volants ne tiennent pas les marqueurs : garde du supply au sol sur chaque marqueur que tu veux gagner.');
+    tips.push('C’est le supply total à 3" qui contrôle un marqueur, pas le nombre de figurines : une grosse unité peut tenir seule.');
+    H('Conseils de partie', `<ul class="${ul}">${tips.slice(0, 5).map(s => `<li>${E(s)}</li>`).join('')}</ul>`);
+
+    (ctx.extra || []).forEach(x => H(x.title, x.html));
+    return `<div class="plan">${secs.join('')}<p class="pl-foot">Plan généré à partir des cartes de ta liste et des règles du livre. Ce sont des recommandations : adapte-les au terrain et à l’adversaire.</p></div>`;
+  }
+  /* blocs séparés (pour la pagination du PDF du builder) */
+  function sections(ctx){ const h = build(ctx); const d = document.createElement('div'); d.innerHTML = h; return [...d.querySelectorAll('.plan-sec')].map(s => s.outerHTML); }
+  return {build, sections, supplyFor, DEFAULTS, NM};
+})();
+
+/* ================= plan de jeu dans l'aide de jeu ================= */
+function planOppSections(){
+  const opp = S.opp.units.filter(u => u.loc !== 'dead'), mine = S.units.filter(u => u.loc !== 'dead');
+  if (!opp.length) return [{title:'Face à l’armée adverse', html:'<p>Ajoute la liste adverse (onglet Partie ou Armées) pour obtenir les cibles prioritaires et les menaces.</p>'}];
+  const cl = u => Object.assign({}, u, {engaged:false, loc:'table'});
+  const better = (a, b) => !b || a.supLost > b.supLost || (a.supLost === b.supLost && (a.kills > b.kills || (a.kills === b.kills && a.dmg > b.dmg)));
+  const best = (att, foes) => { let r = null;
+    foes.forEach(t => ['ASSAULT','COMBAT'].forEach(ph => {
+      if (ph === 'COMBAT' && (isFlying(udef(att)) || isFlying(udef(t)))) return;
+      const v = bestVolley(cl(att), cl(t), ph); if (v && v.dmg > 0 && better(v, r && r.v)) r = {t, ph, v};
+    })); return r; };
+  const how = ph => ph === 'COMBAT' ? 'en charge' : 'au tir';
+  const tg = mine.map(u => ({u, b: best(u, opp)})).filter(x => x.b);
+  const th = opp.map(t => ({t, b: best(t, mine)})).filter(x => x.b).sort((a, b) => b.b.v.supLost - a.b.v.supLost || b.b.v.kills - a.b.v.kills || b.b.v.dmg - a.b.v.dmg);
+  const out = [];
+  out.push({title:'Cibles prioritaires', html: tg.length ? `<ul class="pl-list">${tg.map(x => `<li><b>${esc(unitName(x.u))}</b> → <b>${esc(unitName(x.b.t))}</b> ${how(x.b.ph)} : ≈ ${x.b.v.kills} fig. sur ${x.b.t.alive}${x.b.v.supLost ? `, <b>−${x.b.v.supLost} supply (≈ +${x.b.v.supLost} PV)</b>` : ''}.</li>`).join('')}</ul><p class="pl-note">Estimation moyenne (cible à portée et visible, sans couvert ni capacités du défenseur). L’onglet Attaque affine au cas par cas.</p>` : '<p>Aucune cible atteignable avec tes armes.</p>'});
+  const fl = opp.filter(t => isFlying(udef(t))), aa = mine.filter(u => weaponsOf(u).some(w => w.phase === 'ASSAULT' && /^(all|flying)$/i.test(w.target || '')));
+  out.push({title:'Menaces', html: `<ul class="pl-list">${th.slice(0, 4).map(x => `<li><b>${esc(unitName(x.t))}</b> est dangereux pour tes <b>${esc(unitName(x.b.t))}</b> ${how(x.b.ph)} : ≈ ${x.b.v.kills} fig${x.b.v.supLost ? `., −${x.b.v.supLost} supply` : ''}. Neutralise-le tôt ou garde-le hors de portée.</li>`).join('')}
+    ${fl.length ? `<li>Volants adverses : ${fl.map(t => esc(unitName(t))).join(', ')}. ${aa.length ? 'Tes unités anti-aériennes : ' + aa.map(u => esc(unitName(u))).join(', ') + '.' : '<b>Aucune de tes armes ne les touche</b> : cache-toi derrière le décor.'}</li>` : ''}</ul>`});
+  return out;
+}
+function planCtxConsole(){
+  const R = DB.races[S.race], m = mission();
+  const units = S.units.map(u => ({key:u.key, def:udef(u), models:u.start, upgrades:(u.upgrades||[]).slice(), name:unitName(u), summoned: !R.units[u.key]}));
+  const cards = S.cards.map(c => ({key:c.key, def:cardDef(c), kind:c.kind})).filter(c => c.def);
+  return {units, cards, creep: cards.filter(c => c.kind === 'creep'),
+    mission:{name: m.name + (m.level ? ' (' + m.level.charAt(0) + m.level.slice(1).toLowerCase() + ')' : ''), start:m.supply, inc:m.per_round, rounds:m.game_length || 5, isDefault:false},
+    resName:RES(), resTotal:totalRes(), fr, cls:{}, extra: planOppSections()};
+}
+function openPlanC(){
+  const html = S.units.length ? `<h3 class="fiche-t" style="margin-bottom:8px">Plan de jeu · ${esc(RACEFR[S.race] || S.race)}</h3>${PLAN.build(planCtxConsole())}` : '<p>Charge ta liste (onglet Partie) pour obtenir un plan de jeu.</p>';
+  openSheet(html); if (pop) pop.classList.add('wide');
+}
+const planBtn = cls => `<button class="btn ${cls || ''}" data-plan="1" aria-haspopup="dialog">Plan de jeu</button>`;
 
 /* ================= capacités : affichage ================= */
 function abText(a){ const f = fr(a.text); return f ? `<div class="tx">${linkify(f)}</div><div class="en">${linkify(a.text)}</div>` : `<div class="tx">${linkify(a.text||'')}</div>`; }
@@ -2672,6 +2914,7 @@ document.addEventListener('click', e => {
   if (d.tab){ U.tab = d.tab; saveU(); render(); window.scrollTo({top:0}); return; }
   if (t.id === 'modeBtn'){ U.simple = !U.simple; saveU(); render(); toast(U.simple ? 'Mode simplifié : l’essentiel pour jouer. Attaque et Bilan sont masqués.' : 'Mode complet : logigramme, conseils, Attaque et Bilan.'); return; }
   if (d.fiche){ openFiche(findU(d.fiche)); return; }
+  if (d.plan){ openPlanC(); return; }
   if (t.id === 'undoBtn'){ undo(); return; }
   if (t.id === 'nextBtn'){ nextStep(); return; }
   if (d.round){ S.round = +d.round; S.over = false; save(); render(); return; }
