@@ -477,6 +477,25 @@ details.reac>summary{cursor:pointer;font-weight:600}
 /* appui long : pas de sélection de texte sur les boutons d'unité */
 .unitpick button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #blkAct,#blkPick{scroll-margin-top:72px}
+
+/* ---------- téléphone : « Phase suivante » intégré à la barre du bas ---------- */
+@media (max-width:700px){
+  .next{left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));border-radius:0;box-shadow:0 -2px 10px rgba(0,0,0,.15);min-height:46px;font-size:16px;margin:0}
+  body{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(118px + env(safe-area-inset-bottom,0px))}
+}
+/* ---------- bloc 3 repliable ---------- */
+.cap3>details>summary{list-style:none;cursor:pointer}
+.cap3>details>summary::-webkit-details-marker{display:none}
+.cap3>details>summary h2{margin:-16px -16px 0;padding:9px 16px;background:var(--race-soft);border-bottom:1px solid var(--line);box-shadow:inset 4px 0 0 var(--race);border-radius:var(--r) var(--r) 0 0;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cap3>details>summary h2::after{content:"▾";margin-left:auto;color:var(--muted)}
+.cap3>details[open]>summary h2::after{content:"▴"}
+.cap3>details:not([open])>summary h2{margin-bottom:-16px;border-radius:var(--r)}
+details.capsub{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+details.capsub>summary{cursor:pointer;font-weight:600;color:var(--muted)}
+details.enx{margin-top:4px}
+details.enx>summary{cursor:pointer;font-size:12px;color:var(--muted)}
+:root[data-mode="simple"] .costbtn{min-height:44px;font-size:15px;font-weight:700}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -1736,7 +1755,7 @@ function openPlanC(){
 const planBtn = cls => `<button class="btn ${cls || ''}" data-plan="1" aria-haspopup="dialog">Plan de jeu</button>`;
 
 /* ================= capacités : affichage ================= */
-function abText(a){ const f = fr(a.text); return f ? `<div class="tx">${linkify(f)}</div><div class="en">${linkify(a.text)}</div>` : `<div class="tx">${linkify(a.text||'')}</div>`; }
+function abText(a){ const f = fr(a.text); return f ? `<div class="tx">${linkify(f)}</div>${SIMPLE() ? `<details class="enx"><summary>Texte anglais</summary><div class="en">${linkify(a.text)}</div></details>` : `<div class="en">${linkify(a.text)}</div>`}` : `<div class="tx">${linkify(a.text||'')}</div>`; }
 function abHTML(holder, a, opts={}){
   const used = S.used[holder + ':' + a.key], ct = costTxt(a), n = costVal(a), rep = /REPEATABLE/.test(a.text||'');
   const canUse = a.type !== 'PASSIVE' && !opts.noUse;
@@ -1928,11 +1947,23 @@ function renderActivationSimple(){
   } else {
     h += `<div class="panel"><h2>2 · Action</h2><p class="muted">Choisis une unité ci-dessus.</p></div>`;
   }
-  h += `</div><div class="panel"><h2>3 · Capacités${u ? ' de ' + esc(unitName(u)) : ''}</h2><div class="ablist">`;
-  if (u) h += phaseAbilities(u).filter(a => a.type !== 'PASSIVE').map(a => regAb(u.id, a)).join('') || '<p class="muted">Aucune capacité pour cette phase.</p>';
-  else h += '<p class="muted">Choisis une unité pour voir ses capacités de la phase.</p>';
-  const cab = []; S.cards.forEach(c => cardAbilities(c).filter(a => (a.phase === ph || a.phase === 'ANY') && a.type !== 'PASSIVE').forEach(a => cab.push(regAb(c.id, a))));
-  h += `</div><h3 class="subh">Cartes · ${readyRes()} ${esc(RES())} prêts</h3><div class="ablist">${cab.join('') || '<p class="muted">Aucune capacité de carte pour cette phase.</p>'}</div>`;
+  /* bloc 3 : capacités payables maintenant d'abord, le reste replié */
+  const items = [];
+  if (u) phaseAbilities(u).filter(a => a.type !== 'PASSIVE').forEach(a => items.push([u.id, a, false]));
+  S.cards.forEach(c => cardAbilities(c).filter(a => (a.phase === ph || a.phase === 'ANY') && a.type !== 'PASSIVE').forEach(a => items.push([c.id, a, true])));
+  const ready = readyRes();
+  const state = ([hid, a, card]) => { const us = S.used[hid + ':' + a.key], rep = /REPEATABLE/.test(a.text || '');
+    if (us && !rep) return 'used';
+    if (card){ const c = S.cards.find(x => x.id === hid); if (c && !c.ready) return 'used'; }
+    return costVal(a) > ready ? 'poor' : 'ok'; };
+  const ok = items.filter(x => state(x) === 'ok'), poor = items.filter(x => state(x) === 'poor'), used = items.filter(x => state(x) === 'used');
+  const rows = arr => arr.map(([hid, a]) => regAb(hid, a)).join('');
+  h += `</div><div class="panel cap3"><details ${U.cap3 === false ? '' : (ok.length ? 'open' : '')} id="cap3Box"><summary><h2>3 · Capacités${u ? ' de ' + esc(unitName(u)) : ''} <span class="pill ${ok.length ? 'ok' : ''}">${ok.length} utilisable${ok.length > 1 ? 's' : ''}</span></h2></summary>
+    <p class="small muted" style="margin:8px 0">${ready} ${esc(RES())} prêts.${u ? '' : ' Choisis une unité pour voir aussi ses capacités.'}</p>
+    <div class="ablist">${rows(ok) || '<p class="muted">Aucune capacité utilisable maintenant.</p>'}</div>
+    ${poor.length ? `<details class="capsub"><summary>Pas assez de ${esc(RES())} (${poor.length})</summary><div class="ablist">${rows(poor)}</div></details>` : ''}
+    ${used.length ? `<details class="capsub"><summary>Déjà utilisées ce round (${used.length})</summary><div class="ablist">${rows(used)}</div></details>` : ''}
+    </details>`;
   const re = [];
   S.units.filter(x => x.loc === 'table').forEach(x => abilitiesOf(x).filter(a => a.type === 'REACTION' && (a.phase === ph || a.phase === 'ANY')).forEach(a => re.push(regAb(x.id, Object.assign({}, a, {src:unitName(x)})))));
   S.cards.forEach(c => cardAbilities(c).filter(a => a.type === 'REACTION' && (a.phase === ph || a.phase === 'ANY')).forEach(a => re.push(regAb(c.id, a))));
@@ -1969,6 +2000,15 @@ document.addEventListener('pointerdown', e => {
 ['pointerup','pointercancel','pointerleave','scroll'].forEach(ev => document.addEventListener(ev, () => clearTimeout(lpT), {passive:true, capture:true}));
 document.addEventListener('click', e => { if (lpFired){ lpFired = false; e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('contextmenu', e => { if (e.target.closest('[data-sel]')) e.preventDefault(); });
+
+/* unités qui peuvent encore agir dans la phase (pour confirmer « Phase suivante ») */
+function remainingToAct(){
+  const ph = PH[S.phase].id; if (!['MOVEMENT','ASSAULT','COMBAT'].includes(ph) || S.passed.me) return [];
+  const av = avail(S.units);
+  return S.units.filter(u => u.loc !== 'dead' && !u.act[S.phase] && (
+    ph === 'MOVEMENT' ? (u.loc === 'table' || (u.loc === 'res' && (av === Infinity || curSup(u) <= av))) :
+    ph === 'ASSAULT' ? u.loc === 'table' : u.loc === 'table' && u.engaged && !isFlying(udef(u))));
+}
 
 /* ================= attaque ================= */
 const AT = {who:'me', mode:'ranged', au:null, aw:null, ao:null, oRace:'ZERG', oUnit:null, tSrc:'army', to:null, tRace:'ZERG', tUnit:null, tm:null, f:{}, r:{}};
@@ -2976,6 +3016,7 @@ document.addEventListener('click', e => {
   const d = t.dataset;
   if (d.kw){ openKw(t); return; }
   if (t.id === 'popClose' || t.id === 'popClose2'){ closePop(); return; }
+  if (t.id === 'nextForce'){ closePop(); nextStep(); return; }
   if (t.id === 'popBack'){ POP.stack.pop(); renderPop(); return; }
   if (d.paysel){ const i = PAY.sel.indexOf(d.paysel); if (i >= 0) PAY.sel.splice(i, 1); else PAY.sel.push(d.paysel); POP.stack = [{html:payHTML()}]; renderPop(); return; }
   if (t.id === 'payGo'){ confirmPay(); return; }
@@ -2994,7 +3035,9 @@ document.addEventListener('click', e => {
   if (d.fiche){ openFiche(findU(d.fiche)); return; }
   if (d.plan){ openPlanC(); return; }
   if (t.id === 'undoBtn'){ undo(); return; }
-  if (t.id === 'nextBtn'){ nextStep(); return; }
+  if (t.id === 'nextBtn'){ const rest = remainingToAct();
+    if (rest.length){ openSheet(`<h3 class="fiche-t">Passer à la phase suivante ?</h3><p>Il reste <b>${rest.length}</b> unité(s) qui peuvent encore être activées : ${rest.map(u => '<b>' + esc(unitName(u)) + '</b>').join(', ')}.</p>${PH[S.phase].id === 'COMBAT' ? '<p class="note warn">En phase de Combat, toutes les unités engagées doivent combattre.</p>' : ''}<div class="row" style="margin-top:10px"><button class="btn pri" id="nextForce">Phase suivante quand même</button><button class="btn" id="popClose2">Rester</button></div>`); return; }
+    nextStep(); return; }
   if (d.round){ S.round = +d.round; S.over = false; save(); render(); return; }
   if (d.ph != null){ S.phase = +d.ph; S.over = false; U.sel = null; save(); render(); return; }
   if (d.vp){ const [w, n] = d.vp.split('|'); S.vp[w] = Math.max(0, S.vp[w] + +n); save(); render(); return; }
@@ -3080,7 +3123,7 @@ document.addEventListener('change', e => {
   if (U.tab === 'attack' && t.type === 'checkbox' && (id.startsWith('f_') || t.dataset.tag != null)){ readAtk(); renderPipe(); return; }
   if (t.dataset.payred){ const k = t.dataset.payred, i = PAY.red.indexOf(k); if (t.checked && i < 0) PAY.red.push(k); if (!t.checked && i >= 0) PAY.red.splice(i, 1); POP.stack = [{html:payHTML()}]; renderPop(); return; }
 });
-document.addEventListener('toggle', e => { if (e.target.id === 'cmpBox'){ U.cmpOpen = e.target.open; saveU(); } if (e.target.id === 'seqBox'){ U.seqOpen = e.target.open; saveU(); } }, true);
+document.addEventListener('toggle', e => { if (e.target.id === 'cmpBox'){ U.cmpOpen = e.target.open; saveU(); } if (e.target.id === 'seqBox'){ U.seqOpen = e.target.open; saveU(); } if (e.target.id === 'cap3Box'){ U.cap3 = e.target.open; saveU(); } }, true);
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.r){ AT.r[t.dataset.r] = t.value === '' ? null : +t.value; const k = t.dataset.r; renderPipe(); const n = document.querySelector(`[data-r="${k}"]`); if (n){ n.focus(); const v = n.value; n.value = ''; n.value = v; } return; }
