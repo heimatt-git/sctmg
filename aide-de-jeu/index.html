@@ -478,11 +478,13 @@ details.reac>summary{cursor:pointer;font-weight:600}
 .unitpick button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #blkAct,#blkPick{scroll-margin-top:72px}
 
-/* ---------- téléphone : « Phase suivante » intégré à la barre du bas ---------- */
+/* ---------- téléphone : « Phase suivante » = petit bouton rond, flèche seule ---------- */
 @media (max-width:700px){
-  .next{left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));border-radius:0;box-shadow:0 -2px 10px rgba(0,0,0,.15);min-height:46px;font-size:16px;margin:0}
-  body{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
-  .toast{bottom:calc(118px + env(safe-area-inset-bottom,0px))}
+  .next{left:auto;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(70px + env(safe-area-inset-bottom,0px));width:52px;height:52px;min-height:0;padding:0;margin:0;border-radius:50%;font-size:0!important;letter-spacing:0!important;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+  .next::before{content:"→";font-size:26px;line-height:1;font-weight:700}
+  .next:disabled{opacity:.4}
+  body{padding-bottom:calc(130px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(70px + env(safe-area-inset-bottom,0px));right:80px!important;left:12px!important;width:auto!important;transform:none!important}
 }
 /* ---------- bloc 3 repliable ---------- */
 .cap3>details>summary{list-style:none;cursor:pointer}
@@ -2945,7 +2947,7 @@ function renderHud(){
     <div class="g"><span class="lbl">1er</span><span class="fpm"><button data-fpm="me" class="${S.fpm === 'me' ? 'on' : ''}">Moi</button><button data-fpm="opp" class="${S.fpm === 'opp' ? 'on' : ''}">Adv.</button></span></div>
     <button class="btn ghost undo-btn" id="undoBtn" ${UNDO.length ? '' : 'disabled'} title="Annuler la dernière action">↶ Annuler</button>`;
   $('#nextBtn').textContent = S.over ? 'Partie terminée' : S.phase === 4 ? (S.round >= lastRound() ? 'Fin de partie' : 'Round suivant →') : 'Phase suivante →';
-  $('#nextBtn').disabled = !!S.over;
+  $('#nextBtn').disabled = !!S.over; $('#nextBtn').title = $('#nextBtn').textContent; $('#nextBtn').setAttribute('aria-label', $('#nextBtn').textContent);
   const hl = $('#hudLine'); if (hl){ const pv = PH[S.phase];
     hl.innerHTML = `<span><b>R${S.round}</b> · ${esc(pv.t)}</span><span>Supply <b>${fmtSup(avail(S.units))}</b>/${fmtSup(pool())}</span><span>${esc(RES())} <b>${readyRes()}</b></span><span>PV <b>${S.vp.me}–${S.vp.opp}</b></span><span class="hl-ar" aria-hidden="true">${U.hudOpen ? '▴' : '▾'}</span>`;
     hl.setAttribute('aria-expanded', U.hudOpen ? 'true' : 'false'); hl.setAttribute('aria-label', 'Résumé de la partie, toucher pour ' + (U.hudOpen ? 'replier' : 'afficher le détail')); }
