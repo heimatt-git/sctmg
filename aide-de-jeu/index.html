@@ -498,6 +498,10 @@ details.capsub>summary{cursor:pointer;font-weight:600;color:var(--muted)}
 details.enx{margin-top:4px}
 details.enx>summary{cursor:pointer;font-size:12px;color:var(--muted)}
 :root[data-mode="simple"] .costbtn{min-height:44px;font-size:15px;font-weight:700}
+/* ---------- statut BURROWED ---------- */
+.pill.bur{color:#fff;background:#6b4a2b;border-color:transparent;letter-spacing:.04em}
+.note.bur{border-color:#8a6238;background:color-mix(in srgb,#8a6238 10%,transparent)}
+.note.bur .lbl{color:#b07f4a}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -754,7 +758,7 @@ function bestVolley(att, tgt, phase){
     return Object.assign(applyNear(w, nr, lk), {name: w.name + (nr ? ` (à ${NEAR_R(w)}" ou moins)` : '') + (lk ? ' (Target Lock)' : '')}); }), td = udef(tgt);
   const ok = ws.filter(w => canTarget(w, td) && !(phase === 'ASSAULT' && att.engaged && hasKw(w.keywords, 'BULKY')));
   if (!ok.length) return null;
-  const evade = phase === 'ASSAULT' ? !!tgt.engaged : false;
+  const evade = (phase === 'ASSAULT' && !!tgt.engaged) || isBur(tgt);
   const side = ok.filter(w => hasKw(w.keywords, 'SIDEARM'));
   const main = ok.filter(w => !hasKw(w.keywords, 'SIDEARM'));
   const n = w => hasKw(w.keywords, 'SPECIALIST') || w.specialist ? 1 : att.alive;
@@ -919,6 +923,7 @@ function reducers(a, holder){ // capacités de ta liste qui peuvent réduire un 
 function startUse(holder, a){
   const n = costVal(a), rep = /REPEATABLE/.test(a.text||'');
   if (usedOf(holder, a.key) && !rep){ toast('Déjà utilisée ce round par cette unité.'); return; }
+  const blk = burrowBlock(holder, a); if (blk){ toast(blk); return; }
   if (a.card){ const c = S.cards.find(x => x.id === a.card); if (!c.ready){ toast('Cette carte est déjà épuisée ce round.'); return; } }
   if (n <= 0 && !a.card){ recordUse(holder, a, [], 0, []); return; }
   PAY.holder = holder; PAY.key = a.key; PAY.sel = a.card ? [a.card] : []; PAY.red = [];
@@ -951,8 +956,10 @@ function recordUse(holder, a, cards, amount, red){
   const who = findU(holder) ? unitName(findU(holder)) : '';
   S.spent = S.spent || [];
   S.spent.push({id:Date.now().toString(36) + Math.random().toString(36).slice(2, 5), r:S.round, p:S.phase, holder, key:a.key, name:nm(a.key, a), who, cards, amount, red});
+  const bur = burrowFromAbility(holder, a); if (bur && !bur.pick) S.spent[S.spent.length - 1].bur = bur;
   logA((who ? who + ' : ' : '') + nm(a.key, a) + (amount ? ` (−${amount} ${RES()} : ${cards.map(id => nm(S.cards.find(c => c.id === id).key, cardDef(S.cards.find(c => c.id === id)))).join(', ')})` : ''), 'ab');
   save(); closePop(); render();
+  if (bur && bur.pick){ openSheet(rapidPickHTML()); return; }
   toast(nm(a.key, a) + (amount ? ` : −${amount} ${RES()}` : ' utilisée') + '.');
 }
 function confirmPay(){
@@ -968,6 +975,7 @@ function refund(id){
   e.cards.forEach(cid => { const c = S.cards.find(x => x.id === cid); if (c) c.ready = true; });
   (e.red || []).forEach(rk => { const [h, k] = rk.split('|'); delete S.used[h + ':' + k]; });
   const k = e.holder + ':' + e.key; if (S.used[k]){ S.used[k].n--; if (S.used[k].n <= 0) delete S.used[k]; }
+  if (e.bur){ const bu = findU(e.bur.uid); if (bu) bu.burrowed = e.bur.prev; }
   S.spent.splice(i, 1); logA('Annulé : ' + e.name + (e.who ? ' (' + e.who + ')' : ''), 'ab'); save();
 }
 function ledgerHTML(){
@@ -1104,7 +1112,7 @@ function computeScore(){
   return {add, lines, manual};
 }
 function applyControl(){
-  const sum = (ids, adj, arr) => ids.reduce((a, id) => { const u = arr.find(x => x.id === id); return a + (u && u.loc === 'table' ? curSup(u) : 0); }, 0) + (adj || 0);
+  const sum = (ids, adj, arr) => ids.reduce((a, id) => { const u = arr.find(x => x.id === id); return a + (u && u.loc === 'table' && !isBur(u) ? curSup(u) : 0); }, 0) + (adj || 0);
   liveMarkers().forEach(mk => {
     const a = sum(mk.me, mk.meAdj, S.units), b = sum(mk.opp, mk.oppAdj, S.opp.units);
     mk.prev = mk.owner; mk.gained = null;
@@ -1171,6 +1179,7 @@ function tree(u){
   if (u.loc === 'dead') { L('root', {title:'Unité détruite', steps:['Elle ne peut plus agir.']}); return N; }
   if (u.act[S.phase]) { L('root', {title:'Déjà activée cette phase', steps:['Chaque unité n’agit qu’une fois par phase. Choisis une autre unité ou passe.'], undo:true}); return N; }
   const cs = curSup(u);
+  if (isBur(u)) return burTree(u, N, A, L, moveSteps);
 
   if (ph === 'MOVEMENT'){
     A('root', 'L’unité est-elle en réserve ?', null, [['Oui, en réserve','res'],['Non, sur la table','tab']], u.loc === 'res' ? 0 : 1);
@@ -1192,7 +1201,7 @@ function tree(u){
     A('tab', 'L’unité est-elle engagée (une figurine à 1" d’une unité Ground ennemie) ?', fly ? 'Unité volante : jamais engagée.' : null,
       [['Oui, engagée','eng'],['Non','free']], fly ? 1 : (u.engaged ? 0 : undefined), {setEng:true});
     A('eng', 'Veux-tu te désengager ?', 'Si tu restes, l’unité combattra obligatoirement en phase 3.', [['Oui, je me retire','mass'],['Non, je reste au contact','holdeng']]);
-    const engOpp = S.opp.units.filter(x => x.loc === 'table' && x.engaged).reduce((a, x) => a + curSup(x), 0);
+    const engOpp = S.opp.units.filter(x => x.loc === 'table' && x.engaged).reduce((a, x) => a + disSup(x), 0);
     A('mass', `Ton supply actuel (${cs}) est-il supérieur au supply combiné des unités ennemies engagées avec toi ?`, `C’est la Tactical Mass. Si oui, aucune pénalité.${S.opp.units.length ? ` Supply total des unités adverses marquées « engagées » : ${engOpp}.` : ''}`, [['Oui','dismass'],['Non','dispen']]);
     const disSteps = ['Déplace l’unité avec les règles normales de Move (' + spTxt + ').',
       'Toute figurine qui ne peut pas finir strictement hors de l’Engagement Range de tous les ennemis est retirée (détruite).',
@@ -1277,8 +1286,9 @@ function tree(u){
 function applyAct(u, kind, extra){
   u.act[S.phase] = true;
   const n = unitName(u);
-  const LBL = {deploy:'Deploy', move:'Move', hold:'Hold', dis0:'Disengage (sans pénalité)', dis1:'Disengage (pénalité)', ranged:'Ranged Attack', run:'Run', charge:'Charge', cc:'Close Combat', gather:'Gather', sabotage:'Sabotage'};
+  const LBL = {deploy:'Deploy', move:'Move', hold:'Hold', dis0:'Disengage (sans pénalité)', dis1:'Disengage (pénalité)', ranged:'Ranged Attack', run:'Run', charge:'Charge', cc:'Close Combat', ccno:'Activée sans attaque (BURROWED)', gather:'Gather', sabotage:'Sabotage'};
   if (kind === 'deploy') u.loc = 'table';
+  if (u.burrowed && (['dis0','dis1','cc'].includes(kind) || (['move','run'].includes(kind) && !hasTunnel(u)))) setBur(u, false, LBL[kind]);
   if (kind === 'dis0') { u.engaged = false; u.penalty = false; }
   if (kind === 'dis1') { u.engaged = false; u.penalty = true; }
   if (kind === 'hold' && S.phase === 2) S.stats.holdAssault++;
@@ -1450,12 +1460,12 @@ function renderActivation(){
   const su = U.sel ? S.units.find(x => x.id === U.sel) : null;
   let h = `<div class="cols"><div class="stack"><div class="panel ${su ? '' : 'active'}"><h2>1 · Choisir l’unité</h2><p class="sub">${ph === 'COMBAT' ? 'Toutes tes unités engagées doivent combattre.' : 'Choisis l’unité, réponds aux questions : le logigramme te donne l’action et ses étapes.'} <b>${left}</b> unité(s) restante(s).</p>
     <div class="unitpick">${list.map(u => `<button data-sel="${u.id}" class="${U.sel === u.id ? 'on' : ''} ${u.act[S.phase] ? 'done' : ''}"><b>${esc(unitName(u))}</b>
-      <span class="s">${u.loc === 'res' ? 'Réserve' : 'Sur la table'}${u.engaged ? ' · engagée' : ''}${u.penalty ? ' · pénalité' : ''} · ${u.alive} fig. · supply ${curSup(u)}${u.act[S.phase] ? ' · activée' : ''}</span>${usedBadges(u.id) ? `<span class="badges">${usedBadges(u.id)}</span>` : ''}</button>`).join('') || '<p class="muted">Aucune unité éligible dans cette phase.</p>'}</div>`;
+      <span class="s">${u.loc === 'res' ? 'Réserve' : 'Sur la table'}${u.engaged ? ' · engagée' : ''}${burTxt(u)}${u.penalty ? ' · pénalité' : ''} · ${u.alive} fig. · supply ${curSup(u)}${u.act[S.phase] ? ' · activée' : ''}</span>${usedBadges(u.id) ? `<span class="badges">${usedBadges(u.id)}</span>` : ''}</button>`).join('') || '<p class="muted">Aucune unité éligible dans cette phase.</p>'}</div>`;
   h += `<div class="row passrow"><span class="lbl">Passer</span>
     <button class="btn" data-pass="me" ${S.passed.me ? 'disabled' : ''}>Je passe</button>
     <button class="btn" data-pass="opp" ${S.passed.opp ? 'disabled' : ''}>L’adversaire passe</button>
     ${S.firstPass[S.phase] ? `<span class="pill ok">Premier à passer : ${S.firstPass[S.phase] === 'me' ? 'toi' : 'adversaire'}${S.phase < 3 ? ' → marqueur Premier joueur en phase suivante' : ''}</span>` : ''}</div></div>`;
-  h += su ? `<div class="panel active"><h2>2 · Action : ${esc(unitName(su))}</h2><div class="row">${ficheBtn(su, '')}<span class="pill race">supply ${curSup(su)}</span>${su.engaged ? '<span class="pill warn">engagée</span>' : ''}${su.penalty ? '<span class="pill bad">pénalité</span>' : ''}</div><div class="flow">${renderFlow(su)}</div></div>`
+  h += su ? `<div class="panel active"><h2>2 · Action : ${esc(unitName(su))}</h2><div class="row">${ficheBtn(su, '')}<span class="pill race">supply ${curSup(su)}</span>${su.engaged ? '<span class="pill warn">engagée</span>' : ''}${su.penalty ? '<span class="pill bad">pénalité</span>' : ''}${burPill(su)}${burChk(su)}</div>${burNote(su)}<div class="flow">${renderFlow(su)}</div></div>`
     : `<div class="panel"><h2>2 · Action</h2><p class="muted">Choisis une unité : le logigramme te donne l’action et ses étapes.</p></div>`;
   h += `</div><div class="panel"><h2>3 · Capacités ${U.sel ? 'de ' + esc(unitName(S.units.find(x => x.id === U.sel))) : ''}</h2><p class="sub">Active : juste avant de déclarer l’action ou juste après qu’elle est résolue, jamais pendant. Une fois par round et par unité (sauf REPEATABLE).</p><div class="ablist">`;
   if (U.sel){ const u = S.units.find(x => x.id === U.sel); h += phaseAbilities(u).map(a => regAb(u.id, a)).join('') || '<p class="muted">Aucune capacité pour cette phase.</p>'; }
@@ -1480,7 +1490,7 @@ function renderScore(){
   S.cards.forEach(c => cardAbilities(c).forEach(a => { if (/end of (the|each) round/i.test(a.text||'')) fx.push(regAb(c.id, a)); }));
   const mine = S.units.filter(u => u.loc === 'table' && !isFlying(udef(u)));
   const theirs = S.opp.units.filter(u => u.loc === 'table' && !isFlying(udef(u)));
-  const sumOf = (ids, arr, adj) => ids.reduce((a, id) => { const u = arr.find(x => x.id === id); return a + (u && u.loc === 'table' ? curSup(u) : 0); }, 0) + (adj || 0);
+  const sumOf = (ids, arr, adj) => ids.reduce((a, id) => { const u = arr.find(x => x.id === id); return a + (u && u.loc === 'table' && !isBur(u) ? curSup(u) : 0); }, 0) + (adj || 0);
   const lm = liveMarkers().filter(x => sm !== 'activated_round' || x.active);
   const sc = computeScore();
   const unused = readyRes();
@@ -1490,8 +1500,8 @@ function renderScore(){
       const r = a > b ? ['ok','tu prends'] : b > a ? ['bad','l’adversaire prend'] : ['', a + b ? 'égalité : pas de changement' : 'personne : pas de changement'];
       return `<div class="mkc"><div class="row"><span class="mkid ${mk.aff.toLowerCase()}">${mk.id}</span><span class="small muted">${mkRel(mk)}${sm === 'sabotage' ? ' · Sabotage ' + mk.sab : ''}${sm === 'activated_round' ? ' · activé round ' + mk.actRound : ''}</span>
         <span class="pill ${mk.owner === 'me' ? 'ok' : mk.owner === 'opp' ? 'bad' : ''}" style="margin-left:auto">${mk.owner === 'me' ? 'à toi' : mk.owner === 'opp' ? 'à l’adversaire' : 'neutre'}</span></div>
-        <div class="small"><span class="lbl">Toi · ${a}</span> ${mine.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|me|${u.id}" ${mk.me.includes(u.id) ? 'checked' : ''}> ${esc(unitName(u))} <b class="mono">${curSup(u)}</b></label>`).join(' ') || '<span class="muted">aucune unité</span>'}</div>
-        <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) ? 'checked' : ''}> ${esc(unitName(u))} <b class="mono">${curSup(u)}</b></label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
+        <div class="small"><span class="lbl">Toi · ${a}</span> ${mine.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|me|${u.id}" ${mk.me.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité</span>'}</div>
+        <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
           <span class="stp"><button data-mkadj="${mk.id}|opp|-1">−</button><button data-mkadj="${mk.id}|opp|1">+</button></span>${mk.oppAdj ? ` <span class="mono">${mk.oppAdj > 0 ? '+' : ''}${mk.oppAdj}</span>` : ''}</div>
         <span class="pill ${r[0]}">${r[1]}</span></div>`; }).join('') || '<p class="muted">Aucun marqueur actif.</p>'}</div>
     <div class="row" style="margin-top:8px"><button class="btn pri" id="applyMk">Appliquer le contrôle</button><span class="small muted">Les +/− adverses servent pour les bonus de supply (capacités) ou une armée non saisie.</span></div></div>
@@ -1804,7 +1814,7 @@ function renderArmies(){
       const thr = S.opp.units.filter(u => u.loc === 'table');
       if (thr.length) h += `<div class="panel"><h2>Menaces sur la table</h2><div class="tw"><table class="wp"><thead><tr><th>Unité</th><th>Charge</th><th>Tir max</th><th>Supply</th><th>Palier</th></tr></thead><tbody>${thr.map(u => { const d = udef(u), sp = d.stats.speed, rw = rangedWeapons(u), nd = nextDrop(u);
         const rmax = rw.length ? Math.max(...rw.map(w => { const lr = (w.keywords||[]).map(k => String(k).match(/LONG RANGE\s*\((\d+)/)).find(Boolean); return lr ? +lr[1] : +w.rng || 0; })) : 0;
-        return `<tr><td><b>${esc(unitName(u))}</b>${u.engaged ? ' <span class="pill warn">engagée</span>' : ''}</td><td class="num">${!isFlying(d) && hasCCw(u) ? `${sp+1}–${sp+6}" <span class="muted">(moy. ${sp+3.5})</span>` : '—'}</td><td class="num">${rmax ? rmax + '"' : '—'}</td><td class="num">${curSup(u)}</td><td class="small">${nd ? `−${nd.k} fig. → ${nd.to}` : '—'}</td></tr>`; }).join('')}</tbody></table></div>
+        return `<tr><td><b>${esc(unitName(u))}</b>${u.engaged ? ' <span class="pill warn">engagée</span>' : ''}${isBur(u) ? ' <span class="pill bur">BURROWED : tir à 4" max</span>' : ''}</td><td class="num">${!isFlying(d) && hasCCw(u) ? `${sp+1}–${sp+6}" <span class="muted">(moy. ${sp+3.5})</span>` : '—'}</td><td class="num">${rmax ? rmax + '"' : '—'}</td><td class="num">${curSup(u)}</td><td class="small">${nd ? `−${nd.k} fig. → ${nd.to}` : '—'}</td></tr>`; }).join('')}</tbody></table></div>
         <p class="small muted">Charge = Speed + 1D6. Tir max inclut LONG RANGE. Reste hors de ces distances si tu ne veux pas être chargé ou visé.</p></div>`;
       h += `<div class="units">${S.opp.units.map(u => unitCard(u)).join('')}</div>`;
     }
@@ -1819,7 +1829,7 @@ function unitCard(u){
     <div class="row small muted">${esc((d.combat_tags||[]).join(' · '))}${d.army_slot ? ' · ' + esc(d.army_slot) : ''}${nd && u.loc === 'table' ? ` · <span class="pill warn">−${nd.k} fig. → supply ${nd.to}</span>` : ''}</div>
     <div class="row"><span class="seg">${[['res','Réserve'],['table','Sur la table'],['dead','Détruite']].map(([k, l]) => `<button data-loc="${u.id}|${k}" class="${u.loc === k ? 'on' : ''}">${l}</button>`).join('')}</span>
       ${isFlying(d) ? '<span class="pill">Volant</span>' : `<label class="chk"><input type="checkbox" data-eng="${u.id}" ${u.engaged ? 'checked' : ''}> Engagée</label>`}
-      ${u.penalty ? '<span class="pill bad">Pénalité désengagement</span>' : ''}${u.side === 'o' ? `<button class="btn ghost small" data-delopp="${u.id}">Retirer</button>` : ''}</div></header>
+      ${burChk(u)}${burPill(u)}${u.penalty ? '<span class="pill bad">Pénalité désengagement</span>' : ''}${u.side === 'o' ? `<button class="btn ghost small" data-delopp="${u.id}">Retirer</button>` : ''}</div></header>
     <div class="bd">
       <div class="row"><span class="lbl">Figurines</span><span class="stp"><button data-alive="${u.id}|-1" aria-label="moins">−</button></span><span class="num">${u.alive} / ${u.start}</span><span class="stp"><button data-alive="${u.id}|1" aria-label="plus">+</button></span>
         <span class="lbl" style="margin-left:10px">Dégâts</span><span class="stp"><button data-dmg="${u.id}|-1">−</button></span><span class="num">${u.dmg}</span><span class="stp"><button data-dmg="${u.id}|1">+</button></span></div>
@@ -1841,7 +1851,7 @@ function unitFicheHTML(u){
   const loc = u.loc === 'res' ? 'En réserve' : u.loc === 'dead' ? 'Détruite' : 'Sur la table';
   const st = [`<span class="pill">${loc}</span>`, `<span class="pill">${u.alive} / ${u.start} fig.</span>`, `<span class="pill race">supply ${curSup(u)}</span>`,
     isFlying(d) ? '<span class="pill">Volant</span>' : u.engaged ? '<span class="pill warn">Engagée</span>' : '',
-    u.penalty ? '<span class="pill bad">Pénalité de désengagement</span>' : '', u.dmg ? `<span class="pill bad">Marqueur de dégâts : ${u.dmg}</span>` : ''].join(' ');
+    u.penalty ? '<span class="pill bad">Pénalité de désengagement</span>' : '', burPill(u), u.dmg ? `<span class="pill bad">Marqueur de dégâts : ${u.dmg}</span>` : ''].join(' ');
   return `<div class="fiche">
     <h3 class="fiche-t">${esc(unitName(u))}</h3>
     <div class="small muted">${esc((d.combat_tags||[]).join(' · '))}${d.army_slot ? ' · ' + esc(d.army_slot) : ''}${u.side === 'o' ? ' · armée adverse' : ''}</div>
@@ -1861,6 +1871,7 @@ function simpleActions(u){
   const A = [];   // {label, act, x, note, cls, pl}
   const info = t => A.push({info: t});
   if (u.loc === 'dead'){ info('Unité détruite : elle ne peut plus agir.'); return A; }
+  if (isBur(u)) return simpleActionsBur(u);
   if (ph === 'MOVEMENT'){
     if (u.loc === 'res'){
       const av = avail(S.units);
@@ -1870,7 +1881,7 @@ function simpleActions(u){
       return A;
     }
     if (u.engaged && !fly){
-      const engOpp = S.opp.units.filter(x => x.loc === 'table' && x.engaged).reduce((a, x) => a + curSup(x), 0);
+      const engOpp = S.opp.units.filter(x => x.loc === 'table' && x.engaged).reduce((a, x) => a + disSup(x), 0);
       A.push({label:'Disengage (Tactical Mass)', act:'dis0', note:`Si ton supply (${cs}) dépasse celui des ennemis engagés${S.opp.units.length ? ` (${engOpp} saisi)` : ''} : aucune pénalité.`, cls:'pri', pl:'disengage'});
       A.push({label:'Disengage (pénalité)', act:'dis1', note:'Sinon : ni tir ni charge à la prochaine phase d’Assaut. Les figurines qui ne sortent pas de 1" sont détruites.', pl:'disengage'});
       A.push({label:'Hold', act:'hold', note:'Rester au contact : l’unité combattra en phase 3.'});
@@ -1911,6 +1922,7 @@ function simpleActions(u){
 function simpleActionsHTML(u){
   return simpleActions(u).map(a => {
     const pl = a.pl ? `<button class="btn ghost small" data-pl="${a.pl}">schéma</button>` : '';
+    if (a.burcc) return BUR_CC_HTML;
     if (a.info) return `<div class="sact info"><span>${linkify(a.info)}</span></div>`;
     if (a.charge) return `<div class="sact"><div class="sbtns"><button class="btn pri" data-act="charge" data-x="ok">Charge réussie</button><button class="btn" data-act="charge" data-x="ko">Charge ratée</button></div><span class="small">${linkify(a.note)} <button class="btn ghost small" data-pl="charge">schéma</button></span></div>`;
     if (a.ccEnd) return `<div class="sact"><div class="sbtns"><button class="btn pri" data-act="cc" data-x="eng">Combat fait, toujours engagée</button><button class="btn" data-act="cc" data-x="free">Combat fait, plus engagée</button></div><span class="small">${linkify(a.note)} <button class="btn ghost small" data-pl="combat">schéma</button></span></div>`;
@@ -1935,7 +1947,7 @@ function renderActivationSimple(){
   let h = `<div class="cols"><div class="stack">
     <div class="panel ${u ? '' : 'active'}" id="blkPick"><h2>1 · Choisir l’unité</h2><p class="sub sx-keep"><b>${left}</b> unité(s) à activer${ph === 'COMBAT' ? ' (toutes doivent combattre)' : ''}.</p>
     <div class="unitpick big">${list.map(x => `<button data-sel="${x.id}" class="${U.sel === x.id ? 'on' : ''} ${x.act[S.phase] ? 'done' : ''}"><b>${esc(unitName(x))}</b>
-      <span class="s">${x.loc === 'res' ? 'Réserve' : 'Table'}${x.engaged ? ' · engagée' : ''}${x.penalty ? ' · pénalité' : ''} · ${x.alive} fig.${x.act[S.phase] ? ' · faite' : ''}</span></button>`).join('') || '<p class="muted">Aucune unité éligible dans cette phase.</p>'}</div>
+      <span class="s">${x.loc === 'res' ? 'Réserve' : 'Table'}${x.engaged ? ' · engagée' : ''}${burTxt(x)}${x.penalty ? ' · pénalité' : ''} · ${x.alive} fig.${x.act[S.phase] ? ' · faite' : ''}</span></button>`).join('') || '<p class="muted">Aucune unité éligible dans cette phase.</p>'}</div>
     <div class="row passrow"><span class="lbl">Passer</span>
       <button class="btn" data-pass="me" ${S.passed.me ? 'disabled' : ''}>Je passe</button>
       <button class="btn" data-pass="opp" ${S.passed.opp ? 'disabled' : ''}>L’adversaire passe</button>
@@ -1944,7 +1956,7 @@ function renderActivationSimple(){
     const d = udef(u);
     h += `<div class="panel active" id="blkAct"><h2>2 · Action : ${esc(unitName(u))}</h2>
       <div class="row">${ficheBtn(u, '')}${u.loc === 'table' && !isFlying(d) ? `<label class="chk"><input type="checkbox" data-eng="${u.id}" ${u.engaged ? 'checked' : ''}> Engagée</label>` : ''}
-        <span class="pill race">supply ${curSup(u)}</span>${u.penalty ? '<span class="pill bad">pénalité</span>' : ''}</div>
+        <span class="pill race">supply ${curSup(u)}</span>${u.penalty ? '<span class="pill bad">pénalité</span>' : ''}${burChk(u)}</div>${burNote(u)}
       <div class="sactions">${u.act[S.phase] ? `<div class="sact info"><span>Déjà activée cette phase.</span><button class="btn ghost small" data-unact="1">Annuler son activation</button></div>` : simpleActionsHTML(u)}</div></div>`;
   } else {
     h += `<div class="panel"><h2>2 · Action</h2><p class="muted">Choisis une unité ci-dessus.</p></div>`;
@@ -2012,6 +2024,120 @@ function remainingToAct(){
     ph === 'ASSAULT' ? u.loc === 'table' : u.loc === 'table' && u.engaged && !isFlying(udef(u))));
 }
 
+/* ================= statut BURROWED (glossaire : BURROWED, HIDDEN) ================= */
+const canBurrow = u => { if (!u) return false; const d = udef(u); if (u.race !== 'ZERG' || isFlying(d)) return false;
+  return !abilitiesOf(u).some(a => /cannot gain Burrowed Status/i.test(a.text || '')); };
+const isBur = u => !!(u && u.burrowed && u.loc === 'table');
+const hasTunnel = u => (u.upgrades || []).includes('Tunneling_Claws');
+const hasRegen = u => abilitiesOf(u).some(a => a.key === 'REGENERATION');
+const disSup = u => isBur(u) ? 0 : curSup(u);   // supply pour les tests de Disengage
+function setBur(u, v, why){
+  if (!u || !!u.burrowed === !!v) return;
+  u.burrowed = !!v;
+  logA(unitName(u) + (v ? ' gagne BURROWED' : ' perd BURROWED') + (why ? ' (' + why + ')' : ''), 'act');
+}
+/* capacités qui changent le statut, appelées après paiement */
+function burrowFromAbility(holder, a){
+  const u = findU(holder), sel = U.sel && findU(U.sel);
+  if (a.key === 'BURROW' && u){ const was = !!u.burrowed; setBur(u, !was, 'Burrow'); return {uid:u.id, prev:was}; }
+  if (a.key === 'LIE_IN_WAIT' && sel){ const was = !!sel.burrowed; setBur(sel, true, 'Lie in Wait'); return {uid:sel.id, prev:was}; }
+  if (a.key === 'NASTY_SURPRISE' && sel){ const was = !!sel.burrowed; setBur(sel, false, 'Nasty Surprise'); return {uid:sel.id, prev:was}; }
+  if (a.key === 'RAPID_BURROWING') return {pick:true};
+  return null;
+}
+/* vérification avant paiement */
+function burrowBlock(holder, a){
+  const u = findU(holder), sel = U.sel && findU(U.sel);
+  if (a.key === 'BURROW' && u){ if (!u.burrowed && u.engaged) return 'Burrow : l’unité doit être non engagée.'; if (!canBurrow(u)) return 'Cette unité ne peut pas gagner BURROWED.'; }
+  if (a.key === 'LIE_IN_WAIT'){ if (!sel) return 'Lie in Wait : choisis d’abord l’unité active.'; if (sel.engaged) return 'Lie in Wait : l’unité active doit être non engagée.'; if (!canBurrow(sel)) return 'Lie in Wait : unité Ground uniquement.'; }
+  if (a.key === 'NASTY_SURPRISE'){ if (!sel) return 'Nasty Surprise : choisis d’abord l’unité active.'; if (!sel.burrowed) return 'Nasty Surprise : l’unité active n’est pas BURROWED.'; }
+  if (a.key === 'RAPID_BURROWING' && !rapidTargets().length) return 'Rapid Burrowing : aucune unité Ground Zerg non engagée sur la table.';
+  return null;
+}
+const rapidTargets = () => S.units.filter(u => u.loc === 'table' && !u.engaged && !u.burrowed && canBurrow(u));
+function rapidPickHTML(){
+  return `<h3 class="fiche-t">Rapid Burrowing</h3><p class="small">Choisis l’unité Ground Zerg non engagée qui gagne BURROWED (même si elle a déjà été activée ce round).</p>
+    <div class="unitpick">${rapidTargets().map(u => `<button data-burpick="${u.id}"><b>${esc(unitName(u))}</b><span class="s">${u.act[S.phase] ? 'déjà activée' : 'pas encore activée'}</span></button>`).join('')}</div>
+    <div class="row" style="margin-top:10px"><button class="btn ghost" id="popClose2">Fermer</button></div>`;
+}
+/* éléments d'affichage */
+const burPill = u => isBur(u) ? '<span class="pill bur">BURROWED</span>' : '';
+const burTxt = u => isBur(u) ? ' · BURROWED' : '';
+const burChk = u => canBurrow(u) && u.loc === 'table' ? `<label class="chk"><input type="checkbox" data-bur="${u.id}" ${u.burrowed ? 'checked' : ''}> Burrowed</label>` : '';
+function burNote(u){
+  if (!isBur(u)) return '';
+  const ph = PH[S.phase].id, t = hasTunnel(u);
+  const lines = ['Actions permises : Move, Disengage, Run, Hold et Close Ranks. Toutes sauf Hold retirent BURROWED' + (t ? ' (Tunneling Claws : Move et Run le gardent)' : '') + '.',
+    'HIDDEN : ne peut être visée au tir que par une figurine à 4" ou moins ; jet d’Evade contre chaque attaque. Ne conteste pas les marqueurs. Supply 0 pour les tests de Disengage.'];
+  if (ph === 'ASSAULT' && hasRegen(u)) lines.unshift('<b>Regeneration</b> : à l’activation, si elle est BURROWED, résous HEAL(2).');
+  return `<div class="note bur"><span class="lbl">BURROWED</span>${lines.join('<br>')}</div>`;
+}
+/* actions du mode simplifié pour une unité BURROWED */
+function simpleActionsBur(u){
+  const ph = PH[S.phase].id, sp = udef(u).stats.speed, t = hasTunnel(u), A = [];
+  const keep = t ? 'garde BURROWED (Tunneling Claws)' : 'retire BURROWED';
+  if (ph === 'MOVEMENT'){
+    if (u.engaged){
+      A.push({label:'Disengage', act:'dis1', note:'Retire BURROWED. Son supply compte pour 0 dans ce test : pas de Tactical Mass, donc pénalité (ni tir ni charge à la prochaine phase d’Assaut).', pl:'disengage'});
+      A.push({label:'Hold', act:'hold', note:'Garde BURROWED. Au contact : elle devra être activée en phase 3.', cls:'pri'});
+      return A;
+    }
+    A.push({label:'Move', act:'move', note:`Jusqu’à ${sp}" : ${keep}.${t ? ' Peut traverser les socles des autres unités.' : ''}`, pl:'mouvement'});
+    A.push({label:'Hold', act:'hold', note:'Garde BURROWED.', cls:'pri'});
+    return A;
+  }
+  if (ph === 'ASSAULT'){
+    if (u.engaged){ A.push({label:'Hold', act:'hold', note:'Garde BURROWED. Pas de tir ni de charge en étant BURROWED.', cls:'pri'}); return A; }
+    A.push({label:'Run', act:'run', note:`Move normal jusqu’à ${sp}" : ${keep}.`, pl:'mouvement'});
+    A.push({label:'Hold', act:'hold', note:'Garde BURROWED. Pas de tir ni de charge en étant BURROWED.', cls:'pri'});
+    return A;
+  }
+  if (ph === 'COMBAT'){
+    if (!u.engaged){ A.push({info:'Non engagée : pas d’action en phase de Combat.'}); return A; }
+    A.push({burcc:true});
+    return A;
+  }
+  return A;
+}
+const BUR_CC_HTML = `<div class="sact"><div class="sbtns"><button class="btn pri" data-act="cc" data-x="eng">Close Ranks + combat, toujours engagée</button><button class="btn" data-act="cc" data-x="free">Close Ranks + combat, plus engagée</button></div><span class="small">Close Ranks en première étape retire BURROWED, puis l’attaque se déroule normalement.</span></div>
+  <div class="sact"><div class="sbtns"><button class="btn" data-act="ccno">Ne pas attaquer</button></div><span class="small">Sans Close Ranks, elle est activée mais ne frappe pas. Elle reste BURROWED. Les ennemis engagés peuvent l’attaquer normalement.</span></div>`;
+/* logigramme (mode complet) pour une unité BURROWED */
+function burTree(u, N, A, L, moveSteps){
+  const ph = PH[S.phase].id, t = hasTunnel(u), keep = t ? 'Tunneling Claws : l’unité garde BURROWED.' : null, lose = t ? null : 'Cette action retire BURROWED (et HIDDEN).';
+  const hold = L('bhold', {title:'Hold (reste BURROWED)', act:'hold', steps:['L’unité ne fait rien et reçoit son marqueur d’activation.','Hold est la seule action qui ne retire pas BURROWED.']});
+  if (ph === 'MOVEMENT'){
+    A('root', 'L’unité (BURROWED) est-elle engagée ?', 'Une unité BURROWED ne peut faire que Move, Disengage, Run, Hold ou Close Ranks.', [['Oui, engagée','beng'],['Non','bfree']], u.engaged ? 0 : 1);
+    A('beng', 'Rester enterrée ou se désengager ?', 'Son supply compte pour 0 dans les tests de Disengage : pas de Tactical Mass possible.', [['Rester (Hold)','bhold'],['Se désengager','bdis']]);
+    L('bdis', {title:'Disengage (avec pénalité)', act:'dis1', steps:['Déplace l’unité avec les règles normales de Move.','Toute figurine qui ne peut pas finir strictement hors de l’Engagement Range de tous les ennemis est retirée (détruite).','Si le modèle de tête lui-même n’y arrive pas, le désengagement échoue : l’unité ne bouge pas, le modèle de tête est retiré et l’activation se termine.'],
+      warn:'Retire BURROWED. Pénalité : pas de Ranged Attack ni de Charge à la prochaine phase d’Assaut.'});
+    A('bfree', 'Bouger ou rester enterrée ?', null, [['Move','bmove'],['Rester (Hold)','bhold']]);
+    L('bmove', {title:'Move', act:'move', steps:moveSteps, tip:keep ? keep + ' Elle peut aussi traverser les socles des autres unités.' : null, warn:lose});
+    return N;
+  }
+  if (ph === 'ASSAULT'){
+    if (u.loc !== 'table'){ L('root', {title:'En réserve', steps:['Les unités en réserve ne peuvent pas agir en phase d’Assaut.']}); return N; }
+    A('root', 'L’unité (BURROWED) est-elle engagée ?', 'Pas de tir ni de charge tant qu’elle est BURROWED : seulement Run ou Hold.', [['Oui','bhold'],['Non','bfree']], u.engaged ? 0 : 1);
+    A('bfree', 'Courir ou rester enterrée ?', null, [['Run','brun'],['Rester (Hold)','bhold']]);
+    L('brun', {title:'Run', act:'run', steps:moveSteps.concat(['L’unité doit être non engagée.']), tip:keep, warn:lose});
+    return N;
+  }
+  if (ph === 'COMBAT'){
+    if (u.loc !== 'table'){ L('root', {title:'Hors de la table', steps:['Seules les unités engagées agissent en phase 3.']}); return N; }
+    A('root', 'L’unité est-elle engagée ?', null, [['Oui','bcc'],['Non','none']], u.engaged ? 0 : undefined, {setEng:true});
+    L('none', {title:'Pas d’action', steps:['Les unités non engagées ne peuvent pas agir en phase 3.']});
+    A('bcc', 'Elle doit être activée. Faire Close Ranks pour pouvoir attaquer ?', 'En restant BURROWED, elle ne peut pas faire de Close Combat Attack. Close Ranks en première étape retire BURROWED, puis l’attaque continue normalement.', [['Oui : Close Ranks puis attaque','cc'],['Non : pas d’attaque','bnocc']]);
+    L('bnocc', {title:'Pas d’attaque (reste BURROWED)', act:'ccno', steps:['L’unité est activée mais ne frappe pas.','Les unités ennemies engagées avec elle peuvent l’attaquer normalement.']});
+    L('cc', {title:'Close Ranks puis Close Combat Attack', act:'cc', steps:[
+      'Close Ranks : déplace le modèle de tête jusqu’à 3". Il doit finir plus près des unités avec lesquelles il est engagé, sans engager de nouvelle unité ennemie. BURROWED est retiré.',
+      'Replace les autres en cohésion, socle à socle avec l’ennemi si possible, sinon socle à socle avec une figurine amie à 1" de l’ennemi.',
+      'Fighting Rank et Supporting Rank frappent, avec les armes de Combat de la carte (une au choix par figurine).',
+      'Pertes : priorité 1 → 2 → 3. Si plus aucune figurine n’est à 1" d’un ennemi, l’unité n’est plus engagée.'],
+      attack:'combat', ccEnd:true, cmp:'COMBAT'});
+    return N;
+  }
+  return N;
+}
+
 /* ================= attaque ================= */
 const AT = {who:'me', mode:'ranged', au:null, aw:null, ao:null, oRace:'ZERG', oUnit:null, tSrc:'army', to:null, tRace:'ZERG', tUnit:null, tm:null, f:{}, r:{}};
 function dbWeapons(race, key){ const d = allUnitsOf(race)[key]; const out = Object.entries(d.weapons||{}).map(([k, w]) => Object.assign({key:k, name:nm(k)}, w));
@@ -2057,7 +2183,7 @@ function prefillDef(){
   if (du){ td = udef(du); alive = du.alive; dmg = du.dmg; eng = du.engaged; }
   else { td = AT.tUnit && allUnitsOf(AT.tRace)[AT.tUnit]; alive = td ? (td.composition_options ? td.composition_options[0].models : 1) : 1; }
   if (td) Object.assign(f, {arm:tn(td.stats.armour), ev:tn(td.stats.evade), hp:td.stats.hp, sh:td.stats.shield || 0, tags:(td.combat_tags||[]).slice(), vis:alive, mk:dmg, tEng:eng, tAb:Object.entries(td.abilities||{}).map(([k, a]) => Object.assign({key:k}, a))});
-  f.shOn = (f.sh || 0) > 0; f.grant = false; AT.r = {};
+  f.shOn = (f.sh || 0) > 0; f.grant = isBur(du); AT.r = {};
 }
 function atkPrefill(){ atkDefaults(); prefillAtt(); prefillDef(); }
 const opt = (v, l, sel) => `<option value="${esc(v)}" ${sel ? 'selected' : ''}>${esc(l)}</option>`;
@@ -2194,7 +2320,7 @@ function liveCompare(){
     const td = udef(t);
     if (cc && isFlying(td)) return null;
     let tg = 'ground'; const wt = (atkWeaponList().find(x => x.key === AT.aw) || {}).target; if (wt && !canTarget({target:wt}, td)) return null;
-    const evade = !cc && !!t.engaged;
+    const evade = (!cc && !!t.engaged) || isBur(t);
     let dmg;
     if (tpl){ const aff = Math.max(1, Math.min(t.alive, f.aff || 1)); const tw = Object.assign({}, w, {roa:1, s_dice: surgeMatch(w, td.combat_tags) ? String(aff) : null});
       dmg = expectDice(tw, Math.max(0, aff + (f.extra || 0)), td, {evade}); }
@@ -3018,6 +3144,7 @@ document.addEventListener('click', e => {
   const d = t.dataset;
   if (d.kw){ openKw(t); return; }
   if (t.id === 'popClose' || t.id === 'popClose2'){ closePop(); return; }
+  if (d.burpick){ const u = findU(d.burpick); setBur(u, true, 'Rapid Burrowing'); const e = (S.spent || []).filter(x => x.key === 'RAPID_BURROWING').pop(); if (e) e.bur = {uid:u.id, prev:false}; save(); closePop(); render(); toast(unitName(u) + ' est BURROWED.'); return; }
   if (t.id === 'nextForce'){ closePop(); nextStep(); return; }
   if (t.id === 'popBack'){ POP.stack.pop(); renderPop(); return; }
   if (d.paysel){ const i = PAY.sel.indexOf(d.paysel); if (i >= 0) PAY.sel.splice(i, 1); else PAY.sel.push(d.paysel); POP.stack = [{html:payHTML()}]; renderPop(); return; }
@@ -3057,7 +3184,7 @@ document.addEventListener('click', e => {
   if (d.card){ const c = S.cards.find(x => x.id === d.card); c.ready = !c.ready; save(); render(); return; }
   if (d.loc){ const [id, l] = d.loc.split('|'); const u = findU(id);
     if (l === 'dead'){ setAlive(u, 0); logA(unitName(u) + ' détruite', 'loss'); }
-    else { if (u.loc === 'dead') { u.alive = u.start; } u.loc = l; if (l !== 'table') u.engaged = false; }
+    else { if (u.loc === 'dead') { u.alive = u.start; } u.loc = l; if (l !== 'table'){ u.engaged = false; u.burrowed = false; } }
     save(); render(); return; }
   if (d.alive){ const [id, n] = d.alive.split('|'); const u = findU(id); const lost = setAlive(u, u.alive + +n); if (lost > 0) logA(`${unitName(u)} : supply −${lost}`, 'loss'); save(); render(); return; }
   if (d.dmg){ const [id, n] = d.dmg.split('|'); const u = findU(id); u.dmg = Math.max(0, u.dmg + +n); save(); render(); return; }
@@ -3105,6 +3232,7 @@ document.addEventListener('change', e => {
   if (id === 'selDeploy'){ S.setup.deploy = +t.value; S.markers = mkMarkers(); save(); render(); return; }
   if (id === 'addRace'){ U.addRace = t.value; U.addUnit = Object.keys(DB.races[t.value].units)[0]; saveU(); render(); return; }
   if (id === 'addUnit'){ U.addUnit = t.value; const race = $('#addRace').value; const comp = (DB.races[race].units[t.value].composition_options || [{models:1}]); $('#addN').innerHTML = comp.map(c => opt(c.models, c.models)).join(''); return; }
+  if (t.dataset.bur){ const u = findU(t.dataset.bur); setBur(u, t.checked, 'manuel'); U.flow = {}; save(); render(); return; }
   if (t.dataset.eng){ const u = findU(t.dataset.eng); u.engaged = t.checked; U.flow = {}; save(); render(); return; }
   if (t.dataset.mkc){ const [mid, s, uid] = t.dataset.mkc.split('|'); const mk = S.markers.find(x => x.id === +mid); const arr = mk[s]; const i = arr.indexOf(uid); if (t.checked && i < 0) arr.push(uid); if (!t.checked && i >= 0) arr.splice(i, 1); save(); render(); return; }
 
