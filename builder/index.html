@@ -271,7 +271,7 @@ td.kw{white-space:normal;min-width:140px}
 .plan .pl-list{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13.5px}
 .plan .pl-ph{margin:10px 0 4px;font-family:var(--f-display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--acc)}
 .plan .pl-note,.plan .pl-foot{font-size:12px;color:var(--muted);margin:6px 0 0}
-@media (max-width:700px){.plan .pt thead{display:none}.plan .pt tr{display:grid;border-bottom:1px solid var(--line);padding:6px 0}.plan .pt td{border:0;padding:2px 0}}
+@media (max-width:700px){.plan .pt thead{display:none}.plan .pt tr{display:grid;border-bottom:1px solid var(--line);padding:6px 0}.plan .pt td{border:0;padding:2px 0}.plan .pt td[data-l]::before{content:attr(data-l);font-weight:600;color:var(--muted)}}
 </style><style>/* ---------- skin Terran commun (accueil, builder, règles en images) ---------- */
 .skinbtn{border:1px solid var(--line);background:var(--sunk,var(--surface-2,transparent));color:var(--ink);border-radius:6px;padding:6px 10px;min-height:32px;font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
 :root[data-skin="terran"]{
@@ -1464,7 +1464,7 @@ var PLAN = (function(){
       if (r === 1) why = ins.length ? 'Unités peu chères d’abord : contester les marqueurs tôt et voir ce que fait l’adversaire (conseil du livre).' : 'Supply trop faible : aucune unité n’entre au round 1.';
       else if (last) why = ins.length ? 'Dernier round : supply illimité, tout ce qui reste entre. Une unité encore en réserve au score compte comme détruite.' : 'Tout est déjà sur la table.';
       else if (!ins.length && !left.length) why = 'Toute l’armée est déjà sur la table : le supply en plus permet de remplacer les pertes (rien d’autre à faire entrer).';
-      else why = ins.length ? `Le pool monte à ${pool} : place pour ${ins.map(p => p.u.name).slice(0, 2).join(' et ')}.` : `Pool ${pool} : rien ne rentre encore, garde la réserve ou attends des pertes.`;
+      else why = ins.length ? `Le supply monte à ${pool} : place pour ${ins.map(p => p.u.name).slice(0, 2).join(' et ')}.` : `Supply ${pool} : rien ne rentre encore, garde la réserve ou attends des pertes.`;
       rounds.push({r, pool, ins, onTable, why});
     }
     return rounds;
@@ -1494,8 +1494,8 @@ var PLAN = (function(){
 
     /* déploiement */
     const D = deployment(P, M);
-    H('Ordre d’entrée en jeu', `<table class="${tbl}"><thead><tr><th>Round</th><th>Pool</th><th>Entrent</th><th>Pourquoi</th></tr></thead><tbody>${
-      D.map(x => `<tr><td><b>${x.r}</b></td><td>${x.pool === Infinity ? '∞' : x.pool}</td><td>${x.ins.length ? x.ins.map(p => `${E(p.u.name)} <i>(${p.sup})</i>`).join(', ') : '–'}</td><td>${E(x.why)}</td></tr>`).join('')}</tbody></table>
+    H('Ordre d’entrée en jeu', `<table class="${tbl}"><thead><tr><th style="width:11%">Round</th><th style="width:19%">Supply disponible</th><th>Entrent</th><th>Pourquoi</th></tr></thead><tbody>${
+      D.map(x => `<tr><td data-l="Round "><b>${x.r}</b></td><td data-l="Supply disponible : ">${x.pool === Infinity ? 'illimité' : x.pool}</td><td data-l="Entrent : ">${x.ins.length ? x.ins.map(p => `${E(p.u.name)} <i>(${p.sup})</i>`).join(', ') : 'aucune'}</td><td>${E(x.why)}</td></tr>`).join('')}</tbody></table>
       <p class="pl-note">Calcul sans pertes : chaque unité détruite libère du supply et permet d’entrer plus tôt. Les invocations n’entrent pas par ce plan.</p>`);
 
     /* capacités */
