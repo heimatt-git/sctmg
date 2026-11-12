@@ -502,6 +502,12 @@ details.enx>summary{cursor:pointer;font-size:12px;color:var(--muted)}
 .pill.bur{color:#fff;background:#6b4a2b;border-color:transparent;letter-spacing:.04em}
 .note.bur{border-color:#8a6238;background:color-mix(in srgb,#8a6238 10%,transparent)}
 .note.bur .lbl{color:#b07f4a}
+.pill.siege{color:#fff;background:#3c5a73;border-color:transparent;letter-spacing:.04em}
+.pill.hid{color:#fff;background:#4b3f72;border-color:transparent;letter-spacing:.04em}
+.note.siege{border-color:#3c5a73;background:color-mix(in srgb,#3c5a73 10%,transparent)}
+.note.siege .lbl{color:#5b84a6}
+.note.hid{border-color:#5d4f8c;background:color-mix(in srgb,#5d4f8c 10%,transparent)}
+.note.hid .lbl{color:#8a7bc4}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -663,7 +669,7 @@ const fxTxt = x => [x.set && x.set.surge_type ? 'Surge Type ' + [].concat(x.set.
 const nearTxt = (w, kind) => (w.near || []).filter(x => kind === 'lock' ? x.lock : x.r).map(x => `${x.src} : ${fxTxt(x)}`).join(' ; ');
 const lockSide = u => u && u.side === 'o' ? 'opp' : 'me';
 const lockOf = u => ((S.lock || {})[lockSide(u)]) || null;
-function weaponsOf(u){
+function weaponsOf(u, all){
   const d = udef(u), out = [], repl = {};
   (u.upgrades||[]).forEach(k => { const up = (d.upgrades||{})[k]; if (up && up.upgrade_kind === 'WEAPON_REPLACEMENT') (repl[up.for_weapon] = repl[up.for_weapon] || []).push([k, up]); });
   Object.entries(d.weapons||{}).forEach(([k, w]) => {
@@ -673,7 +679,9 @@ function weaponsOf(u){
   (u.upgrades||[]).forEach(k => { const up = (d.upgrades||{})[k]; if (up && up.upgrade_kind === 'WEAPON_ADDED') out.push(Object.assign({key:k, name:nm(k, up), phase:up.phase, specialist:!!up.specialist}, up.weapon_added)); });
   out.forEach(w => { const fx = nearFx(u, w.key); fx.filter(x => !x.r && !x.lock).forEach(x => { w.keywords = (w.keywords || []).slice(); fxApply(w, x); w.perm = (w.perm || []).concat(x.src); });
     const cond = fx.filter(x => x.r || x.lock); if (cond.length) w.near = cond; });
-  return out;
+  if (all) return out;
+  const sm = w => (w.keywords || []).some(k => /SIEGE MODE/i.test(k));
+  return out.filter(w => u.siege && u.loc === 'table' ? sm(w) : !sm(w));
 }
 function abilitiesOf(u){
   const d = udef(u), out = [];
@@ -758,7 +766,12 @@ function bestVolley(att, tgt, phase){
     return Object.assign(applyNear(w, nr, lk), {name: w.name + (nr ? ` (à ${NEAR_R(w)}" ou moins)` : '') + (lk ? ' (Target Lock)' : '')}); }), td = udef(tgt);
   const ok = ws.filter(w => canTarget(w, td) && !(phase === 'ASSAULT' && att.engaged && hasKw(w.keywords, 'BULKY')));
   if (!ok.length) return null;
-  const evade = (phase === 'ASSAULT' && !!tgt.engaged) || isBur(tgt);
+  const evade = (phase === 'ASSAULT' && !!tgt.engaged) || isHidden(tgt) || (phase === 'ASSAULT' && isStat(tgt) && hasLurk(tgt));
+  const adj = w => { const x = kwNum(w.keywords || [], 'LOCKED IN'), as = isSiege(att) && hasAb(att, 'AFTERSHOCK_ROUNDS') && (w.keywords || []).some(k => /SIEGE MODE/i.test(k));
+    if (!x && !as) return [w, 0]; const o = Object.assign({}, w); let ex = 0;
+    if (as) o.dmg = Math.max(1, effSize(tgt));
+    if (x && isStat(tgt)){ if (isTpl(w)) ex = x; else o.roa = (+o.roa || 0) + x; }
+    return [o, ex]; };
   const side = ok.filter(w => hasKw(w.keywords, 'SIDEARM'));
   const main = ok.filter(w => !hasKw(w.keywords, 'SIDEARM'));
   const n = w => hasKw(w.keywords, 'SPECIALIST') || w.specialist ? 1 : att.alive;
@@ -766,8 +779,8 @@ function bestVolley(att, tgt, phase){
   const aff = tplAff(tgt.alive);
   (main.length ? main : [null]).forEach(m => {
     let dmg = 0; const used = [];
-    if (m){ dmg += expectDice(m, n(m), td, {evade, aff}); used.push(m.name + (isTpl(m) ? ` (gabarit, ${aff} fig.)` : '')); }
-    side.forEach(s => { dmg += expectDice(s, n(s), td, {evade, aff}); used.push(s.name); });
+    if (m){ const [mw, ex] = adj(m); dmg += expectDice(mw, n(m), td, {evade, aff, extra:ex}); used.push(m.name + (isTpl(m) ? ` (gabarit, ${aff} fig.)` : '')); }
+    side.forEach(s => { const [sw, ex] = adj(s); dmg += expectDice(sw, n(s), td, {evade, aff, extra:ex}); used.push(s.name); });
     if (!best || dmg > best.dmg) best = {dmg, used, conc: m ? kwNum(m.keywords, 'CONCENTRATED FIRE') : 0};
   });
   const kf = killsFrom(td, tgt.alive, tgt.dmg, best.dmg, best.conc);
@@ -956,7 +969,7 @@ function recordUse(holder, a, cards, amount, red){
   const who = findU(holder) ? unitName(findU(holder)) : '';
   S.spent = S.spent || [];
   S.spent.push({id:Date.now().toString(36) + Math.random().toString(36).slice(2, 5), r:S.round, p:S.phase, holder, key:a.key, name:nm(a.key, a), who, cards, amount, red});
-  const bur = burrowFromAbility(holder, a); if (bur && !bur.pick) S.spent[S.spent.length - 1].bur = bur;
+  const stT = statusTarget(holder, a), stS = stT ? snapSt(stT, stKeysOf(a)) : null; const bur = statusFromAbility(holder, a); if (stT) S.spent[S.spent.length - 1].bur = {uid:stT.id, prev:stS};
   logA((who ? who + ' : ' : '') + nm(a.key, a) + (amount ? ` (−${amount} ${RES()} : ${cards.map(id => nm(S.cards.find(c => c.id === id).key, cardDef(S.cards.find(c => c.id === id)))).join(', ')})` : ''), 'ab');
   save(); closePop(); render();
   if (bur && bur.pick){ openSheet(rapidPickHTML()); return; }
@@ -975,7 +988,7 @@ function refund(id){
   e.cards.forEach(cid => { const c = S.cards.find(x => x.id === cid); if (c) c.ready = true; });
   (e.red || []).forEach(rk => { const [h, k] = rk.split('|'); delete S.used[h + ':' + k]; });
   const k = e.holder + ':' + e.key; if (S.used[k]){ S.used[k].n--; if (S.used[k].n <= 0) delete S.used[k]; }
-  if (e.bur){ const bu = findU(e.bur.uid); if (bu) bu.burrowed = e.bur.prev; }
+  if (e.bur){ const bu = findU(e.bur.uid); if (bu) Object.assign(bu, e.bur.prev); }
   S.spent.splice(i, 1); logA('Annulé : ' + e.name + (e.who ? ' (' + e.who + ')' : ''), 'ab'); save();
 }
 function ledgerHTML(){
@@ -1180,6 +1193,7 @@ function tree(u){
   if (u.act[S.phase]) { L('root', {title:'Déjà activée cette phase', steps:['Chaque unité n’agit qu’une fois par phase. Choisis une autre unité ou passe.'], undo:true}); return N; }
   const cs = curSup(u);
   if (isBur(u)) return burTree(u, N, A, L, moveSteps);
+  if (isSiege(u)) return siegeTree(u, N, A, L);
 
   if (ph === 'MOVEMENT'){
     A('root', 'L’unité est-elle en réserve ?', null, [['Oui, en réserve','res'],['Non, sur la table','tab']], u.loc === 'res' ? 0 : 1);
@@ -1285,8 +1299,8 @@ function tree(u){
 
 function applyAct(u, kind, extra){
   u.act[S.phase] = true;
-  const n = unitName(u);
-  const LBL = {deploy:'Deploy', move:'Move', hold:'Hold', dis0:'Disengage (sans pénalité)', dis1:'Disengage (pénalité)', ranged:'Ranged Attack', run:'Run', charge:'Charge', cc:'Close Combat', ccno:'Activée sans attaque (BURROWED)', gather:'Gather', sabotage:'Sabotage'};
+  const n = unitName(u), wasBur = !!u.burrowed;
+  const LBL = {deploy:'Deploy', move:'Move', hold:'Hold', dis0:'Disengage (sans pénalité)', dis1:'Disengage (pénalité)', ranged:'Ranged Attack', run:'Run', charge:'Charge', cc:'Close Combat', ccno:'Activée sans attaque', gather:'Gather', sabotage:'Sabotage'};
   if (kind === 'deploy') u.loc = 'table';
   if (u.burrowed && (['dis0','dis1','cc'].includes(kind) || (['move','run'].includes(kind) && !hasTunnel(u)))) setBur(u, false, LBL[kind]);
   if (kind === 'dis0') { u.engaged = false; u.penalty = false; }
@@ -1294,6 +1308,7 @@ function applyAct(u, kind, extra){
   if (kind === 'hold' && S.phase === 2) S.stats.holdAssault++;
   if (kind === 'charge'){ if (extra === 'ok'){ u.engaged = true; S.stats.chargeOk++; } else S.stats.chargeKo++; }
   if (kind === 'cc' && extra === 'free') u.engaged = false;
+  statusAfterAct(u, kind, wasBur);
   if (kind === 'gather'){ S.vp.me++; }
   if (kind === 'sabotage'){ const mk = S.markers.find(x => x.id === +extra.split(':')[0]); if (mk) mk.sab = Math.max(1, Math.min(3, mk.sab + +extra.split(':')[1])); }
   logA(n + ' : ' + LBL[kind] + (kind === 'charge' ? (extra === 'ok' ? ' réussie' : ' ratée') : '') + (kind === 'gather' ? ' (+1 PV)' : ''), 'act');
@@ -1317,7 +1332,8 @@ function compareHTML(u, mode){
     const td = udef(t);
     if (ph === 'COMBAT' && isFlying(td)) return;
     if (ph === 'ASSAULT' && !u.engaged && t.engaged && !weaponsOf(u).some(w => hasKw(w.keywords, 'PINPOINT'))) return;
-    if (ph === 'ASSAULT' && u.engaged && !t.engaged) return;
+    if (ph === 'ASSAULT' && u.engaged && !t.engaged && !hasAb(u, 'INDOMITABLE')) return;
+    if (ph === 'ASSAULT' && isSiege(u) && hasAb(u, 'POINT_BLANK') && u.engaged && t.engaged) return;
     const v = bestVolley(u, t, ph); if (!v) return;
     rows.push({t, ph, v});
   }));
@@ -1328,7 +1344,7 @@ function compareHTML(u, mode){
   if (!rows.length) return nearBox + '<div class="note small">Aucune cible compatible parmi les unités adverses sur la table.</div>';
   rows.sort((a, b) => b.v.supLost - a.v.supLost || b.v.kills - a.v.kills || b.v.dmg - a.v.dmg);
   return nearBox + `<div class="tw" style="margin-top:8px"><table class="wp cmp"><thead><tr><th>Cible</th>${mode === 'BOTH' ? '<th>Mode</th>' : ''}<th>Dégâts ≈</th><th>Fig. tuées ≈</th><th>Supply retiré ≈</th><th>Prochain palier</th></tr></thead><tbody>${
-    rows.slice(0, 8).map((r, i) => `<tr class="${i === 0 ? 'best' : ''}"><td><b>${esc(unitName(r.t))}</b><br><span class="small muted">${esc(r.v.used.join(' + '))}</span></td>${mode === 'BOTH' ? `<td>${r.ph === 'COMBAT' ? 'Charge + CàC' : 'Tir'}</td>` : ''}
+    rows.slice(0, 8).map((r, i) => `<tr class="${i === 0 ? 'best' : ''}"><td><b>${esc(unitName(r.t))}</b>${r.ph === 'ASSAULT' && isHidden(r.t) ? ' <span class="pill hid">HIDDEN : 4" max</span>' : ''}<br><span class="small muted">${esc(r.v.used.join(' + '))}</span></td>${mode === 'BOTH' ? `<td>${r.ph === 'COMBAT' ? 'Charge + CàC' : 'Tir'}</td>` : ''}
       <td class="num">${r1(r.v.dmg)}</td><td class="num">${r.v.kills} / ${r.t.alive}</td><td class="num">${r.v.supLost ? `<span class="pill ok">−${r.v.supLost} (≈ +${r.v.supLost} PV)</span>` : '0'}</td>
       <td class="small">${r.v.nd ? `encore ${r.v.nd.k} fig. → supply ${curSup(r.t)}→${r.v.nd.to}` : curSup(r.t) === 0 ? 'déjà à 0' : '—'}</td></tr>`).join('')
   }</tbody></table></div><p class="small muted" style="margin:4px 0 0">Estimation moyenne : toutes les figurines à portée et visibles, sans couvert ni capacités du défenseur. Tu vérifies la portée et la ligne de vue sur la table.</p>`;
@@ -1814,7 +1830,7 @@ function renderArmies(){
       const thr = S.opp.units.filter(u => u.loc === 'table');
       if (thr.length) h += `<div class="panel"><h2>Menaces sur la table</h2><div class="tw"><table class="wp"><thead><tr><th>Unité</th><th>Charge</th><th>Tir max</th><th>Supply</th><th>Palier</th></tr></thead><tbody>${thr.map(u => { const d = udef(u), sp = d.stats.speed, rw = rangedWeapons(u), nd = nextDrop(u);
         const rmax = rw.length ? Math.max(...rw.map(w => { const lr = (w.keywords||[]).map(k => String(k).match(/LONG RANGE\s*\((\d+)/)).find(Boolean); return lr ? +lr[1] : +w.rng || 0; })) : 0;
-        return `<tr><td><b>${esc(unitName(u))}</b>${u.engaged ? ' <span class="pill warn">engagée</span>' : ''}${isBur(u) ? ' <span class="pill bur">BURROWED : tir à 4" max</span>' : ''}</td><td class="num">${!isFlying(d) && hasCCw(u) ? `${sp+1}–${sp+6}" <span class="muted">(moy. ${sp+3.5})</span>` : '—'}</td><td class="num">${rmax ? rmax + '"' : '—'}</td><td class="num">${curSup(u)}</td><td class="small">${nd ? `−${nd.k} fig. → ${nd.to}` : '—'}</td></tr>`; }).join('')}</tbody></table></div>
+        return `<tr><td><b>${esc(unitName(u))}</b>${u.engaged ? ' <span class="pill warn">engagée</span>' : ''}${burPill(u)}${isHidden(u) ? ' <span class="small muted">tir à 4" max</span>' : ''}</td><td class="num">${!isFlying(d) && hasCCw(u) ? `${sp+1}–${sp+6}" <span class="muted">(moy. ${sp+3.5})</span>` : '—'}</td><td class="num">${rmax ? rmax + '"' : '—'}</td><td class="num">${curSup(u)}</td><td class="small">${nd ? `−${nd.k} fig. → ${nd.to}` : '—'}</td></tr>`; }).join('')}</tbody></table></div>
         <p class="small muted">Charge = Speed + 1D6. Tir max inclut LONG RANGE. Reste hors de ces distances si tu ne veux pas être chargé ou visé.</p></div>`;
       h += `<div class="units">${S.opp.units.map(u => unitCard(u)).join('')}</div>`;
     }
@@ -1829,13 +1845,13 @@ function unitCard(u){
     <div class="row small muted">${esc((d.combat_tags||[]).join(' · '))}${d.army_slot ? ' · ' + esc(d.army_slot) : ''}${nd && u.loc === 'table' ? ` · <span class="pill warn">−${nd.k} fig. → supply ${nd.to}</span>` : ''}</div>
     <div class="row"><span class="seg">${[['res','Réserve'],['table','Sur la table'],['dead','Détruite']].map(([k, l]) => `<button data-loc="${u.id}|${k}" class="${u.loc === k ? 'on' : ''}">${l}</button>`).join('')}</span>
       ${isFlying(d) ? '<span class="pill">Volant</span>' : `<label class="chk"><input type="checkbox" data-eng="${u.id}" ${u.engaged ? 'checked' : ''}> Engagée</label>`}
-      ${burChk(u)}${burPill(u)}${u.penalty ? '<span class="pill bad">Pénalité désengagement</span>' : ''}${u.side === 'o' ? `<button class="btn ghost small" data-delopp="${u.id}">Retirer</button>` : ''}</div></header>
+      ${burChk(u, true)}${burPill(u)}${u.penalty ? '<span class="pill bad">Pénalité désengagement</span>' : ''}${u.side === 'o' ? `<button class="btn ghost small" data-delopp="${u.id}">Retirer</button>` : ''}</div></header>
     <div class="bd">
       <div class="row"><span class="lbl">Figurines</span><span class="stp"><button data-alive="${u.id}|-1" aria-label="moins">−</button></span><span class="num">${u.alive} / ${u.start}</span><span class="stp"><button data-alive="${u.id}|1" aria-label="plus">+</button></span>
         <span class="lbl" style="margin-left:10px">Dégâts</span><span class="stp"><button data-dmg="${u.id}|-1">−</button></span><span class="num">${u.dmg}</span><span class="stp"><button data-dmg="${u.id}|1">+</button></span></div>
       ${statsHTML(d)}
       ${ups.length ? `<div class="small"><span class="lbl">Améliorations</span> ${ups.map(esc).join(' · ')}</div>` : ''}
-      ${weaponTable(ws)}
+      ${weaponTable(weaponsOf(u, true))}
       <details><summary>Capacités (${ab.length})</summary><div class="ablist">${ab.map(a => u.side === 'o' ? abHTML(u.id, Object.assign({}, a), {noUse:true}) : regAb(u.id, a)).join('')}</div></details>
     </div></div>`;
 }
@@ -1858,7 +1874,7 @@ function unitFicheHTML(u){
     <div class="row" style="margin-top:6px">${st}</div>
     <h4 class="fiche-h">Caractéristiques</h4>${statsHTML(d)}
     ${ups.length ? `<h4 class="fiche-h">Améliorations</h4><div class="small">${ups.map(esc).join(' · ')}</div>` : ''}
-    <h4 class="fiche-h">Armes</h4>${weaponTable(ws)}
+    <h4 class="fiche-h">Armes</h4>${weaponTable(weaponsOf(u, true))}
     <h4 class="fiche-h">Capacités (${ab.length})</h4><div class="ablist">${ab.map(a => abHTML(u.id, Object.assign({}, a), {noUse:true})).join('') || '<p class="muted">Aucune capacité.</p>'}</div>
   </div>`;
 }
@@ -1872,6 +1888,7 @@ function simpleActions(u){
   const info = t => A.push({info: t});
   if (u.loc === 'dead'){ info('Unité détruite : elle ne peut plus agir.'); return A; }
   if (isBur(u)) return simpleActionsBur(u);
+  if (isSiege(u)) return simpleActionsSiege(u);
   if (ph === 'MOVEMENT'){
     if (u.loc === 'res'){
       const av = avail(S.units);
@@ -2033,21 +2050,16 @@ const hasRegen = u => abilitiesOf(u).some(a => a.key === 'REGENERATION');
 const disSup = u => isBur(u) ? 0 : curSup(u);   // supply pour les tests de Disengage
 function setBur(u, v, why){
   if (!u || !!u.burrowed === !!v) return;
+  const hadH = isHidden(u);
   u.burrowed = !!v;
   logA(unitName(u) + (v ? ' gagne BURROWED' : ' perd BURROWED') + (why ? ' (' + why + ')' : ''), 'act');
-}
-/* capacités qui changent le statut, appelées après paiement */
-function burrowFromAbility(holder, a){
-  const u = findU(holder), sel = U.sel && findU(U.sel);
-  if (a.key === 'BURROW' && u){ const was = !!u.burrowed; setBur(u, !was, 'Burrow'); return {uid:u.id, prev:was}; }
-  if (a.key === 'LIE_IN_WAIT' && sel){ const was = !!sel.burrowed; setBur(sel, true, 'Lie in Wait'); return {uid:sel.id, prev:was}; }
-  if (a.key === 'NASTY_SURPRISE' && sel){ const was = !!sel.burrowed; setBur(sel, false, 'Nasty Surprise'); return {uid:sel.id, prev:was}; }
-  if (a.key === 'RAPID_BURROWING') return {pick:true};
-  return null;
+  if (hadH && !isHidden(u)) hiddenLost(u);
 }
 /* vérification avant paiement */
 function burrowBlock(holder, a){
   const u = findU(holder), sel = U.sel && findU(U.sel);
+  if (a.key === 'Mode_Transformation' && u && u.loc !== 'table') return 'Mode Transformation : l’unité doit être sur la table.';
+  if (['ANAKH_SUN','DARKNESS_DESCENDS'].includes(a.key)){ if (!sel || sel.loc !== 'table') return nm(a.key, a) + ' : choisis d’abord l’unité active (sur la table).'; if (a.key === 'DARKNESS_DESCENDS' && !(udef(sel).combat_tags||[]).includes('Biological')) return 'Darkness Descends : unité Biological uniquement.'; }
   if (a.key === 'BURROW' && u){ if (!u.burrowed && u.engaged) return 'Burrow : l’unité doit être non engagée.'; if (!canBurrow(u)) return 'Cette unité ne peut pas gagner BURROWED.'; }
   if (a.key === 'LIE_IN_WAIT'){ if (!sel) return 'Lie in Wait : choisis d’abord l’unité active.'; if (sel.engaged) return 'Lie in Wait : l’unité active doit être non engagée.'; if (!canBurrow(sel)) return 'Lie in Wait : unité Ground uniquement.'; }
   if (a.key === 'NASTY_SURPRISE'){ if (!sel) return 'Nasty Surprise : choisis d’abord l’unité active.'; if (!sel.burrowed) return 'Nasty Surprise : l’unité active n’est pas BURROWED.'; }
@@ -2059,18 +2071,6 @@ function rapidPickHTML(){
   return `<h3 class="fiche-t">Rapid Burrowing</h3><p class="small">Choisis l’unité Ground Zerg non engagée qui gagne BURROWED (même si elle a déjà été activée ce round).</p>
     <div class="unitpick">${rapidTargets().map(u => `<button data-burpick="${u.id}"><b>${esc(unitName(u))}</b><span class="s">${u.act[S.phase] ? 'déjà activée' : 'pas encore activée'}</span></button>`).join('')}</div>
     <div class="row" style="margin-top:10px"><button class="btn ghost" id="popClose2">Fermer</button></div>`;
-}
-/* éléments d'affichage */
-const burPill = u => isBur(u) ? '<span class="pill bur">BURROWED</span>' : '';
-const burTxt = u => isBur(u) ? ' · BURROWED' : '';
-const burChk = u => canBurrow(u) && u.loc === 'table' ? `<label class="chk"><input type="checkbox" data-bur="${u.id}" ${u.burrowed ? 'checked' : ''}> Burrowed</label>` : '';
-function burNote(u){
-  if (!isBur(u)) return '';
-  const ph = PH[S.phase].id, t = hasTunnel(u);
-  const lines = ['Actions permises : Move, Disengage, Run, Hold et Close Ranks. Toutes sauf Hold retirent BURROWED' + (t ? ' (Tunneling Claws : Move et Run le gardent)' : '') + '.',
-    'HIDDEN : ne peut être visée au tir que par une figurine à 4" ou moins ; jet d’Evade contre chaque attaque. Ne conteste pas les marqueurs. Supply 0 pour les tests de Disengage.'];
-  if (ph === 'ASSAULT' && hasRegen(u)) lines.unshift('<b>Regeneration</b> : à l’activation, si elle est BURROWED, résous HEAL(2).');
-  return `<div class="note bur"><span class="lbl">BURROWED</span>${lines.join('<br>')}</div>`;
 }
 /* actions du mode simplifié pour une unité BURROWED */
 function simpleActionsBur(u){
@@ -2137,6 +2137,148 @@ function burTree(u, N, A, L, moveSteps){
   }
   return N;
 }
+/* ================= SIEGE MODE, HIDDEN, STATIONARY ================= */
+const ST_KEYS = ['burrowed','siege','hidden','hidUntil','stat'];
+const snapSt = (u, keys) => { const o = {}; (keys || ST_KEYS).forEach(k => o[k] = u[k]); return o; };
+const stKeysOf = a => ['BURROW','LIE_IN_WAIT','NASTY_SURPRISE','RAPID_BURROWING'].includes(a.key) ? ['burrowed'] : a.key === 'Mode_Transformation' ? ['siege'] : ['hidden','hidUntil'];
+const canSiege = u => (u.upgrades || []).includes('Mode_Transformation');
+const isSiege = u => !!(u && u.siege && u.loc === 'table');
+const isHidden = u => !!(u && u.loc === 'table' && (u.burrowed || u.hidden));
+const isStat = u => !!(u && u.stat && u.loc === 'table');
+const hasAb = (u, k) => abilitiesOf(u).some(a => a.key === k);
+const hasLurk = u => hasAb(u, 'Lurking');
+const autoHide = u => hasAb(u, 'TACTICAL_STEALTH_SUIT') || hasAb(u, 'ONE_WITH_THE_SHADOWS');
+const canHide = u => autoHide(u) || abilitiesOf(u).some(a => /gains (the )?HIDDEN/i.test(a.text || '')) || (u.side !== 'o' && S.cards.some(c => cardAbilities(c).some(a => /gains (the )?HIDDEN/i.test(a.text || ''))));
+function effSize(u){ const d = udef(u); if (isBur(u)) return 0; if (isSiege(u)) return 3; return d.stats.size; }
+function hiddenLost(u){
+  if (u.side === 'o') return;
+  const nz = S.cards.find(c => cardAbilities(c).some(a => a.key === 'MIGHT_OF_THE_NERAZIM'));
+  if (nz) setTimeout(() => toast(unitName(u) + ' perd HIDDEN : réaction Might of the Nerazim possible (Buff Speed (2) et CRITICAL HIT (2) sur sa première arme).'), 400);
+}
+function setHidden(u, v, until, why){
+  const had = isHidden(u);
+  u.hidden = !!v; u.hidUntil = v ? (until || null) : null;
+  if (!!had !== isHidden(u)) logA(unitName(u) + (v ? ' gagne HIDDEN' : ' perd HIDDEN') + (why ? ' (' + why + ')' : ''), 'act');
+  if (had && !isHidden(u)) hiddenLost(u);
+}
+function setSiege(u, v, why){ if (!!u.siege === !!v) return; u.siege = !!v; logA(unitName(u) + (v ? ' passe en SIEGE MODE' : ' quitte le SIEGE MODE') + (why ? ' (' + why + ')' : ''), 'act'); }
+/* après une action validée */
+function statusAfterAct(u, kind, wasBur){
+  if (['deploy','move','run','dis0','dis1'].includes(kind) || (kind === 'charge' && u.engaged) || (kind === 'cc' && wasBur)) u.stat = false;
+  if (u.hidden && u.hidUntil === 'act') setHidden(u, false, null, 'nouvelle action');
+  if (autoHide(u) && u.loc === 'table' && !u.hidden) setHidden(u, true, null, nm(hasAb(u, 'ONE_WITH_THE_SHADOWS') ? 'ONE_WITH_THE_SHADOWS' : 'TACTICAL_STEALTH_SUIT'));
+}
+/* début de round : STATIONARY pour tous, fin des HIDDEN « jusqu'à la fin du round » */
+function statusRoundStart(){
+  S.units.concat(S.opp.units).forEach(u => { if (u.loc === 'table') u.stat = true; if (u.hidden && u.hidUntil === 'round') setHidden(u, false, null, 'fin du round'); });
+}
+/* sortie de table */
+function statusOffTable(u){ ['burrowed','siege','hidden','stat'].forEach(k => u[k] = false); u.hidUntil = null; }
+/* capacités qui changent un statut (après paiement) : renvoie l'unité touchée */
+function statusTarget(holder, a){
+  const u = findU(holder), sel = U.sel && findU(U.sel);
+  if (['BURROW','Mode_Transformation','SPEC_OPS_ARMOUR','PATH_OF_SHADOWS','Path_of_Shadows'].includes(a.key)) return u;
+  if (['LIE_IN_WAIT','NASTY_SURPRISE','ANAKH_SUN','DARKNESS_DESCENDS'].includes(a.key)) return sel;
+  return null;
+}
+function statusFromAbility(holder, a){
+  const t = statusTarget(holder, a);
+  if (a.key === 'RAPID_BURROWING') return {pick:true};
+  if (!t) return null;
+  if (a.key === 'BURROW') setBur(t, !t.burrowed, 'Burrow');
+  else if (a.key === 'LIE_IN_WAIT') setBur(t, true, 'Lie in Wait');
+  else if (a.key === 'NASTY_SURPRISE') setBur(t, false, 'Nasty Surprise');
+  else if (a.key === 'Mode_Transformation') setSiege(t, !t.siege, 'Mode Transformation');
+  else if (a.key === 'DARKNESS_DESCENDS') setHidden(t, true, 'round', 'Darkness Descends');
+  else setHidden(t, true, 'act', nm(a.key, a));
+  return {};
+}
+/* ---------- affichage ---------- */
+const burPill = u => [isBur(u) ? '<span class="pill bur">BURROWED</span>' : '', isSiege(u) ? '<span class="pill siege">SIEGE MODE</span>' : '',
+  isHidden(u) && !isBur(u) ? '<span class="pill hid">HIDDEN</span>' : ''].join('');
+const burTxt = u => (isBur(u) ? ' · BURROWED' : '') + (isSiege(u) ? ' · SIEGE' : '') + (isHidden(u) && !isBur(u) ? ' · HIDDEN' : '');
+const stBox = (u, k, l, on) => `<label class="chk"><input type="checkbox" data-st="${u.id}|${k}" ${on ? 'checked' : ''}> ${l}</label>`;
+function burChk(u, all){
+  if (u.loc !== 'table') return '';
+  return [canBurrow(u) ? stBox(u, 'burrowed', 'Burrowed', u.burrowed) : '', canSiege(u) ? stBox(u, 'siege', 'Siege Mode', u.siege) : '',
+    !u.burrowed && (all || canHide(u) || u.hidden) ? stBox(u, 'hidden', 'Hidden', u.hidden) : '', stBox(u, 'stat', 'Stationary', u.stat)].join('');
+}
+function detectorsAgainst(u){
+  const foes = u.side === 'o' ? S.units : S.opp.units, out = [];
+  foes.filter(x => x.loc === 'table').forEach(x => abilitiesOf(x).forEach(a => { if (/lose (the )?HIDDEN/i.test(a.text || '')) out.push(unitName(x) + ' (' + nm(a.key, a) + ')'); }));
+  if (u.side === 'o') S.cards.forEach(c => cardAbilities(c).forEach(a => { if (/lose (the )?HIDDEN/i.test(a.text || '')) out.push(nm(a.key, a)); }));
+  else { const ol = S.opp.list || {}, R = DB.races[S.opp.race || ol.race]; if (R) (ol.tactical || []).forEach(k => { const cd = R.tactical_cards[k]; if (cd) Object.entries(cd.abilities || {}).forEach(([ak, a]) => { if (/lose (the )?HIDDEN/i.test(a.text || '')) out.push(nm(ak, a) + ' (carte)'); }); }); }
+  return out;
+}
+function burNote(u){
+  let h = '';
+  const ph = PH[S.phase].id, t = hasTunnel(u), det = isHidden(u) ? detectorsAgainst(u) : [];
+  const detTxt = det.length ? '<br>Elle perd HIDDEN à 6" de : ' + det.map(esc).join(', ') + '.' : '';
+  if (isBur(u)){
+    const lines = ['Actions permises : Move, Disengage, Run, Hold et Close Ranks. Toutes sauf Hold retirent BURROWED' + (t ? ' (Tunneling Claws : Move et Run le gardent)' : '') + '.',
+      'HIDDEN : ne peut être visée au tir que par une figurine à 4" ou moins ; jet d’Evade contre chaque attaque. Ne conteste pas les marqueurs. Supply 0 pour les tests de Disengage.'];
+    if (ph === 'ASSAULT' && hasRegen(u)) lines.unshift('<b>Regeneration</b> : à l’activation, si elle est BURROWED, résous HEAL(2).');
+    h += `<div class="note bur"><span class="lbl">BURROWED</span>${lines.join('<br>')}${detTxt}</div>`;
+  } else if (isHidden(u)){
+    h += `<div class="note hid"><span class="lbl">HIDDEN</span>Ne peut être visée au tir (ou par une capacité qui demande la ligne de vue) que par une figurine à 4" ou moins. Immunisée à IMPACT. Jet d’Evade contre chaque attaque.${u.hidUntil === 'act' ? ' <b>Jusqu’à sa prochaine action</b> (retiré automatiquement).' : u.hidUntil === 'round' ? ' <b>Jusqu’à la fin du round.</b>' : ''}${autoHide(u) ? ' Elle le regagne après chaque action.' : ''}${detTxt}</div>`;
+  }
+  if (isSiege(u)){
+    const L = ['Taille 3. Pas de Move, Disengage, Run, Charge ni Close Ranks : utilise d’abord Mode Transformation pour en sortir.',
+      'Seules les armes « SIEGE MODE Status » sont utilisables (Shock Cannon).'];
+    if (hasAb(u, 'AFTERSHOCK_ROUNDS')) L.push('Aftershock Rounds : dégâts = taille de la cible (minimum 1).');
+    if (hasAb(u, 'POINT_BLANK')) L.push('Point Blank : ne vise pas une unité avec laquelle il est engagé.');
+    if (hasAb(u, 'HEAVY_PLATING')) L.push('Heavy Plating (TOUGH 1) ne s’applique pas en Siege Mode.');
+    if (hasAb(u, 'Shaped_Blast')) L.push('Shaped Blast (1 fois par partie) : PINPOINT et LOCKED IN (4).');
+    if (hasAb(u, 'Smart_Shells')) L.push('Smart Shells : INDIRECT FIRE et LONG RANGE (24).');
+    h += `<div class="note siege"><span class="lbl">SIEGE MODE</span>${L.join('<br>')}</div>`;
+  }
+  if (isStat(u) && (hasLurk(u))) h += `<div class="note"><span class="lbl">STATIONARY</span>Lurking : jet d’Evade contre le premier tir qui la vise ce round (+1 sur le Creep).</div>`;
+  return h;
+}
+/* ---------- actions en SIEGE MODE ---------- */
+function simpleActionsSiege(u){
+  const ph = PH[S.phase].id, A = [], indo = hasAb(u, 'INDOMITABLE'), rw = rangedWeapons(u);
+  if (ph === 'MOVEMENT'){
+    A.push({info:'SIEGE MODE : pas de Move ni de Disengage. Pour bouger, utilise d’abord Mode Transformation (bloc 3).'});
+    A.push({label:'Hold', act:'hold', note:'Reste en place (garde STATIONARY).', cls:'pri'});
+    return A;
+  }
+  if (ph === 'ASSAULT'){
+    const ma = missionAction();
+    if (rw.length) A.push({label:'Ranged Attack', act:'ranged', note:rw.map(w => `${w.name} ${w.rng}"`).join(' · ') + '. ' + (u.engaged ? (indo ? 'Engagé : Indomitable lui permet de viser une unité non engagée (elle a droit à un Evade). Point Blank : jamais une unité avec laquelle il est engagé.' : 'Point Blank : il ne peut pas viser les unités avec lesquelles il est engagé.') : 'Point Blank : pas une unité avec laquelle il est engagé.'), cls:'pri', pl:'ldv'});
+    if (!u.engaged && ma === 'gather') A.push({label:'Gather (+1 PV)', act:'gather', note:'Mission : non engagée, à 3" d’un marqueur contrôlé neutre ou de couleur adverse.'});
+    if (!u.engaged && ma === 'sabotage') A.push({sabotage:true});
+    A.push({label:'Hold', act:'hold', note:'Ne fait rien. Pas de Charge ni de Run en Siege Mode.'});
+    return A;
+  }
+  if (ph === 'COMBAT'){
+    if (!u.engaged){ A.push({info:'Non engagée : pas d’action en phase de Combat.'}); return A; }
+    A.push({info:'SIEGE MODE : pas de Close Ranks, et seules les armes de Siege Mode sont utilisables : pas d’attaque au corps à corps.'});
+    A.push({label:'Activée, pas d’attaque', act:'ccno', note:'Les ennemis engagés peuvent l’attaquer normalement.', cls:'pri'});
+    return A;
+  }
+  return A;
+}
+function siegeTree(u, N, A, L){
+  const ph = PH[S.phase].id, indo = hasAb(u, 'INDOMITABLE');
+  if (ph === 'MOVEMENT'){
+    L('root', {title:'Hold (SIEGE MODE)', act:'hold', steps:['En SIEGE MODE, l’unité ne peut faire ni Move ni Disengage.','Pour bouger : utilise d’abord Mode Transformation (capacités), puis choisis l’action.'], tip:'Rester immobile garde STATIONARY.'});
+    return N;
+  }
+  if (ph === 'ASSAULT'){
+    A('root', 'Tirer avec le Shock Cannon ?', u.engaged ? (indo ? 'Engagé : Indomitable lui permet de viser une unité non engagée (qui a droit à un Evade). Point Blank : jamais une unité avec laquelle il est engagé.' : 'Point Blank : il ne peut pas viser les unités avec lesquelles il est engagé.') : 'Point Blank : pas sur une unité avec laquelle il est engagé. Pas de Charge ni de Run en Siege Mode.',
+      [['Oui','ranged'],['Non','shold']], undefined, {cmp:'ASSAULT'});
+    L('ranged', {title:'Ranged Attack (SIEGE MODE)', act:'ranged', steps:['Cible : au moins une figurine visible à portée, unité Ground.','Gabarit (BT) centré sur une figurine de la cible ; dés = figurines affectées + modificateur de RoA.','Aftershock Rounds : dégâts = taille de la cible (minimum 1).'], attack:'ranged', cmp:'ASSAULT'});
+    L('shold', {title:'Hold', act:'hold', steps:['L’unité ne fait rien. Retourne son marqueur côté Assaut.']});
+    return N;
+  }
+  if (ph === 'COMBAT'){
+    if (!u.engaged){ L('root', {title:'Pas d’action', steps:['Les unités non engagées ne peuvent pas agir en phase 3.']}); return N; }
+    L('root', {title:'Activée, pas d’attaque (SIEGE MODE)', act:'ccno', steps:['Pas de Close Ranks en Siege Mode, et seules les armes de Siege Mode sont utilisables : pas d’attaque au corps à corps.','Les ennemis engagés peuvent l’attaquer normalement.']});
+    return N;
+  }
+  return N;
+}
 
 /* ================= attaque ================= */
 const AT = {who:'me', mode:'ranged', au:null, aw:null, ao:null, oRace:'ZERG', oUnit:null, tSrc:'army', to:null, tRace:'ZERG', tUnit:null, tm:null, f:{}, r:{}};
@@ -2175,7 +2317,7 @@ function prefillAtt(){
   if (au) f.n = w && (hasKw(w.keywords, 'SPECIALIST') || w.specialist) ? 1 : au.alive;
   else { const d = AT.oUnit && allUnitsOf(AT.oRace)[AT.oUnit]; f.n = d && d.composition_options ? d.composition_options[0].models : 1; }
   if (keepAb) AT.mode = 'ability';
-  f.extra = w && isTpl(w) ? tplMod(w) : 0; f.aff = w && isTpl(w) ? 3 : 1; AT.r = {};
+  f.extra = w && isTpl(w) ? tplMod(w) : 0; f.aff = w && isTpl(w) ? 3 : 1; AT.r = {}; f._lk = 0; atkStatusAdj();
 }
 function prefillDef(){
   const f = AT.f, du = defenderUnit();
@@ -2183,7 +2325,8 @@ function prefillDef(){
   if (du){ td = udef(du); alive = du.alive; dmg = du.dmg; eng = du.engaged; }
   else { td = AT.tUnit && allUnitsOf(AT.tRace)[AT.tUnit]; alive = td ? (td.composition_options ? td.composition_options[0].models : 1) : 1; }
   if (td) Object.assign(f, {arm:tn(td.stats.armour), ev:tn(td.stats.evade), hp:td.stats.hp, sh:td.stats.shield || 0, tags:(td.combat_tags||[]).slice(), vis:alive, mk:dmg, tEng:eng, tAb:Object.entries(td.abilities||{}).map(([k, a]) => Object.assign({key:k}, a))});
-  f.shOn = (f.sh || 0) > 0; f.grant = isBur(du); AT.r = {};
+  f.shOn = (f.sh || 0) > 0; f.grant = isHidden(du) || (AT.mode !== 'combat' && isStat(du) && hasLurk(du)); AT.r = {};
+  f.tSize = du ? effSize(du) : (td ? td.stats.size : null); f.tStat = isStat(du); atkStatusAdj();
 }
 function atkPrefill(){ atkDefaults(); prefillAtt(); prefillDef(); }
 const opt = (v, l, sel) => `<option value="${esc(v)}" ${sel ? 'selected' : ''}>${esc(l)}</option>`;
@@ -2232,6 +2375,7 @@ function renderAttack(){
     <div class="grid4" style="margin-top:8px">${fld('arm', 'Armure (x+)', f.arm ?? '')}${fld('ev', 'Evade (x+)', f.ev ?? '')}${fld('hp', 'PV / fig.', f.hp)}${fld('sh', 'Bouclier', f.sh)}
       ${fld('vis', AT.mode === 'combat' ? 'Figurines' : 'Fig. visibles', f.vis)}${fld('mk', 'Marqueur dégâts', f.mk)}</div>
     <div class="row" style="margin-top:8px"><label class="chk"><input type="checkbox" id="f_tEng" ${f.tEng ? 'checked' : ''}> Cible engagée</label>
+      <label class="chk"><input type="checkbox" id="f_tStat" ${f.tStat ? 'checked' : ''}> Cible STATIONARY</label>
       <label class="chk"><input type="checkbox" id="f_shOn" ${f.shOn ? 'checked' : ''}> Encore Shielded</label>
       <label class="chk"><input type="checkbox" id="f_grant" ${f.grant ? 'checked' : ''}> Evade accordé (HIDDEN, capacité…)</label></div>
     ${f.tAb && f.tAb.length ? `<details style="margin-top:8px"><summary class="small">Capacités du défenseur à vérifier (${f.tAb.length})</summary><div class="ablist">${f.tAb.map(a => abHTML('x', a, {noUse:true})).join('')}</div></details>` : ''}
@@ -2283,13 +2427,15 @@ function renderPipe(){
       'Au moins une figurine visible à portée (' + esc(f.rng === 'E' ? 'E' : (f.rng ?? '?') + '"') + '), type de cible compatible. Un attaquant non engagé ne vise pas une unité engagée' + (k('PINPOINT') ? ' — sauf ici : PINPOINT le permet' : '') + '. Un attaquant engagé ne vise que ses adversaires au contact' + (k('BULKY') ? ' — et BULKY interdit de tirer en étant engagé' : '') + '.'}</div>
     ${note('LONG RANGE', 'Au-delà de la portée normale mais dans la portée longue : −1 au jet de touche pour ces figurines (lance-les à part).')}
     ${note('INDIRECT FIRE', 'Peut ignorer la ligne de vue pour choisir la cible et résoudre les dégâts. La cible doit rester à portée.')}
-    ${note('INSTANT', 'L’adversaire ne peut déclarer aucune réaction contre cette attaque.')}</div></div>
+    ${note('INSTANT', 'L’adversaire ne peut déclarer aucune réaction contre cette attaque.')}
+    ${(() => { const au = attackerUnit(), du = defenderUnit(); return (isSiege(au) && hasAb(au, 'POINT_BLANK') ? '<div class="note small" style="margin-top:6px"><b>Point Blank</b> : en Siege Mode, pas de cible engagée avec lui.</div>' : '') + (!c.cc && isHidden(du) ? '<div class="note small" style="margin-top:6px"><b>HIDDEN</b> : seule une figurine à 4" ou moins peut la viser.</div>' : ''); })()}</div></div>
   <div class="st on"><div class="k">2</div><div class="bx"><h4>Pool d’attaque → jet de touche</h4>
     <div class="pool"><span>Dés : <span class="big">${c.dice}</span></span>${c.hasS ? `<span class="pill race">+ 1 dé de Surge (${esc(f.sd)}) d’une autre couleur</span>` : c.tpl ? '<span class="pill">pas de dé de Surge (gabarit)</span>' : '<span class="pill">pas de S Dice : Surge = 0</span>'}</div>
     <div class="pool">Chaque dé ≥ <b class="mono">${f.hit}+</b> touche (${pct(c.pH)}). Touches : ${rin('hits', c.eHits)}</div>
     ${note('PRECISION', 'Après le jet, déplace jusqu’à ' + kwNum(kws, 'PRECISION') + ' dé(s) raté(s) dans le pool d’armure : compte-les dans tes touches.')}
     ${note('BURST FIRE', 'Cible proche : RoA augmentée, ajoute les dés dans « Dés en +/− ».')}
-    ${note('LOCKED IN', 'Cible STATIONARY : +' + kwNum(kws, 'LOCKED IN') + ' RoA, ajoute-les dans « Dés en +/− ».')}</div></div>
+    ${note('LOCKED IN', f._lk ? 'Cible STATIONARY : +' + f._lk + ' RoA déjà ajoutés.' : 'Cible non STATIONARY (selon l’état saisi) : pas de bonus. Si elle l’est, +' + kwNum(kws, 'LOCKED IN') + ' RoA.')}
+    ${f._as ? `<div class="note small" style="margin-top:6px"><b>Aftershock Rounds</b> : dégâts = taille de la cible (${f.tSize ?? '?'}, minimum 1).</div>` : ''}</div></div>
   <div class="st ${c.match ? 'on' : 'skip'}"><div class="k">3</div><div class="bx"><h4>Surge</h4>
     <div class="small">${c.st.length ? 'Surge Type : ' + esc(f.st) + '. Cible : ' + esc((f.tags||[]).join(', ') || '—') + '. ' : 'Arme sans Surge Type. '}${c.match ? '<b>Ça correspond</b> : ' : '<b>Pas de correspondance</b> : le dé de Surge est ignoré.'}</div>
     ${c.match ? `<div class="pool">${c.tpl ? 'Résultat de Surge = figurines affectées : <b class="mono">' + c.sRes + '</b>' : 'Résultat du dé de Surge : ' + rin('surge', expDie(f.sd))} → <b class="mono">${r1(c.moved)}</b> dé(s) passent directement en dégâts, sans jet d’armure.</div>` : ''}
@@ -2320,7 +2466,7 @@ function liveCompare(){
     const td = udef(t);
     if (cc && isFlying(td)) return null;
     let tg = 'ground'; const wt = (atkWeaponList().find(x => x.key === AT.aw) || {}).target; if (wt && !canTarget({target:wt}, td)) return null;
-    const evade = (!cc && !!t.engaged) || isBur(t);
+    const evade = (!cc && !!t.engaged) || isHidden(t) || (!cc && isStat(t) && hasLurk(t));
     let dmg;
     if (tpl){ const aff = Math.max(1, Math.min(t.alive, f.aff || 1)); const tw = Object.assign({}, w, {roa:1, s_dice: surgeMatch(w, td.combat_tags) ? String(aff) : null});
       dmg = expectDice(tw, Math.max(0, aff + (f.extra || 0)), td, {evade}); }
@@ -2391,6 +2537,17 @@ function abilityCompare(box){
   box.innerHTML = `<p class="small muted" style="margin:6px 0">${esc(a.name)} · ${f.cov || 1} figurine(s) de chaque cible sous le gabarit · seuil ${abThreshold(a, f)}+ · ${a.plague || f.abPh === 'MOVEMENT' ? 'NON-LETHAL DAMAGE' : 'dégâts directs'}.</p>
     <div class="tw"><table class="wp cmp"><thead><tr><th>Cible</th><th>Dés</th><th>Réussites ≈</th><th>Fig. tuées ≈</th><th>Supply retiré ≈</th><th>Prochain palier</th></tr></thead><tbody>${rows.map((x, i) => `<tr class="${i === 0 ? 'best' : ''}"><td><b>${esc(unitName(x.t))}</b></td><td class="num">${x.r.dice}</td><td class="num">${r1(x.r.succ)}</td><td class="num">${x.r.nonLethal ? '—' : x.r.kills + ' / ' + x.t.alive}</td><td class="num">${x.sup ? `<span class="pill ok">−${x.sup}</span>` : '0'}</td><td class="small">${x.nd ? `encore ${x.nd.k} fig. → supply ${curSup(x.t)}→${x.nd.to}` : '—'}</td></tr>`).join('')}</tbody></table></div>
     <p class="small muted" style="margin:4px 0 0">Le gabarit peut couvrir plusieurs unités à la fois : chacune lance ses dés séparément. Ces dégâts ne passent pas par l’armure.</p>`;
+}
+
+/* statuts : LOCKED IN sur cible STATIONARY, Aftershock Rounds en Siege Mode */
+function atkStatusAdj(){
+  const f = AT.f, au = attackerUnit(), tpl = AT.mode === 'template';
+  if (f._lk){ if (f._lkT) f.extra = (f.extra || 0) - f._lk; else f.roa = (+f.roa || 0) - f._lk; }
+  f._lk = 0; f._as = false;
+  if (AT.mode === 'combat' || AT.mode === 'ability') return;
+  const x = kwNum(f.kws || [], 'LOCKED IN');
+  if (x && f.tStat){ f._lk = x; f._lkT = tpl; if (tpl) f.extra = (f.extra || 0) + x; else f.roa = (+f.roa || 0) + x; }
+  if (isSiege(au) && hasAb(au, 'AFTERSHOCK_ROUNDS') && (f.kws || []).some(k => /SIEGE MODE/i.test(k))){ f._as = true; f.dmg = Math.max(1, f.tSize || 0); }
 }
 
 /* ================= règles ================= */
@@ -3124,7 +3281,7 @@ function nextStep(){
     if (S.round >= lastRound() || specialWin()){ S.over = true; logA(`Fin de partie : ${S.vp.me} – ${S.vp.opp}`, 'sys'); U.tab = 'log'; }
     else { initiative(); S.round++; S.phase = 0; S.cleaned = false; S.firstPass = {}; S.passed = {};
       S.markers.forEach(m => { m.me = []; m.opp = []; m.meAdj = 0; m.oppAdj = 0; m.gained = null; });
-      S.quarters = null; logA('Début du round ' + S.round + ' (1er joueur : ' + (S.fpm === 'me' ? 'toi' : 'adversaire') + ')', 'sys'); }
+      S.quarters = null; statusRoundStart(); logA('Début du round ' + S.round + ' (1er joueur : ' + (S.fpm === 'me' ? 'toi' : 'adversaire') + ')', 'sys'); }
   }
   save(); render(); window.scrollTo({top:0});
 }
@@ -3144,7 +3301,7 @@ document.addEventListener('click', e => {
   const d = t.dataset;
   if (d.kw){ openKw(t); return; }
   if (t.id === 'popClose' || t.id === 'popClose2'){ closePop(); return; }
-  if (d.burpick){ const u = findU(d.burpick); setBur(u, true, 'Rapid Burrowing'); const e = (S.spent || []).filter(x => x.key === 'RAPID_BURROWING').pop(); if (e) e.bur = {uid:u.id, prev:false}; save(); closePop(); render(); toast(unitName(u) + ' est BURROWED.'); return; }
+  if (d.burpick){ const u = findU(d.burpick); const prev = snapSt(u, ['burrowed']); setBur(u, true, 'Rapid Burrowing'); const e = (S.spent || []).filter(x => x.key === 'RAPID_BURROWING').pop(); if (e) e.bur = {uid:u.id, prev}; save(); closePop(); render(); toast(unitName(u) + ' est BURROWED.'); return; }
   if (t.id === 'nextForce'){ closePop(); nextStep(); return; }
   if (t.id === 'popBack'){ POP.stack.pop(); renderPop(); return; }
   if (d.paysel){ const i = PAY.sel.indexOf(d.paysel); if (i >= 0) PAY.sel.splice(i, 1); else PAY.sel.push(d.paysel); POP.stack = [{html:payHTML()}]; renderPop(); return; }
@@ -3184,7 +3341,7 @@ document.addEventListener('click', e => {
   if (d.card){ const c = S.cards.find(x => x.id === d.card); c.ready = !c.ready; save(); render(); return; }
   if (d.loc){ const [id, l] = d.loc.split('|'); const u = findU(id);
     if (l === 'dead'){ setAlive(u, 0); logA(unitName(u) + ' détruite', 'loss'); }
-    else { if (u.loc === 'dead') { u.alive = u.start; } u.loc = l; if (l !== 'table'){ u.engaged = false; u.burrowed = false; } }
+    else { if (u.loc === 'dead') { u.alive = u.start; } if (l === 'table' && u.loc !== 'table') u.stat = false; u.loc = l; if (l !== 'table'){ u.engaged = false; statusOffTable(u); } }
     save(); render(); return; }
   if (d.alive){ const [id, n] = d.alive.split('|'); const u = findU(id); const lost = setAlive(u, u.alive + +n); if (lost > 0) logA(`${unitName(u)} : supply −${lost}`, 'loss'); save(); render(); return; }
   if (d.dmg){ const [id, n] = d.dmg.split('|'); const u = findU(id); u.dmg = Math.max(0, u.dmg + +n); save(); render(); return; }
@@ -3232,13 +3389,16 @@ document.addEventListener('change', e => {
   if (id === 'selDeploy'){ S.setup.deploy = +t.value; S.markers = mkMarkers(); save(); render(); return; }
   if (id === 'addRace'){ U.addRace = t.value; U.addUnit = Object.keys(DB.races[t.value].units)[0]; saveU(); render(); return; }
   if (id === 'addUnit'){ U.addUnit = t.value; const race = $('#addRace').value; const comp = (DB.races[race].units[t.value].composition_options || [{models:1}]); $('#addN').innerHTML = comp.map(c => opt(c.models, c.models)).join(''); return; }
-  if (t.dataset.bur){ const u = findU(t.dataset.bur); setBur(u, t.checked, 'manuel'); U.flow = {}; save(); render(); return; }
+  if (t.dataset.st){ const [id, k] = t.dataset.st.split('|'); const u = findU(id), v = t.checked;
+    if (k === 'burrowed') setBur(u, v, 'manuel'); else if (k === 'siege') setSiege(u, v, 'manuel'); else if (k === 'hidden') setHidden(u, v, null, 'manuel'); else u.stat = v;
+    U.flow = {}; save(); render(); return; }
   if (t.dataset.eng){ const u = findU(t.dataset.eng); u.engaged = t.checked; U.flow = {}; save(); render(); return; }
   if (t.dataset.mkc){ const [mid, s, uid] = t.dataset.mkc.split('|'); const mk = S.markers.find(x => x.id === +mid); const arr = mk[s]; const i = arr.indexOf(uid); if (t.checked && i < 0) arr.push(uid); if (!t.checked && i >= 0) arr.splice(i, 1); save(); render(); return; }
 
   if (id === 'aU'){ AT.au = t.value; AT.aw = null; prefillAtt(); render(); return; }
   if (id === 'aO'){ AT.ao = t.value; AT.aw = null; prefillAtt(); render(); return; }
   if (id === 'aK'){ AT.ak = t.value; AT.r = {}; render(); return; }
+  if (id === 'f_tStat'){ readAtk(); AT.f.tStat = t.checked; const du = defenderUnit(); if (du){ du.stat = t.checked; save(); } atkStatusAdj(); render(); return; }
   if (id === 'f_bm' || id === 'f_abPh'){ readAtk(); renderPipe(); return; }
   if (id === 'aW'){ AT.aw = t.value; prefillAtt(); render(); return; }
   if (id === 'nearA'){ U.near = t.checked; saveU(); refreshNear(); render(); return; }
