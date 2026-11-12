@@ -508,6 +508,9 @@ details.enx>summary{cursor:pointer;font-size:12px;color:var(--muted)}
 .note.siege .lbl{color:#5b84a6}
 .note.hid{border-color:#5d4f8c;background:color-mix(in srgb,#5d4f8c 10%,transparent)}
 .note.hid .lbl{color:#8a7bc4}
+.toklist{list-style:none;padding:0;margin:0}
+.toklist li{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.toklist li:last-child{border-bottom:0}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -936,7 +939,7 @@ function reducers(a, holder){ // capacités de ta liste qui peuvent réduire un 
 function startUse(holder, a){
   const n = costVal(a), rep = /REPEATABLE/.test(a.text||'');
   if (usedOf(holder, a.key) && !rep){ toast('Déjà utilisée ce round par cette unité.'); return; }
-  const blk = burrowBlock(holder, a); if (blk){ toast(blk); return; }
+  const blk = burrowBlock(holder, a) || extrasBlock(holder, a); if (blk){ toast(blk); return; }
   if (a.card){ const c = S.cards.find(x => x.id === a.card); if (!c.ready){ toast('Cette carte est déjà épuisée ce round.'); return; } }
   if (n <= 0 && !a.card){ recordUse(holder, a, [], 0, []); return; }
   PAY.holder = holder; PAY.key = a.key; PAY.sel = a.card ? [a.card] : []; PAY.red = [];
@@ -970,9 +973,11 @@ function recordUse(holder, a, cards, amount, red){
   S.spent = S.spent || [];
   S.spent.push({id:Date.now().toString(36) + Math.random().toString(36).slice(2, 5), r:S.round, p:S.phase, holder, key:a.key, name:nm(a.key, a), who, cards, amount, red});
   const stT = statusTarget(holder, a), stS = stT ? snapSt(stT, stKeysOf(a)) : null; const bur = statusFromAbility(holder, a); if (stT) S.spent[S.spent.length - 1].bur = {uid:stT.id, prev:stS};
+  const xMsg = extrasFromAbility(holder, a, S.spent[S.spent.length - 1]);
   logA((who ? who + ' : ' : '') + nm(a.key, a) + (amount ? ` (−${amount} ${RES()} : ${cards.map(id => nm(S.cards.find(c => c.id === id).key, cardDef(S.cards.find(c => c.id === id)))).join(', ')})` : ''), 'ab');
   save(); closePop(); render();
   if (bur && bur.pick){ openSheet(rapidPickHTML()); return; }
+  if (xMsg){ toast(xMsg); return; }
   toast(nm(a.key, a) + (amount ? ` : −${amount} ${RES()}` : ' utilisée') + '.');
 }
 function confirmPay(){
@@ -989,6 +994,7 @@ function refund(id){
   (e.red || []).forEach(rk => { const [h, k] = rk.split('|'); delete S.used[h + ':' + k]; });
   const k = e.holder + ':' + e.key; if (S.used[k]){ S.used[k].n--; if (S.used[k].n <= 0) delete S.used[k]; }
   if (e.bur){ const bu = findU(e.bur.uid); if (bu) Object.assign(bu, e.bur.prev); }
+  if (e.tok) delTok(e.tok); if (e.sum) undoSummon(e);
   S.spent.splice(i, 1); logA('Annulé : ' + e.name + (e.who ? ' (' + e.who + ')' : ''), 'ab'); save();
 }
 function ledgerHTML(){
@@ -1313,13 +1319,14 @@ function applyAct(u, kind, extra){
   if (kind === 'sabotage'){ const mk = S.markers.find(x => x.id === +extra.split(':')[0]); if (mk) mk.sab = Math.max(1, Math.min(3, mk.sab + +extra.split(':')[1])); }
   logA(n + ' : ' + LBL[kind] + (kind === 'charge' ? (extra === 'ok' ? ' réussie' : ' ratée') : '') + (kind === 'gather' ? ' (+1 PV)' : ''), 'act');
   U.flow = {}; save();
-  if (SIMPLE()){ const nx = simpleList().find(x => !x.act[S.phase] && x.id !== u.id); U.sel = nx ? nx.id : null; saveU(); render();
+  const ch = childOf(u);
+  if (SIMPLE()){ const nx = ch || simpleList().find(x => !x.act[S.phase] && x.id !== u.id); U.sel = nx ? nx.id : null; saveU(); render();
     requestAnimationFrame(() => { const el = document.querySelector(nx ? '#blkAct' : '#blkPick'); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); });
     toastUndo(n + ' : ' + LBL[kind] + (kind === 'charge' ? (extra === 'ok' ? ' réussie' : ' ratée') : '') + ' enregistré.' + (nx ? ' Suivante : ' + unitName(nx) + '.' : ' Toutes tes unités ont joué.'));
     return; }
   render();
   if (kind === 'charge' && extra === 'ok'){ const ab = abilitiesOf(u).filter(a => /successful Charge/i.test(a.text || '')); toast(ab.length ? 'Charge réussie : pense à ' + ab.map(a => nm(a.key, a)).join(', ') + ' !' : 'Charge réussie : ' + n + ' est engagée.'); }
-  else toast(n + ' : activation enregistrée.');
+  else toast(n + ' : activation enregistrée.' + (ch ? ' Active maintenant ' + unitName(ch) + ' (invoquée).' : ''));
 }
 
 /* ---- comparateur de cibles ---- */
@@ -1344,7 +1351,7 @@ function compareHTML(u, mode){
   if (!rows.length) return nearBox + '<div class="note small">Aucune cible compatible parmi les unités adverses sur la table.</div>';
   rows.sort((a, b) => b.v.supLost - a.v.supLost || b.v.kills - a.v.kills || b.v.dmg - a.v.dmg);
   return nearBox + `<div class="tw" style="margin-top:8px"><table class="wp cmp"><thead><tr><th>Cible</th>${mode === 'BOTH' ? '<th>Mode</th>' : ''}<th>Dégâts ≈</th><th>Fig. tuées ≈</th><th>Supply retiré ≈</th><th>Prochain palier</th></tr></thead><tbody>${
-    rows.slice(0, 8).map((r, i) => `<tr class="${i === 0 ? 'best' : ''}"><td><b>${esc(unitName(r.t))}</b>${r.ph === 'ASSAULT' && isHidden(r.t) ? ' <span class="pill hid">HIDDEN : 4" max</span>' : ''}<br><span class="small muted">${esc(r.v.used.join(' + '))}</span></td>${mode === 'BOTH' ? `<td>${r.ph === 'COMBAT' ? 'Charge + CàC' : 'Tir'}</td>` : ''}
+    rows.slice(0, 8).map((r, i) => `<tr class="${i === 0 ? 'best' : ''}"><td><b>${esc(unitName(r.t))}</b>${isShielded(r.t) && hasAb(r.t, 'IMPROVED_BARRIER') ? ' <span class="pill">Improved Barrier : dégâts max 1</span>' : ''}${r.ph === 'ASSAULT' && isHidden(r.t) ? ' <span class="pill hid">HIDDEN : 4" max</span>' : ''}<br><span class="small muted">${esc(r.v.used.join(' + '))}</span></td>${mode === 'BOTH' ? `<td>${r.ph === 'COMBAT' ? 'Charge + CàC' : 'Tir'}</td>` : ''}
       <td class="num">${r1(r.v.dmg)}</td><td class="num">${r.v.kills} / ${r.t.alive}</td><td class="num">${r.v.supLost ? `<span class="pill ok">−${r.v.supLost} (≈ +${r.v.supLost} PV)</span>` : '0'}</td>
       <td class="small">${r.v.nd ? `encore ${r.v.nd.k} fig. → supply ${curSup(r.t)}→${r.v.nd.to}` : curSup(r.t) === 0 ? 'déjà à 0' : '—'}</td></tr>`).join('')
   }</tbody></table></div><p class="small muted" style="margin:4px 0 0">Estimation moyenne : toutes les figurines à portée et visibles, sans couvert ni capacités du défenseur. Tu vérifies la portée et la ligne de vue sur la table.</p>`;
@@ -1442,6 +1449,7 @@ function renderPhase(){
   let h = sw ? `<div class="note warn"><span class="lbl">Victoire anticipée</span>${sw === 'me' ? 'Tu mènes' : 'L’adversaire mène'} de ${Math.abs(S.vp.me - S.vp.opp)} PV : la condition spéciale de la mission (+${mission().special_win_lead}) est atteinte. La partie se termine au contrôle de fin de partie.</div>` : '';
   if (SIMPLE()){
     h += `<div class="panel phasehd"><div class="row" style="justify-content:space-between"><h2>Phase ${p.n} — ${p.t}</h2><span class="row" style="gap:6px">${planBtn('small')}<span class="pill ${S.fpm === 'me' ? 'ok' : 'warn'}">1er : ${S.fpm === 'me' ? 'toi' : 'adversaire'}</span></span></div><p class="sub" style="margin:4px 0 0">${info.goal}</p></div>`;
+    h += tokensPanel();
     if (p.id === 'start') h += `<div class="phase-compact">${renderStart()}</div>`;
     else if (p.id === 'score') h += `<div class="phase-compact">${renderScore()}</div>`;
     else h += renderActivationSimple();
@@ -1451,6 +1459,7 @@ function renderPhase(){
     <span class="row" style="gap:6px">${planBtn('small')}<span class="pill ${S.fpm === 'me' ? 'ok' : 'warn'}">Marqueur Premier joueur : ${S.fpm === 'me' ? 'toi' : 'adversaire'}</span></span></div>
     <p class="sub">${info.goal}</p><details ${U.seqOpen === false ? '' : 'open'} id="seqBox"><summary class="small">Déroulé de la phase</summary><ol class="seq">${info.seq.map(s => `<li><span>${s}</span></li>`).join('')}</ol>
     ${info.tip ? `<div class="note tip" style="margin-top:10px"><span class="lbl">Conseil</span>${esc(info.tip)}</div>` : ''}</details></div>`;
+  h += tokensPanel();
   if (p.id === 'start') h += renderStart();
   else if (p.id === 'score') h += renderScore();
   else h += adviceHTML() + renderActivation();
@@ -1532,7 +1541,7 @@ function renderScore(){
       <li><span>Condition spéciale : ${m.special_win_lead ? `un joueur mène de ${m.special_win_lead} PV ou plus` : 'à confirmer (carte incomplète)'}.${specialWin() ? ' <b>Atteinte !</b>' : ''}</span></li>
       <li><span>Un joueur n’a plus aucune figurine sur la table ni d’unité en réserve : le survivant gagne +10 PV.</span></li>
       <li><span>Dernier round (${lastRound()}) terminé : score final.${last ? ' <b>C’est le dernier round</b> : les unités restées en réserve comptent comme détruites (incluses dans le calcul ci-dessus).' : ''}</span></li></ol>
-    <h2 style="margin-top:12px">4 · Effets de fin de round</h2><p class="sub">Le premier joueur résout les siens en premier.</p><div class="ablist">${fx.join('') || '<p class="muted">Aucune capacité de fin de round dans ta liste.</p>'}</div></div>
+    <h2 style="margin-top:12px">4 · Effets de fin de round</h2><p class="sub">Le premier joueur résout les siens en premier.</p>${tokens().filter(t => t.kind === 'shade' || t.kind === 'tunnel').map(t => `<div class="note">${tokLine(t)}</div>`).join('')}<div class="ablist">${fx.join('') || '<p class="muted">Aucune capacité de fin de round dans ta liste.</p>'}</div></div>
   <div class="panel"><h2>5 · Nettoyage</h2>
     ${unused && !S.cleaned ? `<div class="note warn"><span class="lbl">Ressources non dépensées</span>Il te reste ${unused} ${esc(RES())} : elles seront perdues au nettoyage. Une capacité de fin de round à utiliser ? <button class="btn ghost small" data-ledger="1">Voir le détail</button></div>` : ''}
     <p class="sub">Retire tous les jetons et marqueurs sauf : STAY IN PLAY, marqueurs de dégâts, marqueurs de mission et indicateurs de faction. Toutes les cartes épuisées redeviennent prêtes.</p>
@@ -2194,14 +2203,15 @@ function statusFromAbility(holder, a){
   return {};
 }
 /* ---------- affichage ---------- */
-const burPill = u => [isBur(u) ? '<span class="pill bur">BURROWED</span>' : '', isSiege(u) ? '<span class="pill siege">SIEGE MODE</span>' : '',
+const burPill = u => [isShielded(u) ? '<span class="pill">Shielded</span>' : '', isBur(u) ? '<span class="pill bur">BURROWED</span>' : '', isSiege(u) ? '<span class="pill siege">SIEGE MODE</span>' : '',
   isHidden(u) && !isBur(u) ? '<span class="pill hid">HIDDEN</span>' : ''].join('');
 const burTxt = u => (isBur(u) ? ' · BURROWED' : '') + (isSiege(u) ? ' · SIEGE' : '') + (isHidden(u) && !isBur(u) ? ' · HIDDEN' : '');
 const stBox = (u, k, l, on) => `<label class="chk"><input type="checkbox" data-st="${u.id}|${k}" ${on ? 'checked' : ''}> ${l}</label>`;
 function burChk(u, all){
   if (u.loc !== 'table') return '';
   return [canBurrow(u) ? stBox(u, 'burrowed', 'Burrowed', u.burrowed) : '', canSiege(u) ? stBox(u, 'siege', 'Siege Mode', u.siege) : '',
-    !u.burrowed && (all || canHide(u) || u.hidden) ? stBox(u, 'hidden', 'Hidden', u.hidden) : '', stBox(u, 'stat', 'Stationary', u.stat)].join('');
+    !u.burrowed && (all || canHide(u) || u.hidden) ? stBox(u, 'hidden', 'Hidden', u.hidden) : '', stBox(u, 'stat', 'Stationary', u.stat),
+    shieldOf(u) ? stBox(u, 'shield', 'Shielded', isShielded(u)) : ''].join('') + tokBtns(u);
 }
 function detectorsAgainst(u){
   const foes = u.side === 'o' ? S.units : S.opp.units, out = [];
@@ -2232,6 +2242,7 @@ function burNote(u){
     if (hasAb(u, 'Smart_Shells')) L.push('Smart Shells : INDIRECT FIRE et LONG RANGE (24).');
     h += `<div class="note siege"><span class="lbl">SIEGE MODE</span>${L.join('<br>')}</div>`;
   }
+  const sn = shieldNotes(u); if (sn.length) h += `<div class="note"><span class="lbl">SHIELDED</span>${sn.join('<br>')}</div>`;
   if (isStat(u) && (hasLurk(u))) h += `<div class="note"><span class="lbl">STATIONARY</span>Lurking : jet d’Evade contre le premier tir qui la vise ce round (+1 sur le Creep).</div>`;
   return h;
 }
@@ -2280,6 +2291,92 @@ function siegeTree(u, N, A, L){
   return N;
 }
 
+/* ================= SHIELDED, pions sur la table, invocations ================= */
+const shieldOf = u => (udef(u).stats.shield || 0);
+function isShielded(u){
+  if (!u || u.loc !== 'table' || !shieldOf(u)) return false;
+  if (!u.shLost && (u.alive < u.start || (u.dmg || 0) > shieldOf(u))) u.shLost = true;   // perdu : 1re figurine retirée ou dégâts > bouclier
+  return !u.shLost;
+}
+const SHIELD_AB = {IMPROVED_BARRIER:'Improved Barrier : les dégâts de l’arme qui l’attaque sont limités à 1 (réaction, quand elle est ciblée).',
+  Shield_Overcharge:'Shield Overcharge : TOUGH (2) sur ce jet d’armure (réaction, avant le jet).'};
+function shieldNotes(u){
+  if (!isShielded(u)) return [];
+  const out = Object.keys(SHIELD_AB).filter(k => hasAb(u, k)).map(k => SHIELD_AB[k]);
+  const mech = (udef(u).combat_tags || []).includes('Mechanical') && !isFlying(udef(u));
+  const plasma = u.side === 'o' ? oppCardHas('PLASMA_SHIELDS') : S.cards.some(c => cardAbilities(c).some(a => a.key === 'PLASMA_SHIELDS'));
+  if (mech && plasma) out.push('Plasma Shields (carte) : TOUGH (1) et DODGE (1) sur ce jet d’armure.');
+  return out;
+}
+function oppCardHas(key){ const ol = S.opp.list || {}, R = DB.races[S.opp.race || ol.race]; if (!R) return false;
+  return [ol.faction].concat(ol.tactical || []).some(k => { const cd = R.tactical_cards[k] || (R.faction_cards || {})[k]; return cd && Object.keys(cd.abilities || {}).includes(key); }); }
+
+/* ---- pions ---- */
+const TOK = {PSIONIC_TRANSFER:'shade', DEEP_TUNNEL:'tunnel', Psionic_Storm:'storm5', PSIONIC_GALE:'storm4'};
+const TOKNAME = {shade:'Shade', tunnel:'Ravager Burrow', storm5:'Psionic Storm', storm4:'Psionic Storm (Gale)'};
+const tokAbOf = u => Object.keys(TOK).filter(k => hasAb(u, k));
+function addTok(uid, kind){ S.tokens = S.tokens || []; const id = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4); S.tokens.push({id, uid, kind, r:S.round}); logA('Pion ' + TOKNAME[kind] + ' posé (' + unitName(findU(uid)) + ')', 'act'); return id; }
+function delTok(id){ S.tokens = (S.tokens || []).filter(t => t.id !== id); }
+const tokens = () => S.tokens || [];
+function tokLine(t){
+  const u = findU(t.uid), who = u ? esc(unitName(u)) + (u.side === 'o' ? ' (adversaire)' : '') : '?';
+  if (t.kind === 'shade' || t.kind === 'tunnel') return `<b>${TOKNAME[t.kind]}</b> de ${who} : à la fin du round, ${u && u.side === 'o' ? 'l’adversaire peut' : 'tu peux'} replacer toute l’unité en cohésion, le pion servant de modèle de tête.`;
+  const th = t.kind === 'storm4' ? 4 : 5;
+  return `<b>${TOKNAME[t.kind]}</b> de ${who} : à la fin de chaque phase, gabarit BT centré sur le pion. Chaque unité touchée lance 3 dés + 1 par figurine touchée ; chaque ${th}+ : NON-LETHAL DAMAGE (1) en phase de Mouvement, 1 dégât en phase d’Assaut.`;
+}
+function tokensPanel(){
+  const ts = tokens(); if (!ts.length) return '';
+  return `<div class="panel tokp"><h2>Pions sur la table</h2><ul class="toklist">${ts.map(t => `<li><span>${tokLine(t)}</span><button class="btn ghost small" data-tokdel="${t.id}">Retirer</button></li>`).join('')}</ul></div>`;
+}
+const stormsNow = () => [1, 2].includes(S.phase) ? tokens().filter(t => /^storm/.test(t.kind)) : [];
+function endPhaseHTML(){
+  const st = stormsNow(); if (!st.length) return '';
+  return `<div class="note warn"><span class="lbl">Fin de phase</span>${st.map(tokLine).join('<br>')}</div>`;
+}
+/* boutons pour poser un pion à la main (adversaire, ou correction) */
+function tokBtns(u){
+  if (u.loc !== 'table') return '';
+  return tokAbOf(u).map(k => `<button class="btn ghost small" data-tokadd="${u.id}|${TOK[k]}">+ pion ${TOKNAME[TOK[k]]}</button>`).join('');
+}
+
+/* ---- invocations ---- */
+const SUM = {ROACHLING_INFESTATION:'Roachling', HOLO_DECOY:'Holo_Decoy'};
+function summon(parent, key){
+  const R = DB.races[parent.race], sd = (R.summoned_units || {})[key]; if (!sd) return null;
+  const n = (sd.summoned_from && sd.summoned_from.models_needed) || 1;
+  let u = S.units.find(x => x.key === key && x.loc !== 'table' && (!x.parent || x.parent === parent.id));
+  const prev = u ? JSON.parse(JSON.stringify(u)) : null;
+  if (!u){ u = {id:'s' + Date.now().toString(36), side:parent.side, race:parent.race, key, start:n, alive:n, upgrades:[], loc:'res', engaged:false, dmg:0, act:{}, penalty:false}; S.units.push(u); }
+  Object.assign(u, {start:n, alive:n, loc:'table', engaged:false, dmg:0, act:{}, parent:parent.id, summoned:true});
+  u.act[S.phase] = true;   // ne peut pas être activée pendant la phase où elle est invoquée
+  statusOffTable(u);
+  logA(unitName(u) + ' invoquée par ' + unitName(parent), 'act');
+  return {uid:u.id, prev};
+}
+function undoSummon(e){
+  const i = S.units.findIndex(x => x.id === e.sum.uid); if (i < 0) return;
+  if (e.sum.prev) S.units[i] = e.sum.prev; else S.units.splice(i, 1);
+}
+const childOf = u => S.units.find(x => x.parent === u.id && x.loc === 'table' && !x.act[S.phase]);
+/* fin de round : Holo Decoy (TIMED LIFE) et pions retirés au nettoyage */
+function extrasCleanup(){
+  S.tokens = [];
+  S.units.concat(S.opp.units).filter(u => u.loc === 'table' && hasAb(u, 'TIMED_LIFE')).forEach(u => { u.loc = 'res'; u.engaged = false; statusOffTable(u); logA(unitName(u) + ' retirée (Timed Life)', 'act'); });
+}
+/* hook paiement */
+function extrasFromAbility(holder, a, entry){
+  const u = findU(holder); if (!u) return null;
+  if (TOK[a.key]){ entry.tok = addTok(u.id, TOK[a.key]); return null; }
+  if (SUM[a.key]){ const r = summon(u, SUM[a.key]); if (r){ entry.sum = r; return 'Invoquée : ' + unitName(findU(r.uid)) + ' (pas activable cette phase ; ensuite, juste après ' + unitName(u) + ')' + (a.key === 'HOLO_DECOY' ? '. Elle peut faire un Move tout de suite.' : '.'); } }
+  return null;
+}
+function extrasBlock(holder, a){
+  const u = findU(holder);
+  if (u && SHIELD_AB[a.key] && !isShielded(u)) return nm(a.key, a) + ' : l’unité n’est plus Shielded.';
+  if (u && (TOK[a.key] || SUM[a.key]) && u.loc !== 'table') return nm(a.key, a) + ' : l’unité doit être sur la table.';
+  return null;
+}
+
 /* ================= attaque ================= */
 const AT = {who:'me', mode:'ranged', au:null, aw:null, ao:null, oRace:'ZERG', oUnit:null, tSrc:'army', to:null, tRace:'ZERG', tUnit:null, tm:null, f:{}, r:{}};
 function dbWeapons(race, key){ const d = allUnitsOf(race)[key]; const out = Object.entries(d.weapons||{}).map(([k, w]) => Object.assign({key:k, name:nm(k)}, w));
@@ -2325,7 +2422,7 @@ function prefillDef(){
   if (du){ td = udef(du); alive = du.alive; dmg = du.dmg; eng = du.engaged; }
   else { td = AT.tUnit && allUnitsOf(AT.tRace)[AT.tUnit]; alive = td ? (td.composition_options ? td.composition_options[0].models : 1) : 1; }
   if (td) Object.assign(f, {arm:tn(td.stats.armour), ev:tn(td.stats.evade), hp:td.stats.hp, sh:td.stats.shield || 0, tags:(td.combat_tags||[]).slice(), vis:alive, mk:dmg, tEng:eng, tAb:Object.entries(td.abilities||{}).map(([k, a]) => Object.assign({key:k}, a))});
-  f.shOn = (f.sh || 0) > 0; f.grant = isHidden(du) || (AT.mode !== 'combat' && isStat(du) && hasLurk(du)); AT.r = {};
+  f.shOn = du ? isShielded(du) : (f.sh || 0) > 0; f.grant = isHidden(du) || (AT.mode !== 'combat' && isStat(du) && hasLurk(du)); AT.r = {};
   f.tSize = du ? effSize(du) : (td ? td.stats.size : null); f.tStat = isStat(du); atkStatusAdj();
 }
 function atkPrefill(){ atkDefaults(); prefillAtt(); prefillDef(); }
@@ -2376,7 +2473,7 @@ function renderAttack(){
       ${fld('vis', AT.mode === 'combat' ? 'Figurines' : 'Fig. visibles', f.vis)}${fld('mk', 'Marqueur dégâts', f.mk)}</div>
     <div class="row" style="margin-top:8px"><label class="chk"><input type="checkbox" id="f_tEng" ${f.tEng ? 'checked' : ''}> Cible engagée</label>
       <label class="chk"><input type="checkbox" id="f_tStat" ${f.tStat ? 'checked' : ''}> Cible STATIONARY</label>
-      <label class="chk"><input type="checkbox" id="f_shOn" ${f.shOn ? 'checked' : ''}> Encore Shielded</label>
+      <label class="chk"><input type="checkbox" id="f_shOn" ${f.shOn ? 'checked' : ''}> Encore Shielded</label>${(() => { const sn = shieldNotes(defenderUnit()); return sn.length ? `<div class="note small" style="margin-top:6px;width:100%"><b>Réactions possibles (Shielded)</b><br>${sn.join('<br>')}</div>` : ''; })()}
       <label class="chk"><input type="checkbox" id="f_grant" ${f.grant ? 'checked' : ''}> Evade accordé (HIDDEN, capacité…)</label></div>
     ${f.tAb && f.tAb.length ? `<details style="margin-top:8px"><summary class="small">Capacités du défenseur à vérifier (${f.tAb.length})</summary><div class="ablist">${f.tAb.map(a => abHTML('x', a, {noUse:true})).join('')}</div></details>` : ''}
   </div></div>
@@ -3260,6 +3357,7 @@ function cleanup(){
   const un = readyRes(); S.stats.unusedRes += un;
   S.cards.forEach(c => c.ready = true); S.used = {};
   S.units.concat(S.opp.units).forEach(u => { u.act = {}; u.penalty = false; });
+  extrasCleanup();
   S.cleaned = true; logA('Nettoyage' + (un ? ` (${un} ${RES()} non dépensés)` : ''), 'sys');
 }
 function initiative(){
@@ -3302,6 +3400,8 @@ document.addEventListener('click', e => {
   if (d.kw){ openKw(t); return; }
   if (t.id === 'popClose' || t.id === 'popClose2'){ closePop(); return; }
   if (d.burpick){ const u = findU(d.burpick); const prev = snapSt(u, ['burrowed']); setBur(u, true, 'Rapid Burrowing'); const e = (S.spent || []).filter(x => x.key === 'RAPID_BURROWING').pop(); if (e) e.bur = {uid:u.id, prev}; save(); closePop(); render(); toast(unitName(u) + ' est BURROWED.'); return; }
+  if (d.tokdel){ delTok(d.tokdel); save(); render(); return; }
+  if (d.tokadd){ const [id, k] = d.tokadd.split('|'); addTok(id, k); save(); render(); return; }
   if (t.id === 'nextForce'){ closePop(); nextStep(); return; }
   if (t.id === 'popBack'){ POP.stack.pop(); renderPop(); return; }
   if (d.paysel){ const i = PAY.sel.indexOf(d.paysel); if (i >= 0) PAY.sel.splice(i, 1); else PAY.sel.push(d.paysel); POP.stack = [{html:payHTML()}]; renderPop(); return; }
@@ -3322,7 +3422,9 @@ document.addEventListener('click', e => {
   if (d.plan){ openPlanC(); return; }
   if (t.id === 'undoBtn'){ undo(); return; }
   if (t.id === 'nextBtn'){ const rest = remainingToAct();
-    if (rest.length){ openSheet(`<h3 class="fiche-t">Passer à la phase suivante ?</h3><p>Il reste <b>${rest.length}</b> unité(s) qui peuvent encore être activées : ${rest.map(u => '<b>' + esc(unitName(u)) + '</b>').join(', ')}.</p>${PH[S.phase].id === 'COMBAT' ? '<p class="note warn">En phase de Combat, toutes les unités engagées doivent combattre.</p>' : ''}<div class="row" style="margin-top:10px"><button class="btn pri" id="nextForce">Phase suivante quand même</button><button class="btn" id="popClose2">Rester</button></div>`); return; }
+    const eph = endPhaseHTML();
+    if (!rest.length && eph){ openSheet(`<h3 class="fiche-t">Avant de changer de phase</h3>${eph}<div class="row" style="margin-top:10px"><button class="btn pri" id="nextForce">C’est fait, phase suivante</button><button class="btn" id="popClose2">Rester</button></div>`); return; }
+    if (rest.length){ openSheet(`${eph}<h3 class="fiche-t">Passer à la phase suivante ?</h3><p>Il reste <b>${rest.length}</b> unité(s) qui peuvent encore être activées : ${rest.map(u => '<b>' + esc(unitName(u)) + '</b>').join(', ')}.</p>${PH[S.phase].id === 'COMBAT' ? '<p class="note warn">En phase de Combat, toutes les unités engagées doivent combattre.</p>' : ''}<div class="row" style="margin-top:10px"><button class="btn pri" id="nextForce">Phase suivante quand même</button><button class="btn" id="popClose2">Rester</button></div>`); return; }
     nextStep(); return; }
   if (d.round){ S.round = +d.round; S.over = false; save(); render(); return; }
   if (d.ph != null){ S.phase = +d.ph; S.over = false; U.sel = null; save(); render(); return; }
@@ -3390,7 +3492,7 @@ document.addEventListener('change', e => {
   if (id === 'addRace'){ U.addRace = t.value; U.addUnit = Object.keys(DB.races[t.value].units)[0]; saveU(); render(); return; }
   if (id === 'addUnit'){ U.addUnit = t.value; const race = $('#addRace').value; const comp = (DB.races[race].units[t.value].composition_options || [{models:1}]); $('#addN').innerHTML = comp.map(c => opt(c.models, c.models)).join(''); return; }
   if (t.dataset.st){ const [id, k] = t.dataset.st.split('|'); const u = findU(id), v = t.checked;
-    if (k === 'burrowed') setBur(u, v, 'manuel'); else if (k === 'siege') setSiege(u, v, 'manuel'); else if (k === 'hidden') setHidden(u, v, null, 'manuel'); else u.stat = v;
+    if (k === 'burrowed') setBur(u, v, 'manuel'); else if (k === 'siege') setSiege(u, v, 'manuel'); else if (k === 'hidden') setHidden(u, v, null, 'manuel'); else if (k === 'shield') u.shLost = !v; else u.stat = v;
     U.flow = {}; save(); render(); return; }
   if (t.dataset.eng){ const u = findU(t.dataset.eng); u.engaged = t.checked; U.flow = {}; save(); render(); return; }
   if (t.dataset.mkc){ const [mid, s, uid] = t.dataset.mkc.split('|'); const mk = S.markers.find(x => x.id === +mid); const arr = mk[s]; const i = arr.indexOf(uid); if (t.checked && i < 0) arr.push(uid); if (!t.checked && i >= 0) arr.splice(i, 1); save(); render(); return; }
