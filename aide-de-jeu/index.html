@@ -3470,6 +3470,7 @@ document.addEventListener('click', e => {
   if (d.oppact){ logA('L’adversaire active une unité', 'pass'); save(); toast('Noté. Toujours à l’adversaire.'); return; }
   if (d.tokdel){ delTok(d.tokdel); save(); render(); return; }
   if (d.tokadd){ const [id, k] = d.tokadd.split('|'); addTok(id, k); save(); render(); return; }
+  if (t.id === 'handGo'){ handApply(); return; }
   if (t.id === 'nextForce'){ closePop(); nextStep(); return; }
   if (t.id === 'popBack'){ POP.stack.pop(); renderPop(); return; }
   if (d.paysel){ const i = PAY.sel.indexOf(d.paysel); if (i >= 0) PAY.sel.splice(i, 1); else PAY.sel.push(d.paysel); POP.stack = [{html:payHTML()}]; renderPop(); return; }
@@ -3617,6 +3618,28 @@ render();
     try { localStorage.setItem(KEY, on ? 'terran' : 'original'); } catch (e) {}
   });
 })();
+
+/* ================= liste reçue du builder (#me=… / #opp=…) ================= */
+let HAND = null;
+function handDecode(s){ return decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))); }
+function handApply(){
+  if (!HAND) return; const {side, txt} = HAND; HAND = null; closePop();
+  if (side === 'me') loadMine(txt); else loadOpp(txt);
+}
+function checkHand(){
+  const m = location.hash.match(/^#(me|opp)=([A-Za-z0-9_-]+)/); if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  let txt; try { txt = handDecode(m[2]); JSON.parse(txt); } catch(e){ toast('Lien de liste illisible.'); return; }
+  HAND = {side: m[1], txt};
+  const inGame = S.round > 1 || S.phase > 0;
+  if (m[1] === 'me' && inGame){
+    openSheet(`<h3 class="fiche-t">Charger la liste du builder ?</h3><p>Une partie est en cours (round ${S.round}). Charger ta liste démarre une nouvelle partie ; la liste adverse est conservée.</p><div class="row" style="margin-top:10px"><button class="btn pri" id="handGo">Charger et recommencer</button><button class="btn" id="popClose2">Garder la partie</button></div>`);
+    return;
+  }
+  handApply();
+}
+window.addEventListener('hashchange', checkHand);
+setTimeout(checkHand, 0);
 
 </script>
 <script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('../sw.js',{scope:'../'}).catch(()=>{}));</script></body></html>
