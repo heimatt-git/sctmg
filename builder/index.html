@@ -269,6 +269,30 @@ td.kw{white-space:normal;min-width:140px}
 .cat-item.tac{box-shadow:inset 3px 0 0 var(--acc)}
 .chip.gas{border-color:var(--acc);color:var(--acc);font-family:var(--f-mono);letter-spacing:0;text-transform:none;font-size:12px}
 .cat-item.tac .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+
+/* v6 : jouer/partager, effet des upgrades, problèmes, recherche */
+.upw{display:inline-flex;align-items:stretch}
+.upw .up{border-right:0}
+.upi{border:1px solid var(--line);background:var(--surface);color:var(--acc);font:600 12px var(--f-mono);padding:0 8px;cursor:pointer;min-width:28px}
+.upi:hover{background:var(--surface-2)}
+.unit.bad{box-shadow:inset 3px 0 0 var(--err)}
+.u-err{margin:0;color:var(--err);font-size:13px}
+.stbtn{border:0;background:none;padding:0;cursor:pointer;font:inherit;text-align:left}
+.stbtn .pill{text-decoration:underline dotted;text-underline-offset:3px}
+.issues-h{font-family:var(--f-display);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--err);margin:4px 0}
+#issues,.issues-h{scroll-margin-top:180px}
+.pill.err,.pill.warn{cursor:pointer}
+.catsearch{padding:8px 14px 4px}
+.catsearch input{width:100%;box-sizing:border-box;padding:8px 10px;font:inherit;border:1px solid var(--line);background:var(--surface);color:inherit}
+button.group-h{width:100%;border:0;background:none;cursor:pointer;text-align:left;font-family:var(--f-display)}
+button.group-h>span:first-child::before{content:"▾ ";color:var(--muted)}
+button.group-h[aria-expanded="false"]>span:first-child::before{content:"▸ "}
+.catnone{padding:8px 14px;color:var(--muted);font-size:13px}
+.sharedlg .row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.sharedlg h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--acc);margin:6px 0 4px}
+.sharedlg input{flex:1 1 220px;min-width:0;padding:7px 9px;font:12px var(--f-mono);border:1px solid var(--line);background:var(--surface-2);color:inherit}
+.sharedlg a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.sharedlg .tags{margin:0}
 </style>
 
 <style>[hidden]{display:none!important}body{margin:0}
@@ -531,6 +555,7 @@ function renderList(){
     ${typeof DB.army_building_rules.engagement_scales[state.scale].mineral_limit!=='number'?`<label class="field"><span>Plafond minéraux</span><input type="number" id="f-custom" min="2001" step="50" value="${limitOf()}" data-act="custom"></label>`:''}
     <span class="spacer"></span>
     ${actionsHTML(`<button class="btn primary" data-act="fiche">Fiche PDF / image</button>
+    <button class="btn primary" data-act="share">Jouer / partager</button>
     <button class="btn" data-act="recap">Copier le récap</button>
     <button class="btn" data-act="export-list">Exporter la liste</button>
     <button class="btn" data-act="import">Importer</button>
@@ -545,10 +570,10 @@ function renderList(){
       <label for="mis-inc">Par tour +</label><input type="text" inputmode="numeric" pattern="[0-9]*" id="mis-inc" data-act="mis" data-v="inc" value="${state.mission.inc??''}" placeholder="–"></div>
       <div class="rounds">${missionChips(c.pool)}</div></div>
     <div class="cell"><span class="lbl">Ressource par round</span><span class="big">${c.res}<small> ${resName(race)}</small></span><span class="tags">Faction Card + Tactical Cards, en les Exhaustant</span></div>
-    <div class="cell"><span class="lbl">État</span>${status}<span class="tags">${c.active?`Collection comparée (mode ${state.mode==='proxy'?'proxy':'strict'})`:'Collection vide : rien n\'est comparé'}</span></div>
+    <div class="cell"><span class="lbl">État</span>${errs||warns?`<button type="button" class="stbtn" data-act="goissues" title="Voir le détail">${status}</button>`:status}<span class="tags">${c.active?`Collection comparée (mode ${state.mode==='proxy'?'proxy':'strict'})`:'Collection vide : rien n\'est comparé'}</span></div>
   </section>`;
   if(L.example)h+=`<div class="banner"><span>Liste d'exemple Zerg en Skirmish 1000, pour montrer le fonctionnement. Modifiez-la ou videz-la.</span><button class="btn sm" data-act="clear-now">Partir d'une liste vide</button></div>`;
-  if(c.issues.length)h+=`<ul class="issues">${c.issues.map(([t,m])=>`<li class="${t}">${esc(m)}</li>`).join('')}</ul>`;
+  if(c.issues.length)h+=`${errs?'<p class="issues-h">Pourquoi la liste n’est pas légale</p>':''}<ul class="issues" id="issues">${c.issues.map(([t,m])=>`<li class="${t}">${esc(m)}</li>`).join('')}</ul>`;
   h+=`<div class="cols">${renderCatalog(c)}${renderArmy(c)}</div>`;
   h+=`<div class="planbar"><button class="btn primary" data-act="plan" aria-haspopup="dialog">Plan de jeu</button><span class="tags">Rôle des unités, ordre d’entrée, capacités, points faibles et conseils pour cette liste.</span></div>`;
   return h;
@@ -556,28 +581,28 @@ function renderList(){
 
 function renderCatalog(c){
   const {R,race}=c;let hidden=0;
-  let h=`<div class="catcol"><section class="panel catalog" aria-label="Catalogue des unités"><header><h2>Unités ${RLABEL[race]}</h2><span class="tags">Cliquez sur un nom pour voir la fiche</span></header>`;
+  let h=`<div class="catcol"><section class="panel catalog" aria-label="Catalogue des unités"><header><h2>Unités ${RLABEL[race]}</h2><span class="tags">Cliquez sur un nom pour voir la fiche</span></header><div class="catsearch"><input type="search" id="catq" placeholder="Rechercher une unité ou une carte" value="${esc(catQ)}" autocomplete="off" aria-label="Rechercher dans le catalogue"></div>`;
   SLOTS.forEach(s=>{
     const items=Object.entries(R.units).filter(([k,u])=>u.army_slot===s);
     const vis=items.filter(([k,u])=>c.elig(u.faction_tags));hidden+=items.length-vis.length;
     if(!vis.length)return;
-    h+=`<div class="group-h"><span>${SLOTFR[s]}</span><span class="num">${c.avail[s]||0} slot${(c.avail[s]||0)>1?'s':''}</span></div>`;
+    h+=`<button type="button" class="group-h" data-act="grp" data-g="${s}" aria-expanded="${!catClosed.has(s)}"><span>${SLOTFR[s]}</span><span class="num">${c.avail[s]||0} slot${(c.avail[s]||0)>1?'s':''}</span></button>`;
     vis.forEach(([k,u])=>{
       const inList=c.L.units.some(e=>e.key===k);const excl=(u.exclusive_with||[]).some(x=>c.L.units.some(e=>e.key===x));const block=(u.unique&&inList)||excl;
       const comps=u.composition_options.map(o=>`<span class="num">${o.models}</span> fig. <span class="num">${o.mineral_cost}</span>`).join(' · ');
       let colc='';if(c.active){const p=poolKey(k),o=c.own[p]||0,us=c.use[p]||0,left=o-us;colc=`<span class="chip ${left<u.composition_options[0].models?'low':''}">${left} fig. dispo${FAM.families[p]&&state.mode==='proxy'?' ('+cap(p).toLowerCase()+')':''}</span>`;}
-      h+=`<div class="cat-item"><details><summary><span class="nm">${isFav(k)?'<span class="star on" style="font-size:14px;width:auto;height:auto">★</span> ':''}${esc(nm(k,u))}</span><span class="meta">${u.unique?'<span class="chip uni">Unique</span>':''}<span class="chip">${esc(u.combat_role)}</span>${comps}${colc}</span></summary>${unitSheet(u,race)}${renderUpgradesInfo(u)}</details><button class="btn sm primary" data-act="add-unit" data-v="${k}" ${block?'disabled title="Unité Unique déjà dans la liste"':''}>Ajouter</button></div>`;
+      h+=`<div class="cat-item" data-g="${s}" data-n="${esc(normS(nm(k,u)+' '+k))}"><details><summary><span class="nm">${isFav(k)?'<span class="star on" style="font-size:14px;width:auto;height:auto">★</span> ':''}${esc(nm(k,u))}</span><span class="meta">${u.unique?'<span class="chip uni">Unique</span>':''}<span class="chip">${esc(u.combat_role)}</span>${comps}${colc}</span></summary>${unitSheet(u,race)}${renderUpgradesInfo(u)}</details><button class="btn sm primary" data-act="add-unit" data-v="${k}" ${block?'disabled title="Unité Unique déjà dans la liste"':''}>Ajouter</button></div>`;
     });
   });
   const sv=summonsOf(race).filter(x=>c.elig(x.s.faction_tags));
-  if(sv.length){h+=`<div class="group-h"><span>Invocations</span><span class="num">gratuites</span></div>`;
-    sv.forEach(x=>{h+=`<div class="cat-item"><details><summary><span class="nm">${esc(nm(x.k,x.s))}</span><span class="meta"><span class="chip">${esc(x.s.combat_role||'')}</span><span>via ${esc(srcTxt(race,x))}</span></span></summary>${unitSheet(x.s,race)}</details><span class="chip">Hors liste</span></div>`;});}
+  if(sv.length){h+=`<div class="group-h" data-g="INV"><span>Invocations</span><span class="num">gratuites</span></div>`;
+    sv.forEach(x=>{h+=`<div class="cat-item" data-g="INV" data-n="${esc(normS(nm(x.k,x.s)+' '+x.k))}"><details><summary><span class="nm">${esc(nm(x.k,x.s))}</span><span class="meta"><span class="chip">${esc(x.s.combat_role||'')}</span><span>via ${esc(srcTxt(race,x))}</span></span></summary>${unitSheet(x.s,race)}</details><span class="chip">Hors liste</span></div>`;});}
   const tv=Object.entries(R.tactical_cards).filter(([k,t])=>c.elig(t.faction_tags));hidden+=Object.keys(R.tactical_cards).length-tv.length;
   h+=`</section><section class="panel catalog cat-tac" aria-label="Tactical Cards"><header><h2>Tactical Cards</h2><span class="tags">Gas <span class="num">${c.gas} / ${c.gasCap}</span> · cliquez sur un nom pour voir la carte</span></header>`;
   tv.forEach(([k,t])=>{
     const block=t.unique&&c.L.tactical.includes(k);
     const colc='';
-    h+=`<div class="cat-item tac"><details><summary><span class="nm">${esc(nm(k,t))}</span><span class="meta">${t.unique?'<span class="chip uni">Unique</span>':''}<span class="chip gas">${t.gas_cost} gas</span><span>${esc(grantsTxt(t.grants_army_slots))}</span><span>+${t.resource_generated} ${resName(race)}</span>${colc}</span></summary><div class="sheet">${abilList(t.abilities,race)}<div class="tags">Les capacités d'une Tactical Card sont gratuites : on Exhauste la carte, qui ne génère alors pas sa ressource ce round.</div></div></details><button class="btn sm primary" data-act="add-tac" data-v="${k}" ${block?'disabled title="Carte Unique déjà dans la liste"':''}>Ajouter</button></div>`;
+    h+=`<div class="cat-item tac" data-g="TAC" data-n="${esc(normS(nm(k,t)+' '+k))}"><details><summary><span class="nm">${esc(nm(k,t))}</span><span class="meta">${t.unique?'<span class="chip uni">Unique</span>':''}<span class="chip gas">${t.gas_cost} gas</span><span>${esc(grantsTxt(t.grants_army_slots))}</span><span>+${t.resource_generated} ${resName(race)}</span>${colc}</span></summary><div class="sheet">${abilList(t.abilities,race)}<div class="tags">Les capacités d'une Tactical Card sont gratuites : on Exhauste la carte, qui ne génère alors pas sa ressource ce round.</div></div></details><button class="btn sm primary" data-act="add-tac" data-v="${k}" ${block?'disabled title="Carte Unique déjà dans la liste"':''}>Ajouter</button></div>`;
   });
   if(hidden)h+=`<p class="hint">${hidden} carte${hidden>1?'s':''} réservée${hidden>1?'s':''} à une autre Faction Card ${hidden>1?'sont masquées':'est masquée'}.</p>`;
   return h+`</section></div>`;
@@ -614,8 +639,9 @@ function renderArmy(c){
   c.rows.forEach(r=>{
     const {e,u,c:cmp}=r;const uid=e.uid;
     const opts=u.composition_options.map((o,i)=>`<option value="${i}" ${i===(u.composition_options[e.comp]?e.comp:0)?'selected':''}>${o.models} fig. · ${o.mineral_cost} min · supply ${o.supply_value}</option>`).join('');
-    const ups=Object.entries(u.upgrades||{}).map(([k,up])=>{const v=(up.mineral_cost||{})[String(cmp.models)];const lock=(up.requires_upgrade&&!e.up.includes(up.requires_upgrade))||(up.cost_missing&&!e.up.includes(k));return `<label class="up${lock?' locked':''}" title="${esc((up.cost_missing?'Coût absent de la table officielle : non achetable pour l\'instant. ':lock?'Nécessite '+abName(up.requires_upgrade,u.upgrades[up.requires_upgrade])+'. ':'')+upText(up))}"><input type="checkbox" id="up-${uid}-${k}" data-act="up" data-uid="${uid}" data-v="${k}" ${e.up.includes(k)?'checked':''} ${lock?'disabled':''}>${esc(abName(k,up))}${up.specialist?'<span class="chip" title="Une seule figurine de l\'unité">1 fig.</span>':''}<span class="num">${v==null?'–':v}</span></label>`;}).join('');
-    h+=`<article class="unit"><div class="u-head"><div><h3>${esc(nm(e.key,u))}</h3><div class="meta"><span class="chip acc">${SLOTFR[u.army_slot]} · ${cmp.supply_value} slot${cmp.supply_value>1?'s':''}</span>${r.spBy?`<span class="chip acc">Supply Pool ${r.sp}</span>`:''}<span class="chip">${esc(u.combat_role)}</span>${u.unique?'<span class="chip uni">Unique</span>':''}</div></div><div class="u-cost">${r.cost}<small>${r.upc?`dont ${r.upc} d'upgrades`:'minéraux'}</small></div></div>
+    const ups=Object.entries(u.upgrades||{}).map(([k,up])=>{const v=(up.mineral_cost||{})[String(cmp.models)];const lock=(up.requires_upgrade&&!e.up.includes(up.requires_upgrade))||(up.cost_missing&&!e.up.includes(k));return `<span class="upw"><label class="up${lock?' locked':''}" title="${esc((up.cost_missing?'Coût absent de la table officielle : non achetable pour l\'instant. ':lock?'Nécessite '+abName(up.requires_upgrade,u.upgrades[up.requires_upgrade])+'. ':'')+upText(up))}"><input type="checkbox" id="up-${uid}-${k}" data-act="up" data-uid="${uid}" data-v="${k}" ${e.up.includes(k)?'checked':''} ${lock?'disabled':''}>${esc(abName(k,up))}${up.specialist?'<span class="chip" title="Une seule figurine de l\'unité">1 fig.</span>':''}<span class="num">${v==null?'–':v}</span></label><button type="button" class="upi" data-act="upinfo" data-u="${e.key}" data-v="${k}" aria-label="Effet de ${esc(abName(k,up))}" title="Voir l’effet">?</button></span>`;}).join('');
+    const errU=[];if(!c.elig(u.faction_tags))errU.push(`Pas jouable avec ${nm(c.fk,F)}.`);if(u.unique&&c.rows.filter(x=>x.e.key===e.key).length>1)errU.push('Unique : une seule dans la liste.');if((u.exclusive_with||[]).some(x=>c.rows.some(y=>y.e.key===x)))errU.push('Incompatible avec une autre unité de la liste (Battle Preparation).');
+    h+=`<article class="unit${errU.length?' bad':''}"><div class="u-head"><div><h3>${esc(nm(e.key,u))}</h3><div class="meta"><span class="chip acc">${SLOTFR[u.army_slot]} · ${cmp.supply_value} slot${cmp.supply_value>1?'s':''}</span>${r.spBy?`<span class="chip acc">Supply Pool ${r.sp}</span>`:''}<span class="chip">${esc(u.combat_role)}</span>${u.unique?'<span class="chip uni">Unique</span>':''}</div></div><div class="u-cost">${r.cost}<small>${r.upc?`dont ${r.upc} d'upgrades`:'minéraux'}</small></div></div>${errU.length?`<p class="u-err">${esc(errU.join(' '))}</p>`:''}
       <div class="u-body"><label class="field"><span>Effectif</span><select id="comp-${uid}" data-act="comp" data-uid="${uid}">${opts}</select></label>
       ${ups?`<div class="field"><span>Upgrades</span><div class="ups">${ups}</div></div>`:''}
       <div class="u-actions"><button class="btn sm" data-act="sheet" data-uid="${uid}" aria-expanded="${openSheets.has(uid)}">${openSheets.has(uid)?'Masquer la fiche':'Fiche'}</button><button class="btn sm danger" data-act="rm-unit" data-uid="${uid}">Retirer</button></div></div>
@@ -1011,7 +1037,7 @@ function loadGen(i){const x=genRes&&genRes.lists[i];if(!x)return;const race=genR
   state.race=race;state.view='list';openSheets.clear();render();window.scrollTo(0,0);}
 
 /* ---------- main render ---------- */
-function render(){renderHeader();if(state.view!=='list')lastC=null;document.getElementById('main').innerHTML=state.view==='list'?renderList():state.view==='gen'?renderGen():renderCollection();save();updateBudget();applyHd();}
+function render(){renderHeader();if(state.view!=='list')lastC=null;document.getElementById('main').innerHTML=state.view==='list'?renderList():state.view==='gen'?renderGen():renderCollection();save();updateBudget();applyHd();applyCat();}
 
 /* ---------- mutations ---------- */
 const curList=()=>state.lists[state.race];
@@ -1022,6 +1048,14 @@ document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]');if(!b||b.tagName==='SELECT'||b.tagName==='INPUT')return;
   const a=b.dataset.act,v=b.dataset.v,L=curList();
   if(a==='tac-info'){openTac(b.dataset.k);return;}
+  if(a==='upinfo'){openUpInfo(b.dataset.u,v);return;}
+  if(a==='goissues'){const el=document.querySelector('.issues-h')||document.getElementById('issues');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return;}
+  if(a==='grp'){const g=b.dataset.g;if(catClosed.has(g))catClosed.delete(g);else catClosed.add(g);applyCat();return;}
+  if(a==='share'){openShare();return;}
+  if(a==='share-copy'){shareCopy();return;}
+  if(a==='share-native'){shareNative();return;}
+  if(a==='share-skip'){tov.hidden=true;return;}
+  if(a==='share-load'){tov.hidden=true;const r=importData(window.__pendingList||'');if(r[0]!=='ok')alertMsg(r[1]);return;}
   if(a==='plan'){openPlan();return;}
   switch(a){
     case 'race':if(topEl().classList.contains('compact')&&v===state.race){toggleHd();return;}state.race=v;break;
@@ -1231,7 +1265,7 @@ function ficheBlocks(mode,opts){opts=opts||{};
         <ul class="ab">${ab.map(([k,a])=>fAb(k,a)).join('')}${upAb.map(([k,a])=>fAb(k,a,true)).join('')}</ul></div>`);});
     const cardsAb=[[c.fk,F,'Faction Card'],...(L.creep&&R.creep_cards[L.creep]?[[L.creep,R.creep_cards[L.creep],'Creep Card']]:[]),...[...new Set(L.tactical)].map(k=>[k,R.tactical_cards[k],'Tactical Card'])].filter(x=>x[1]);
     if(opts.compactCards){B.push(`<h2 class="sub">Capacités des cartes</h2>`);
-      const cb=cardsAb.map(([k,o,t])=>`<div class="cc"><div class="cch"><b>${esc(nm(k,o))}</b> <span>${t}</span></div>${Object.entries(o.abilities||{}).map(([ak,a])=>`<p><b>${esc(abName(ak,a))}</b> <span class="ty">${esc(a.type||'')}</span> <span class="ph">${esc(cap(a.phase||''))}${a.restriction?' · '+esc(a.restriction):''}</span> — ${esc(a.text||'')}</p>`).join('')}</div>`);
+      const cb=cardsAb.map(([k,o,t])=>`<div class="cc"><div class="cch"><b>${esc(nm(k,o))}</b> <span>${t}</span></div>${Object.entries(o.abilities||{}).map(([ak,a])=>`<p><b>${esc(abName(ak,a))}</b> <span class="ty">${esc(a.type||'')}</span> <span class="ph">${esc(cap(a.phase||''))}${a.restriction?' · '+esc(a.restriction):''}</span> — ${esc(frB(a.text)||a.text||'')}</p>`).join('')}</div>`);
       for(let i=0;i<cb.length;i+=2)B.push(`<div class="ccrow">${cb[i]}${cb[i+1]||'<div></div>'}</div>`);}
     else cardsAb.forEach(([k,o,t])=>B.push(`<div class="ub"><div class="uh"><h3>${esc(nm(k,o))} <span>${t}</span></h3></div><ul class="ab">${Object.entries(o.abilities||{}).map(([ak,a])=>fAb(ak,a)).join('')}</ul></div>`));
     sums.forEach(x=>B.push(`<div class="ub"><div class="uh"><h3>${esc(nm(x.k,x.s))} <span>Invocation · ${esc(srcTxt(race,x))}</span></h3><div class="st">${fStats(x.s).map(([l,v])=>`<div><b>${esc(v)}</b><span>${l}</span></div>`).join('')}</div></div><ul class="ab">${Object.entries(x.s.abilities||{}).map(([ak,a])=>fAb(ak,a)).join('')}</ul></div>`));
@@ -1241,7 +1275,7 @@ function ficheBlocks(mode,opts){opts=opts||{};
   return {blocks:B,acc,race};
 }
 function fAb(k,a,isUp){const cost=a.cost?costTxt(a.cost):'';let opt='';if(a.options)opt=`<br>${a.options.map(o=>`${esc(costTxt(o.cost))} : ${esc(o.effect)}`).join('<br>')}`;
-  return `<li><b>${esc(abName(k,a))}</b>${isUp?' <i>(upgrade)</i>':''} <span class="ty">${esc(a.type||'')}</span> <span class="ph">${esc(cap(a.phase||''))}${a.restriction?' · '+esc(a.restriction):''}</span>${cost?` <span class="co">${esc(cost)}</span>`:''}<br>${esc(a.text||'')}${opt}</li>`;}
+  return `<li><b>${esc(abName(k,a))}</b>${isUp?' <i>(upgrade)</i>':''} <span class="ty">${esc(a.type||'')}</span> <span class="ph">${esc(cap(a.phase||''))}${a.restriction?' · '+esc(a.restriction):''}</span>${cost?` <span class="co">${esc(cost)}</span>`:''}<br>${esc(frB(a.text)||a.text||'')}${opt}</li>`;}
 const FICHE_CSS=`.fiche{width:680px;background:#fff;color:#1b2127;font:13px/1.55 Helvetica,Arial,sans-serif;padding:30px 32px;box-sizing:border-box;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
 .fiche h1{font:700 23px/1.2 Helvetica,Arial,sans-serif;margin:3px 0 0;color:#1b2127;letter-spacing:0}
 .fiche h2{font:700 13px/1.3 Helvetica,Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--fa);margin:20px 0 8px;border-bottom:2px solid var(--fa);padding-bottom:4px}
@@ -1692,6 +1726,55 @@ document.getElementById('kov-close').onclick=()=>{kov.hidden=true;};
 kov.addEventListener('click',e=>{if(e.target===kov)kov.hidden=true;});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!kov.hidden){kov.hidden=true;e.stopPropagation();}},true);
 document.addEventListener('click',e=>{const b=e.target.closest('.kwl');if(!b)return;e.preventDefault();e.stopPropagation();openKwB(b.dataset.kw,b.dataset.key||normKw(b.dataset.kw));},true);
+
+
+/* ---------- v6 : effet des upgrades ---------- */
+function openUpInfo(uk,k){const R=DB.races[state.race],u=R.units[uk],up=u&&u.upgrades[k];if(!up)return;
+  document.getElementById('tov-title').textContent=abName(k,up);
+  const meta=[nm(uk,u),up.mineral_cost?Object.entries(up.mineral_cost).map(([m,v])=>`${v} min (${m} fig.)`).join(' · '):'coût non publié',up.cost?costTxt(up.cost):null,up.type?cap(up.type):null,up.phase?cap(up.phase):null,up.restriction||null].filter(Boolean);
+  document.getElementById('tov-body').innerHTML=`<div class="meta">${meta.map(m=>`<span>${esc(m)}</span>`).join('')}</div><ul class="abil" style="margin-top:10px"><li>${upHTML(up)}</li></ul>`;
+  tov.hidden=false;document.getElementById('tov-close').focus();}
+/* ---------- v6 : recherche et groupes repliables du catalogue ---------- */
+let catQ='';const catClosed=new Set();
+const normS=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+function applyCat(){const q=normS(catQ);const items=[...document.querySelectorAll('.cat-item[data-n]')];if(!items.length)return;
+  const cnt={};items.forEach(it=>{const g=it.dataset.g,ok=q?it.dataset.n.includes(q):!catClosed.has(g);it.hidden=!ok;if(ok)cnt[g]=(cnt[g]||0)+1;});
+  document.querySelectorAll('.group-h[data-g]').forEach(h=>{const g=h.dataset.g;h.hidden=!!q&&!cnt[g];if(h.tagName==='BUTTON')h.setAttribute('aria-expanded',String(!!q||!catClosed.has(g)));});
+  const tot=Object.values(cnt).reduce((a,b)=>a+b,0);let none=document.getElementById('catnone');
+  if(q&&!tot){if(!none){none=document.createElement('p');none.id='catnone';none.className='catnone';const s=document.querySelector('.catsearch');s&&s.after(none);}none.textContent='Aucune unité ni carte ne correspond à « '+catQ+' ».';}else if(none)none.remove();
+  const tacH=document.querySelector('.cat-tac');if(tacH)tacH.hidden=!!q&&!cnt.TAC;}
+document.addEventListener('input',e=>{if(e.target.id==='catq'){catQ=e.target.value;applyCat();}});
+/* ---------- v6 : jouer / partager ---------- */
+const SITE='https://heimatt-git.github.io/sctmg/';
+const b64u={enc:s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),
+  dec:s=>decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/'))))};
+function listCode(){const f=listFile();delete f.saved;return b64u.enc(JSON.stringify(f));}
+const onSite=()=>location.hostname==='heimatt-git.github.io';
+function openShare(){const L=curList(),code=listCode(),empty=!L.units.length;
+  const tgt=onSite()?'_self':'_blank',link=SITE+'builder/#list='+code;
+  document.getElementById('tov-title').textContent='Jouer / partager';
+  document.getElementById('tov-body').innerHTML=`<div class="sharedlg">
+    <h3>Aide de jeu</h3>${empty?'<p class="tags">Ajoute des unités pour pouvoir jouer avec cette liste.</p>':`<div class="row"><a class="btn primary" href="${SITE}aide-de-jeu/#me=${code}" target="${tgt}" rel="noopener">Jouer avec cette liste</a><a class="btn" href="${SITE}aide-de-jeu/#opp=${code}" target="${tgt}" rel="noopener">La charger comme liste adverse</a></div>`}
+    <h3>Partager</h3><p class="tags">Ce lien ouvre le builder avec ta liste, sur n'importe quel appareil.</p>
+    <div class="row"><input id="share-link" readonly value="${esc(link)}" aria-label="Lien de partage"><button class="btn" data-act="share-copy">Copier le lien</button>${navigator.share?'<button class="btn" data-act="share-native">Partager…</button>':''}</div>
+    <p class="tags" id="share-msg"></p></div>`;
+  tov.hidden=false;}
+function shareMsg(m){const e=document.getElementById('share-msg');if(e)e.textContent=m;}
+function shareCopy(){const i=document.getElementById('share-link');if(!i)return;try{navigator.clipboard.writeText(i.value).then(()=>shareMsg('Lien copié.'),()=>{i.select();shareMsg('Copie refusée : le lien est sélectionné, copie-le à la main.');});}catch(e){i.select();shareMsg('Le lien est sélectionné, copie-le à la main.');}}
+function shareNative(){const i=document.getElementById('share-link');if(!i||!navigator.share)return;navigator.share({title:'Liste StarCraft TMG',url:i.value}).catch(()=>{});}
+/* lien reçu : #list=... */
+function checkHash(){const m=location.hash.match(/^#list=([A-Za-z0-9_-]+)/);if(!m)return;let d;try{d=JSON.parse(b64u.dec(m[1]));}catch(e){return;}
+  history.replaceState(null,'',location.pathname+location.search);
+  const R=DB.races[d.race];if(!R||d.type!=='sctmg-list')return;
+  const cur=state.lists[d.race];
+  window.__pendingList=JSON.stringify(d);
+  document.getElementById('tov-title').textContent='Liste partagée';
+  document.getElementById('tov-body').innerHTML=`<div class="sharedlg"><p>${esc(RLABEL[d.race])} · ${esc(nm(d.faction,R.faction_cards[d.faction])||'')} · ${(d.units||[]).length} unité(s), ${(d.tactical||[]).length} carte(s).</p>${cur&&cur.units.length&&!cur.example?`<p class="tags">Elle remplacera ta liste ${esc(RLABEL[d.race])} actuelle. Exporte-la d'abord si tu veux la garder.</p>`:''}<div class="row"><button class="btn primary" data-act="share-load">Charger la liste</button><button class="btn" data-act="share-skip">Ignorer</button></div></div>`;
+  tov.hidden=false;}
+addEventListener('hashchange',checkHash);
+document.addEventListener('click',e=>{if(e.target.closest('[data-act]'))return;const p=e.target.closest('.pill.err,.pill.warn');if(!p)return;const el=document.querySelector('.issues-h')||document.getElementById('issues');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});setTimeout(checkHash,0);
+
+function alertMsg(t){document.getElementById('tov-title').textContent='Liste partagée';document.getElementById('tov-body').innerHTML='<p>'+esc(t)+'</p>';tov.hidden=false;}
 
 render();
 })();
