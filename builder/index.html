@@ -262,6 +262,13 @@ td.kw{white-space:normal;min-width:140px}
 .kwdlg .when{font-size:12px;color:var(--muted);margin-top:4px}
 .kwdlg details{margin-top:8px;font-size:12px;color:var(--muted)}.kwdlg .kwen{white-space:pre-line}
 @media (max-width:700px){#kov{place-items:end stretch;padding:0} #kov .dlg{width:100%;max-height:80vh;border-radius:12px 12px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}}
+
+/* catalogue : unités et tactical cards séparées */
+.catcol{display:grid;gap:16px;align-items:start;min-width:0}
+.cat-tac{border-top:3px solid var(--acc)}
+.cat-item.tac{box-shadow:inset 3px 0 0 var(--acc)}
+.chip.gas{border-color:var(--acc);color:var(--acc);font-family:var(--f-mono);letter-spacing:0;text-transform:none;font-size:12px}
+.cat-item.tac .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 </style>
 
 <style>[hidden]{display:none!important}body{margin:0}
@@ -549,7 +556,7 @@ function renderList(){
 
 function renderCatalog(c){
   const {R,race}=c;let hidden=0;
-  let h=`<section class="panel catalog" aria-label="Catalogue"><header><h2>Catalogue ${RLABEL[race]}</h2><span class="tags">Cliquez sur un nom pour voir la fiche</span></header>`;
+  let h=`<div class="catcol"><section class="panel catalog" aria-label="Catalogue des unités"><header><h2>Unités ${RLABEL[race]}</h2><span class="tags">Cliquez sur un nom pour voir la fiche</span></header>`;
   SLOTS.forEach(s=>{
     const items=Object.entries(R.units).filter(([k,u])=>u.army_slot===s);
     const vis=items.filter(([k,u])=>c.elig(u.faction_tags));hidden+=items.length-vis.length;
@@ -562,18 +569,18 @@ function renderCatalog(c){
       h+=`<div class="cat-item"><details><summary><span class="nm">${isFav(k)?'<span class="star on" style="font-size:14px;width:auto;height:auto">★</span> ':''}${esc(nm(k,u))}</span><span class="meta">${u.unique?'<span class="chip uni">Unique</span>':''}<span class="chip">${esc(u.combat_role)}</span>${comps}${colc}</span></summary>${unitSheet(u,race)}${renderUpgradesInfo(u)}</details><button class="btn sm primary" data-act="add-unit" data-v="${k}" ${block?'disabled title="Unité Unique déjà dans la liste"':''}>Ajouter</button></div>`;
     });
   });
-  const tv=Object.entries(R.tactical_cards).filter(([k,t])=>c.elig(t.faction_tags));hidden+=Object.keys(R.tactical_cards).length-tv.length;
-  h+=`<div class="group-h"><span>Tactical Cards</span><span class="num">gas ${c.gas} / ${c.gasCap}</span></div>`;
-  tv.forEach(([k,t])=>{
-    const block=t.unique&&c.L.tactical.includes(k);
-    const colc='';
-    h+=`<div class="cat-item"><details><summary><span class="nm">${esc(nm(k,t))}</span><span class="meta">${t.unique?'<span class="chip uni">Unique</span>':''}<span><span class="num">${t.gas_cost}</span> gas</span><span>${esc(grantsTxt(t.grants_army_slots))}</span><span>+${t.resource_generated} ${resName(race)}</span>${colc}</span></summary><div class="sheet">${abilList(t.abilities,race)}<div class="tags">Les capacités d'une Tactical Card sont gratuites : on Exhauste la carte, qui ne génère alors pas sa ressource ce round.</div></div></details><button class="btn sm primary" data-act="add-tac" data-v="${k}" ${block?'disabled title="Carte Unique déjà dans la liste"':''}>Ajouter</button></div>`;
-  });
   const sv=summonsOf(race).filter(x=>c.elig(x.s.faction_tags));
   if(sv.length){h+=`<div class="group-h"><span>Invocations</span><span class="num">gratuites</span></div>`;
     sv.forEach(x=>{h+=`<div class="cat-item"><details><summary><span class="nm">${esc(nm(x.k,x.s))}</span><span class="meta"><span class="chip">${esc(x.s.combat_role||'')}</span><span>via ${esc(srcTxt(race,x))}</span></span></summary>${unitSheet(x.s,race)}</details><span class="chip">Hors liste</span></div>`;});}
+  const tv=Object.entries(R.tactical_cards).filter(([k,t])=>c.elig(t.faction_tags));hidden+=Object.keys(R.tactical_cards).length-tv.length;
+  h+=`</section><section class="panel catalog cat-tac" aria-label="Tactical Cards"><header><h2>Tactical Cards</h2><span class="tags">Gas <span class="num">${c.gas} / ${c.gasCap}</span> · cliquez sur un nom pour voir la carte</span></header>`;
+  tv.forEach(([k,t])=>{
+    const block=t.unique&&c.L.tactical.includes(k);
+    const colc='';
+    h+=`<div class="cat-item tac"><details><summary><span class="nm">${esc(nm(k,t))}</span><span class="meta">${t.unique?'<span class="chip uni">Unique</span>':''}<span class="chip gas">${t.gas_cost} gas</span><span>${esc(grantsTxt(t.grants_army_slots))}</span><span>+${t.resource_generated} ${resName(race)}</span>${colc}</span></summary><div class="sheet">${abilList(t.abilities,race)}<div class="tags">Les capacités d'une Tactical Card sont gratuites : on Exhauste la carte, qui ne génère alors pas sa ressource ce round.</div></div></details><button class="btn sm primary" data-act="add-tac" data-v="${k}" ${block?'disabled title="Carte Unique déjà dans la liste"':''}>Ajouter</button></div>`;
+  });
   if(hidden)h+=`<p class="hint">${hidden} carte${hidden>1?'s':''} réservée${hidden>1?'s':''} à une autre Faction Card ${hidden>1?'sont masquées':'est masquée'}.</p>`;
-  return h+`</section>`;
+  return h+`</section></div>`;
 }
 function renderUpgradesInfo(u){
   const ups=Object.entries(u.upgrades||{});if(!ups.length)return '';
