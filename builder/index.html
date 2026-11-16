@@ -293,6 +293,7 @@ button.group-h[aria-expanded="false"]>span:first-child::before{content:"▸ "}
 .sharedlg input{flex:1 1 220px;min-width:0;padding:7px 9px;font:12px var(--f-mono);border:1px solid var(--line);background:var(--surface-2);color:inherit}
 .sharedlg a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .sharedlg .tags{margin:0}
+.plan .kwl,#pov-body .kwl{font-weight:inherit}
 </style>
 
 <style>[hidden]{display:none!important}body{margin:0}
@@ -1725,7 +1726,7 @@ function openKwB(m,key){
 document.getElementById('kov-close').onclick=()=>{kov.hidden=true;};
 kov.addEventListener('click',e=>{if(e.target===kov)kov.hidden=true;});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!kov.hidden){kov.hidden=true;e.stopPropagation();}},true);
-document.addEventListener('click',e=>{const b=e.target.closest('.kwl');if(!b)return;e.preventDefault();e.stopPropagation();openKwB(b.dataset.kw,b.dataset.key||normKw(b.dataset.kw));},true);
+document.addEventListener('click',e=>{const b=e.target.closest('.kwl:not(.abl)');if(!b)return;e.preventDefault();e.stopPropagation();openKwB(b.dataset.kw,b.dataset.key||normKw(b.dataset.kw));},true);
 
 
 /* ---------- v6 : effet des upgrades ---------- */
@@ -1775,6 +1776,37 @@ addEventListener('hashchange',checkHash);
 document.addEventListener('click',e=>{if(e.target.closest('[data-act]'))return;const p=e.target.closest('.pill.err,.pill.warn');if(!p)return;const el=document.querySelector('.issues-h')||document.getElementById('issues');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});setTimeout(checkHash,0);
 
 function alertMsg(t){document.getElementById('tov-title').textContent='Liste partagée';document.getElementById('tov-body').innerHTML='<p>'+esc(t)+'</p>';tov.hidden=false;}
+
+
+/* ---------- plan de jeu : mots-clés cliquables ---------- */
+const KW_NOLINK_B='BUTTON,SELECT,OPTION,TEXTAREA,INPUT,SCRIPT,STYLE,LABEL,H1,H2,H3,TH,.kwl';
+function linkifyDOMB(root){if(!root)return;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{const p=n.parentElement;if(!p||p.closest(KW_NOLINK_B))return NodeFilter.FILTER_REJECT;KW_RE.lastIndex=0;return KW_RE.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}});
+  const list=[];while(w.nextNode())list.push(w.currentNode);
+  list.forEach(n=>{KW_RE.lastIndex=0;const t=document.createElement('template');t.innerHTML=linkify(n.nodeValue);n.replaceWith(t.content);});}
+/* noms des capacités de la liste → leur effet */
+let AB_MAP={};
+function abMap(){const R=DB.races[state.race],L=curList(),F=R.faction_cards[state.faction[state.race]],m={};
+  const add=(name,a,src)=>{if(!a||!a.text||!name||name.length<4)return;if(!m[name])m[name]={a,src,name};};
+  L.units.forEach(e=>{const u=R.units[e.key];if(!u)return;Object.entries(u.abilities||{}).forEach(([k,a])=>add(abName(k,a),a,nm(e.key,u)));(e.up||[]).forEach(k=>{const up=u.upgrades[k];if(up&&up.text&&!up.weapon_replacement&&!up.weapon_added)add(abName(k,up),up,nm(e.key,u)+' · upgrade');});});
+  const cards=[[state.faction[state.race],F]].concat(L.creep&&R.creep_cards[L.creep]?[[L.creep,R.creep_cards[L.creep]]]:[]).concat(L.tactical.map(k=>[k,R.tactical_cards[k]]));
+  cards.forEach(([k,c])=>{if(c)Object.entries(c.abilities||{}).forEach(([ak,a])=>add(abName(ak,a),a,nm(k,c)));});
+  return m;}
+function linkAbDOM(root){AB_MAP=abMap();const names=Object.keys(AB_MAP).sort((a,b)=>b.length-a.length);if(!names.length)return;
+  const re=new RegExp('(?<![\\wÀ-ÿ])('+names.map(n=>n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')(?![\\wÀ-ÿ])','g');
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>{const p=n.parentElement;if(!p||p.closest(KW_NOLINK_B))return NodeFilter.FILTER_REJECT;re.lastIndex=0;return re.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}});
+  const list=[];while(w.nextNode())list.push(w.currentNode);
+  list.forEach(n=>{const t=n.nodeValue;let out='',last=0;re.lastIndex=0;let mm;while((mm=re.exec(t))){out+=esc(t.slice(last,mm.index))+`<button class="kwl abl" data-abn="${esc(mm[1])}">${esc(mm[1])}</button>`;last=mm.index+mm[1].length;}out+=esc(t.slice(last));const tp=document.createElement('template');tp.innerHTML=out;n.replaceWith(tp.content);});}
+function openAbB(name){const x=AB_MAP[name];if(!x)return;const a=x.a;
+  document.getElementById('kov-title').textContent=name;
+  document.getElementById('kov-sub').textContent=x.src;
+  const meta=[a.type?cap(a.type):null,a.phase?cap(a.phase):null,a.cost?costTxt(a.cost):null,a.restriction||null].filter(Boolean);
+  document.getElementById('kov-body').innerHTML=(meta.length?`<div class="kwv">${meta.map(m=>`<span>${esc(m)}</span>`).join('')}</div>`:'')+`<div class="kwt">${txtB(a.text)}</div>`;
+  kov.hidden=false;document.getElementById('kov-close').focus();}
+document.addEventListener('click',e=>{const b=e.target.closest('.abl');if(!b)return;e.preventDefault();e.stopImmediatePropagation();openAbB(b.dataset.abn);},true);
+(function(){const pb=document.getElementById('pov-body');if(!pb)return;
+  const mo=new MutationObserver(()=>{mo.disconnect();linkAbDOM(pb);linkifyDOMB(pb);mo.observe(pb,{childList:true});});
+  mo.observe(pb,{childList:true});})();
 
 render();
 })();
