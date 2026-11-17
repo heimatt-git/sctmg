@@ -2798,7 +2798,7 @@ function renderRules(){
   const q = (U.q || '').toLowerCase();
   const items = GL.filter(([k, t, f]) => !q || k.toLowerCase().includes(q) || t.toLowerCase().includes(q) || (f||'').toLowerCase().includes(q));
   const pid = PLX.ids.includes(U.pl) ? U.pl : PLX.ids[0];
-  return `<div class="panel pl" id="plsheet"><h2>Règles en images</h2><p class="sub">Planches illustrées, vérifiées sur le livre de règles (la planche Statuts est en cours de validation). Choisis un sujet.</p>
+  return `<div class="panel pl" id="plsheet"><h2>Règles en images</h2><p class="sub">Onze planches illustrées, vérifiées sur le livre de règles. Choisis un sujet.</p>
     <div class="plnav nolink">${PLX.ids.map(id => `<button data-plnav="${id}" class="${id === pid ? 'on' : ''}">${esc(PLX.name(id))}</button>`).join('')}</div>
     ${PLX.sheetHTML(pid)}</div>
   <div class="cols" style="margin-top:14px"><div class="panel"><h2>Avant la partie</h2><ol class="seq">
@@ -3470,7 +3470,7 @@ const SHEETS = [
    ['<b>1.</b> Tracer une ligne d’un socle à l’autre, vue de dessus. Aucun décor de taille 1+ traversé → visible.','<b>2. Full Cover</b> : un décor ≥ taille effective du tireur ET de la cible bloque.'],
    ['<b>3. Direct Cover</b> : un modèle à 1" du décor traversé, avec un décor ≥ sa taille → bloqué.','<b>4. Close Quarters</b> : à 1" du même décor et à 3" l’un de l’autre → ligne de vue normale.'],
    ['<b>Taille effective</b> = taille + taille du décor sur lequel on se tient. <b>Dead Zone</b> : HIGH GROUND contre modèle au pied du même décor.','<b>HIGH GROUND Cover</b> : une unité entièrement sur HIGH GROUND a un jet d’Evade contre les tirs venant d’en bas (jamais pour les volants).']]]},
- {id:'statuts', name:'Statuts', ok:false, ref:'Glossaire · BURROWED, HIDDEN, SIEGE MODE, STATIONARY, SHIELDED · cartes d’unité', yes:'', no:'',
+ {id:'statuts', name:'Statuts', ok:true, ref:'Glossaire · BURROWED, HIDDEN, SIEGE MODE, STATIONARY, SHIELDED · cartes d’unité', yes:'', no:'',
   lead:'Un statut change ce qu’une unité peut faire ou subir ; un marqueur posé à côté de l’unité le rappelle. Les modes (SIEGE MODE, BURROWED) restent jusqu’à ce qu’on les retire. Toutes les vues sont de dessus.',
   legend:STA_LEGEND, cases:STA_CASES,
   cons:['En résumé',[
