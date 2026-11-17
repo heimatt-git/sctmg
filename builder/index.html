@@ -294,6 +294,19 @@ button.group-h[aria-expanded="false"]>span:first-child::before{content:"▸ "}
 .sharedlg a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .sharedlg .tags{margin:0}
 .plan .kwl,#pov-body .kwl{font-weight:inherit}
+
+/* répartition de l'armée par rôle */
+.rolebar{--rb1:#2a78d6;--rb2:#eb6834;--rb3:#1baf7a;--rb4:#eda100;background:var(--surface);border:1px solid var(--line);padding:10px 14px;display:grid;gap:8px}
+:root[data-skin="terran"] .rolebar{--rb1:#3987e5;--rb2:#d95926;--rb3:#199e70;--rb4:#c98500}
+.rolebar .rb-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rolebar .rb-bar{display:flex;gap:2px;height:12px}
+.rolebar .rb-seg{min-width:4px}
+.rolebar .rb-seg:first-child{border-radius:4px 0 0 4px}.rolebar .rb-seg:last-child{border-radius:0 4px 4px 0}.rolebar .rb-seg:only-child{border-radius:4px}
+.rolebar .rb-0{background:var(--rb1)}.rolebar .rb-1{background:var(--rb2)}.rolebar .rb-2{background:var(--rb3)}.rolebar .rb-3{background:var(--rb4)}
+.rolebar .rb-leg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:4px 16px;font-size:13px}
+.rolebar .rb-leg span.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.rolebar .rb-leg .zero{color:var(--muted)}
+.rolebar .rb-leg b{font-family:var(--f-mono);font-weight:600}
 </style>
 
 <style>[hidden]{display:none!important}body{margin:0}
@@ -573,6 +586,7 @@ function renderList(){
     <div class="cell"><span class="lbl">Ressource par round</span><span class="big">${c.res}<small> ${resName(race)}</small></span><span class="tags">Faction Card + Tactical Cards, en les Exhaustant</span></div>
     <div class="cell"><span class="lbl">État</span>${errs||warns?`<button type="button" class="stbtn" data-act="goissues" title="Voir le détail">${status}</button>`:status}<span class="tags">${c.active?`Collection comparée (mode ${state.mode==='proxy'?'proxy':'strict'})`:'Collection vide : rien n\'est comparé'}</span></div>
   </section>`;
+  h+=roleBar(c);
   if(L.example)h+=`<div class="banner"><span>Liste d'exemple Zerg en Skirmish 1000, pour montrer le fonctionnement. Modifiez-la ou videz-la.</span><button class="btn sm" data-act="clear-now">Partir d'une liste vide</button></div>`;
   if(c.issues.length)h+=`${errs?'<p class="issues-h">Pourquoi la liste n’est pas légale</p>':''}<ul class="issues" id="issues">${c.issues.map(([t,m])=>`<li class="${t}">${esc(m)}</li>`).join('')}</ul>`;
   h+=`<div class="cols">${renderCatalog(c)}${renderArmy(c)}</div>`;
@@ -1591,6 +1605,85 @@ var PLAN = (function(){
     if (creepNeed.length && (ctx.creep || []).length) syn.push(`Creep : ${E([...new Set(creepNeed.map(x => x.src))].join(', '))} gagne(nt) des effets ON CREEP. Étends le creep vers les marqueurs et les zones de combat.`);
     H('Associations utiles', syn.length ? `<ul class="${ul}">${[...new Set(syn)].slice(0, 10).map(s => `<li>${s}</li>`).join('')}</ul>` : '<p>Pas d’association directe repérée entre les cartes de la liste.</p>');
 
+    {
+    /* statuts et modes */
+    const st = [];
+    const abK = (p, k) => p.abs.find(a => a.key === k);
+    const cardAb = k => (ctx.cards || []).find(c => Object.keys(c.def.abilities || {}).includes(k));
+    const costOf = a => costN(a) ? `${costN(a)} ${E(res)}` : 'gratuit';
+    const stNames = arr => E(arr.map(p => p.u.name).join(', '));
+    /* BURROWED */
+    const bur = P.filter(p => abK(p, 'BURROW'));
+    const burCards = ['RAPID_BURROWING', 'LIE_IN_WAIT', 'NASTY_SURPRISE'].map(k => [k, cardAb(k)]).filter(x => x[1]);
+    if (bur.length || burCards.length){
+      const L = [];
+      if (bur.length) L.push(`<b>Burrow</b> (${costOf(abK(bur[0], 'BURROW'))}) : ${stNames(bur)} peu${bur.length > 1 ? 'vent' : 't'} passer BURROWED si non engagée${bur.length > 1 ? 's' : ''}.`);
+      burCards.forEach(([k, c]) => { const a = c.def.abilities[k]; L.push(`<b>${E(NM(k, a))}</b> (${E(NM(c.key, c.def))}) : ${E(short(fr(a.text) || a.text, 140))}`); });
+      L.push('BURROWED : visée au tir seulement par une figurine à 4" ou moins (HIDDEN), jet d’Evade contre chaque attaque, supply 0 pour les tests de Disengage. Mais elle <b>ne conteste ni ne contrôle les marqueurs</b>, et seules Move, Disengage, Run, Hold et Close Ranks sont permises : toutes sauf Hold retirent le statut.');
+      L.push('<i>Conseil</i> : enterre une unité exposée pour la protéger ou pour approcher sous le feu, et pense à la faire ressortir avant la phase de Score si elle doit tenir un marqueur.');
+      const rg = bur.filter(p => abK(p, 'REGENERATION'));
+      if (rg.length) L.push(`<b>Regeneration</b> (${stNames(rg)}) : HEAL(2) quand l’unité est activée en étant BURROWED. Une unité abîmée gagne à rester enterrée un round.`);
+      const tc = P.filter(p => abK(p, 'Tunneling_Claws'));
+      if (tc.length) L.push(`<b>Tunneling Claws</b> (${stNames(tc)}) : Move et Run sans perdre BURROWED, et à travers les socles des autres unités. Elle peut avancer enterrée jusqu’au marqueur, puis ressortir pour le contester.`);
+      st.push(['BURROWED', L]);
+    }
+    const amb = P.filter(p => abK(p, 'Burrow_Ambush'));
+    if (amb.length) st.push(['Burrow Ambush', [`${stNames(amb)} : en entrant depuis la réserve, peu${amb.length > 1 ? 'vent' : 't'} se placer à 18" de ton Entry Edge (PLACE), jamais à 10" d’un ennemi ; l’activation se termine ensuite. Idéal pour prendre un marqueur éloigné dès l’arrivée.`]]);
+    /* SIEGE MODE */
+    const sg = P.filter(p => abK(p, 'Mode_Transformation'));
+    if (sg.length){
+      const p0 = sg[0], L = [];
+      L.push(`<b>Mode Transformation</b> (${costOf(abK(p0, 'Mode_Transformation'))}, phase de Mouvement) : ${stNames(sg)} passe en SIEGE MODE ou en sort.`);
+      L.push('En SIEGE MODE : seules les armes « SIEGE MODE » sont utilisables (Shock Cannon), ni Move, Disengage, Run, Charge ni Close Ranks, taille 3. Le statut tombe si l’unité retourne en réserve.');
+      if (abK(p0, 'AFTERSHOCK_ROUNDS')) L.push('Aftershock Rounds : les dégâts valent la taille de la cible (minimum 1). Vise en priorité les grandes cibles (taille 2+).');
+      if (abK(p0, 'POINT_BLANK')) L.push('Point Blank : il ne peut pas viser une unité avec laquelle il est engagé. Garde-le loin du corps à corps.');
+      if (abK(p0, 'HEAVY_PLATING')) L.push('Heavy Plating (TOUGH 1) ne s’applique plus en SIEGE MODE : il devient plus fragile.');
+      ['Shaped_Blast', 'Smart_Shells', 'Coordinated_Strike'].forEach(k => { const a = abK(p0, k); if (a) L.push(`<b>${E(a.name)}</b> : ${E(short(fr(a.text) || a.text, 150))}`); });
+      L.push('<i>Conseil</i> : déploie-le, avance jusqu’à une position avec des lignes de vue sur les marqueurs, puis passe en SIEGE MODE. Repasse en mode normal seulement s’il doit bouger ou s’il risque d’être chargé.');
+      st.push(['SIEGE MODE', L]);
+    }
+    /* HIDDEN */
+    const hidTxt = /gains (the )?HIDDEN/i;
+    const hidU = P.filter(p => p.abs.some(a => hidTxt.test(a.text || '')));
+    const hidC = (ctx.cards || []).flatMap(c => Object.entries(c.def.abilities || {}).filter(([k, a]) => hidTxt.test(a.text || '')).map(([k, a]) => [c, k, a]));
+    if (hidU.length || hidC.length){
+      const L = [];
+      hidU.forEach(p => p.abs.filter(a => hidTxt.test(a.text || '')).forEach(a => L.push(`<b>${E(a.name)}</b> (${E(p.u.name)}${a.type ? ' · ' + E(TYPE[a.type] || a.type) : ''}${a.type && a.type !== 'PASSIVE' ? ' · ' + costOf(a) : ''}) : ${E(short(fr(a.text) || a.text, 130))}`)));
+      hidC.forEach(([c, k, a]) => L.push(`<b>${E(NM(k, a))}</b> (${E(NM(c.key, c.def))}) : ${E(short(fr(a.text) || a.text, 130))}`));
+      L.push('HIDDEN : visée au tir ou par une capacité qui demande la ligne de vue seulement à 4" ou moins, immunisée à IMPACT, jet d’Evade contre chaque attaque. Les détecteurs adverses (Detection, Ghost Visor, Scanner Sweep, Oversight Mode, Surveillance) l’annulent à 6".');
+      if (P.some(p => p.abs.some(a => /until it performs another action/i.test(a.text || '')))) L.push('<i>Conseil</i> : un HIDDEN « jusqu’à sa prochaine action » se perd à l’action suivante. Utilise-le juste après l’action de l’unité pour qu’il la protège pendant le tour adverse.');
+      if (cardAb('MIGHT_OF_THE_NERAZIM')) L.push('Might of the Nerazim : quand une unité amie perd HIDDEN, elle gagne Buff Speed (2) et CRITICAL HIT (2) sur sa première arme. Sortir de l’ombre devient une attaque.');
+      st.push(['HIDDEN', L]);
+    }
+    const det = P.filter(p => p.abs.some(a => /lose (the )?HIDDEN/i.test(a.text || ''))).map(p => p.u.name)
+      .concat((ctx.cards || []).flatMap(c => Object.entries(c.def.abilities || {}).filter(([k, a]) => /lose (the )?HIDDEN/i.test(a.text || '')).map(([k, a]) => NM(k, a) + ' (carte)')));
+    if (det.length) st.push(['Détection', [`Ta liste peut annuler le HIDDEN adverse à 6" : ${E(det.join(', '))}. Garde-la près des unités que tu veux viser.`]]);
+    /* STATIONARY */
+    const lk = P.filter(p => p.ws.some(w => kwHas(w, 'LOCKED IN')));
+    const statAb = P.flatMap(p => p.abs.filter(a => /Stationary Status/i.test(a.text || '')).map(a => [p, a]));
+    const statCard = (ctx.cards || []).flatMap(c => Object.entries(c.def.abilities || {}).filter(([k, a]) => /Stationary Status/i.test(a.text || '')).map(([k, a]) => [c, k, a]));
+    if (lk.length || statAb.length || statCard.length){
+      const L = ['Toutes les unités gagnent STATIONARY au début du round et le perdent dès qu’une figurine bouge, est déplacée ou placée.'];
+      if (lk.length) L.push(`LOCKED IN (${stNames(lk)}) : bonus de RoA contre une cible STATIONARY. Tire en priorité sur les unités qui n’ont pas bougé ce round.`);
+      statAb.forEach(([p, a]) => L.push(`<b>${E(a.name)}</b> (${E(p.u.name)}) : ${E(short(fr(a.text) || a.text, 140))}`));
+      statCard.forEach(([c, k, a]) => L.push(`<b>${E(NM(k, a))}</b> (${E(NM(c.key, c.def))}) : ${E(short(fr(a.text) || a.text, 140))}`));
+      if (statAb.length || statCard.length) L.push('<i>Conseil</i> : pour garder ces effets, fais Hold en phase de Mouvement avec l’unité concernée.');
+      st.push(['STATIONARY', L]);
+    }
+    /* SHIELDED */
+    const shU = P.filter(p => (p.d.stats.shield || 0) > 0);
+    const shAb = shU.flatMap(p => p.abs.filter(a => /Shielded Status/i.test(a.text || '')).map(a => [p, a]));
+    const shCard = (ctx.cards || []).flatMap(c => Object.entries(c.def.abilities || {}).filter(([k, a]) => /Shielded Status/i.test(a.text || '')).map(([k, a]) => [c, k, a]));
+    if (shAb.length || shCard.length){
+      const L = ['SHIELDED : le bouclier s’ajoute aux PV de la première figurine. Le statut se perd quand les dégâts dépassent le bouclier ou quand cette figurine est retirée, et HEAL ne le rend pas.'];
+      shAb.forEach(([p, a]) => L.push(`<b>${E(a.name)}</b> (${E(p.u.name)}) : ${E(short(fr(a.text) || a.text, 140))}`));
+      shCard.forEach(([c, k, a]) => L.push(`<b>${E(NM(k, a))}</b> (${E(NM(c.key, c.def))}) : ${E(short(fr(a.text) || a.text, 140))}`));
+      L.push('<i>Conseil</i> : ces réactions ne servent que tant que le bouclier tient. Utilise-les sur les premières attaques qui visent l’unité.');
+      st.push(['SHIELDED', L]);
+    }
+    if (st.length) H('Statuts et modes', st.map(([t, L]) => `<p class="pl-ph">${E(t)}</p><ul class="${ul}">${L.map(x => `<li>${x}</li>`).join('')}</ul>`).join(''));
+
+    }
     /* points faibles */
     const weak = [];
     if (!P.some(p => p.aa)) weak.push('Aucune arme ne touche les volants : face à une armée aérienne, tu subiras sans riposter. Couvre-toi avec le décor.');
@@ -1807,6 +1900,18 @@ document.addEventListener('click',e=>{const b=e.target.closest('.abl');if(!b)ret
 (function(){const pb=document.getElementById('pov-body');if(!pb)return;
   const mo=new MutationObserver(()=>{mo.disconnect();linkAbDOM(pb);linkifyDOMB(pb);mo.observe(pb,{childList:true});});
   mo.observe(pb,{childList:true});})();
+
+
+/* ---------- répartition de l'armée par rôle ---------- */
+const ROLE_ORDER=[['DAMAGE DEALER','Dégâts'],['TANK','Tank'],['TACTICIAN','Tacticien'],['LIFESAVER','Soutien']];
+function roleBar(c){if(!c.rows.length)return '';
+  const agg=ROLE_ORDER.map(([k,l])=>({k,l,min:0,sup:0,n:0}));
+  c.rows.forEach(r=>{const a=agg.find(x=>x.k===r.u.combat_role);if(!a)return;a.min+=r.cost;a.sup+=r.c.supply_value;a.n++;});
+  const tot=agg.reduce((s,a)=>s+a.min,0)||1,pc=a=>Math.round(a.min*100/tot);
+  const missing=agg.filter(a=>!a.n).map(a=>a.l.toLowerCase());
+  return `<section class="rolebar" aria-label="Répartition de l'armée par rôle"><div class="rb-h"><span class="lbl">Répartition de l’armée (minéraux par rôle)</span>${missing.length?`<span class="tags">Aucune unité ${missing.join(', ')}</span>`:''}</div>
+    <div class="rb-bar" role="img" aria-label="${agg.filter(a=>a.n).map(a=>`${a.l} ${pc(a)} %`).join(', ')}">${agg.map((a,i)=>a.n?`<span class="rb-seg rb-${i}" style="flex:${a.min}" title="${a.l} : ${pc(a)} % des minéraux · ${a.min} min · supply ${a.sup}"></span>`:'').join('')}</div>
+    <div class="rb-leg">${agg.map((a,i)=>`<div class="${a.n?'':'zero'}"><span class="sw rb-${i}"></span>${a.l} ${a.n?`<b>${pc(a)} %</b> · ${a.n} unité${a.n>1?'s':''} · supply ${a.sup}`:'· aucune'}</div>`).join('')}</div></section>`;}
 
 render();
 })();
