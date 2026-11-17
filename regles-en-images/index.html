@@ -577,6 +577,45 @@ const LOS_LEGEND = `
   <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--fly)"/></svg>Volant</span>
   <span><svg width="20" height="14"><rect width="20" height="14" fill="var(--terrain)"/></svg>Décor (chiffre = taille)</span>
   <span>Figurine de côté : chiffre = taille</span>`;
+/* ---------- planche 11 : Statuts ---------- */
+const SB = (x, y, s, lbl, r) => ({t:'base', x, y, r:r || R, s, lbl});
+const STA_CASES = [
+ {k:'A', t:'BURROWED : tir à plus de 4"', r:'BURROWED · HIDDEN', ok:false, v:'Pas une cible', H:100,
+  p:[SB(80,50,'me','T'),SB(250,50,'opp','B'),{t:'line',x1:90,y1:50,x2:240,y2:50,ok:false},{t:'dim',x1:90,x2:240,y:80,txt:'9"'},L9(250,28,'BURROWED')],
+  n:'Une unité BURROWED a aussi le statut HIDDEN : elle ne peut pas être choisie comme cible d’un tir si le tireur est à plus de 4".'},
+ {k:'B', t:'BURROWED : tir à 4" ou moins', r:'BURROWED · HIDDEN', ok:true, v:'Tir possible + Evade', H:100,
+  p:[SB(130,50,'me','T'),SB(214,50,'opp','B'),{t:'line',x1:140,y1:50,x2:204,y2:50,ok:true},{t:'dim',x1:140,x2:204,y:80,txt:'4"'}],
+  n:'Une figurine à 4" ou moins peut la viser. La cible fait un jet d’Evade contre chaque attaque, au tir comme au corps à corps.'},
+ {k:'C', t:'BURROWED sur un marqueur', r:'BURROWED · 8.9.1', ok:false, v:'Ne conteste pas', H:140, dy:20,
+  p:[CZ(150,50),MK(150,50,'me'),RG(196,50,true),SB(196,50,'me'),RG(110,50,false),SB(110,50,'opp','B'),L9(150,117,'B est BURROWED : seule ta figurine compte')],
+  n:'Une unité BURROWED ne conteste ni ne contrôle jamais un marqueur, même à 3" et en ligne de vue. Fais-la ressortir avant la phase de Score.'},
+ {k:'D', t:'BURROWED et engagée en Combat', r:'BURROWED · 8.8.1', ok:false, v:'Ne frappe pas', H:100,
+  p:[ER(150,50),SB(150,50,'me','B'),SB(171,50,'opp'),L9(160,84,'sans Close Ranks : pas d’attaque')],
+  n:'Elle doit être activée mais ne peut pas attaquer en restant enterrée. Close Ranks en première étape retire BURROWED, puis l’attaque continue. Les ennemis la frappent normalement.'},
+ {k:'E', t:'SIEGE MODE : déplacement', r:'SIEGE MODE', ok:false, v:'Ni Move ni Run', H:100,
+  p:[SB(110,50,'me','S',16),{t:'path',pts:[[128,50],[214,50]],ok:false},{t:'ghost',x:228,y:50,r:16,s:'me'},X2(180,50)],
+  n:'En SIEGE MODE : ni Move, Disengage, Run, Charge ni Close Ranks. Seules les armes « SIEGE MODE » sont utilisables. Il faut d’abord quitter le mode (Mode Transformation).'},
+ {k:'F', t:'Siege Tank engagé en SIEGE MODE', r:'Siege Tank · Point Blank · Indomitable', ok:true, v:'Vise B, pas A', H:100,
+  p:[SB(110,56,'me','S',16),SB(140,74,'opp','A'),SB(250,24,'opp','B'),{t:'line',x1:124,y1:48,x2:240,y2:27,ok:true},L9(160,94,'A : engagée avec le tank')],
+  n:'Point Blank : en SIEGE MODE, il ne vise pas une unité avec laquelle il est engagé. Indomitable (carte du Siege Tank) lui permet, engagé, de viser une unité non engagée, qui a droit à un Evade.'},
+ {k:'G', t:'HIDDEN près d’un détecteur', r:'HIDDEN · Detection', ok:true, v:'Perd HIDDEN', H:100,
+  p:[{t:'reach',x:100,y:50,r:106},SB(100,50,'me','D'),SB(190,50,'opp','H'),{t:'dim',x1:110,x2:180,y:80,txt:'moins de 6"'}],
+  n:'Detection, Ghost Visor, Scanner Sweep, Oversight Mode, Surveillance : les unités ennemies à 6" du détecteur (ou du pion posé) perdent HIDDEN et redeviennent des cibles normales.'},
+ {k:'H', t:'STATIONARY et LOCKED IN', r:'STATIONARY · LOCKED IN', ok:true, v:'Bonus contre A', H:110,
+  p:[SB(80,55,'me','T'),SB(230,26,'opp','A'),{t:'ghost',x:182,y:84,r:R,s:'opp'},{t:'path',pts:[[192,84],[232,84]]},SB(244,84,'opp','B'),{t:'line',x1:90,y1:52,x2:220,y2:29,ok:true},{t:'line',x1:90,y1:58,x2:234,y2:82,ok:true},L9(230,10,'A n’a pas bougé : +X RoA'),L9(214,106,'B a bougé : pas de bonus')],
+  n:'Toutes les unités gagnent STATIONARY au début du round et le perdent dès qu’une figurine bouge, est déplacée ou placée. LOCKED IN (X) ajoute X à la RoA contre une cible STATIONARY.'},
+ {k:'I', t:'SHIELDED : la première figurine', r:'SHIELDED', ok:false, v:'Perd SHIELDED', H:100,
+  p:[SP(110,30),SB(110,30,'me','1'),SB(140,30,'me'),SB(170,30,'me'),L9(196,34,'bouclier intact','start'),{t:'ghost',x:110,y:74,r:R,s:'me'},X2(110,74),SB(140,74,'me'),SB(170,74,'me'),L9(196,78,'1re figurine retirée','start')],
+  n:'Le bouclier s’ajoute aux PV de la première figurine. L’unité perd SHIELDED quand les dégâts dépassent le bouclier ou quand cette figurine est retirée. HEAL ne le rend pas.'}
+];
+const STA_LEGEND = `
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--me)"/></svg>Ta figurine (T = tireur, D = détecteur, S = Siege Tank)</span>
+  <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="var(--opp)"/></svg>Figurine ennemie (B = BURROWED, H = HIDDEN)</span>
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--ok)" stroke-width="3"/></svg>Cible possible</span>
+  <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="var(--bad)" stroke-width="3" stroke-dasharray="7 5"/></svg>Impossible</span>
+  <span><svg width="20" height="14"><circle cx="10" cy="7" r="6" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="2 4"/></svg>6" autour du détecteur</span>
+  <span><svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--tpl)" stroke-width="2.5" stroke-dasharray="5 2"/></svg>Bouclier (SHIELDED)</span>`;
+
 const SHEETS = [
  {id:'engagement', name:'Engagement', ok:true, ref:'Livre de règles · 7.2 et 7.2.1 · glossaire ENGAGED', yes:'Engagées', no:'Pas engagées',
   lead:'Deux figurines ennemies sont engagées quand l’une est à 1" (Engagement Range) de l’autre, mesuré à l’horizontale, vue de dessus. Les cases suivantes montrent quand c’est vrai… et quand ça ne l’est pas.',
@@ -647,7 +686,14 @@ const SHEETS = [
   cons:['La méthode',[
    ['<b>1.</b> Tracer une ligne d’un socle à l’autre, vue de dessus. Aucun décor de taille 1+ traversé → visible.','<b>2. Full Cover</b> : un décor ≥ taille effective du tireur ET de la cible bloque.'],
    ['<b>3. Direct Cover</b> : un modèle à 1" du décor traversé, avec un décor ≥ sa taille → bloqué.','<b>4. Close Quarters</b> : à 1" du même décor et à 3" l’un de l’autre → ligne de vue normale.'],
-   ['<b>Taille effective</b> = taille + taille du décor sur lequel on se tient. <b>Dead Zone</b> : HIGH GROUND contre modèle au pied du même décor.','<b>HIGH GROUND Cover</b> : une unité entièrement sur HIGH GROUND a un jet d’Evade contre les tirs venant d’en bas (jamais pour les volants).']]]}
+   ['<b>Taille effective</b> = taille + taille du décor sur lequel on se tient. <b>Dead Zone</b> : HIGH GROUND contre modèle au pied du même décor.','<b>HIGH GROUND Cover</b> : une unité entièrement sur HIGH GROUND a un jet d’Evade contre les tirs venant d’en bas (jamais pour les volants).']]]},
+ {id:'statuts', name:'Statuts', ok:false, ref:'Glossaire · BURROWED, HIDDEN, SIEGE MODE, STATIONARY, SHIELDED · cartes d’unité', yes:'', no:'',
+  lead:'Un statut change ce qu’une unité peut faire ou subir ; un marqueur posé à côté de l’unité le rappelle. Les modes (SIEGE MODE, BURROWED) restent jusqu’à ce qu’on les retire. Toutes les vues sont de dessus.',
+  legend:STA_LEGEND, cases:STA_CASES,
+  cons:['En résumé',[
+   ['<b>BURROWED</b> : HIDDEN en plus, taille 0, supply 0 pour Disengage, ne conteste pas les marqueurs.','Seules Move, Disengage, Run, Hold et Close Ranks ; toutes sauf Hold retirent le statut. Les capacités restent utilisables.'],
+   ['<b>HIDDEN</b> : visée au tir (ou capacité avec ligne de vue) seulement à 4" ; immunisé à IMPACT ; Evade contre chaque attaque.','<b>SIEGE MODE</b> : ni Move, Disengage, Run, Charge, Close Ranks ; seules les armes SIEGE MODE ; perdu en retournant en réserve.'],
+   ['<b>STATIONARY</b> : gagné par tous au début du round, perdu dès qu’une figurine bouge, est déplacée ou placée.','<b>SHIELDED</b> : perdu quand les dégâts dépassent le bouclier ou que la 1re figurine est retirée ; HEAL ne le rend pas.']]]}
 ];
 let cur = (() => { try { return localStorage.getItem('planche') || 'ldv'; } catch(e){ return 'ldv'; } })();
 function renderSheets(){
