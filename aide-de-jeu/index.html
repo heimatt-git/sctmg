@@ -553,6 +553,10 @@ details.losses{margin-top:10px}
 .rq-c:hover b{text-decoration:underline}
 .pcase.flash{outline:3px solid var(--q);outline-offset:2px;transition:outline-color 1s}
 .pcase{scroll-margin-top:80px}
+.kwsov{position:fixed;inset:0;z-index:60;background:rgba(10,14,20,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.kwsdlg{background:var(--surface);color:var(--ink);border:1px solid var(--ink);border-radius:var(--r);width:min(760px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:14px 16px}
+.kwsprev{max-height:58vh;overflow:auto;background:#dfe4e9;border:1px solid var(--line);padding:10px;margin-top:8px}
+@media (max-width:700px){.kwsov{padding:0;align-items:flex-end}.kwsdlg{max-height:94vh;border-radius:14px 14px 0 0}}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -2016,7 +2020,7 @@ function statsHTML(def){
 function renderArmies(){
   const side = U.armySide || 'me';
   let h = `<div class="panel"><div class="row" style="justify-content:space-between"><span class="seg big">${[['me','Mon armée'],['opp','Armée adverse']].map(([k, l]) => `<button data-aside="${k}" class="${side === k ? 'on' : ''}">${l}</button>`).join('')}</span>
-    <span class="small muted">${side === 'me' ? `Sur la table : supply <b class="mono">${onTable(S.units)}</b> / pool ${fmtSup(pool())}` : `Sur la table : supply <b class="mono">${onTable(S.opp.units)}</b> / pool ${fmtSup(pool())} · disponible <b class="mono">${fmtSup(avail(S.opp.units))}</b>`}</span></div></div>`;
+    <button class="btn" id="kwSheet" title="Fiche à imprimer ou en PDF">Mots-clés de la liste</button><span class="small muted">${side === 'me' ? `Sur la table : supply <b class="mono">${onTable(S.units)}</b> / pool ${fmtSup(pool())}` : `Sur la table : supply <b class="mono">${onTable(S.opp.units)}</b> / pool ${fmtSup(pool())} · disponible <b class="mono">${fmtSup(avail(S.opp.units))}</b>`}</span></div></div>`;
   if (side === 'me'){
     h += `<div class="panel"><h2>Cartes et ressources</h2><p class="sub">Pour payer un coût en ${esc(RES())}, on épuise des cartes prêtes qui fournissent cette ressource. L’excédent est perdu. Utiliser la capacité d’une carte l’épuise aussi. Tout redevient prêt au nettoyage.</p>
       <div class="cards">${S.cards.map(c => { const d = cardDef(c); return `<div class="card ${c.ready ? '' : 'ex'}"><div class="h"><b>${esc(nm(c.key, d))}</b><span class="res">${d.resource_generated ? '+' + d.resource_generated + ' ' + esc(RES()) : '—'}</span></div>
@@ -2699,6 +2703,141 @@ function rqResults(q){
 }
 document.addEventListener('input', e => { if (e.target.id === 'rq'){ U.rq = e.target.value; saveU(); const r = document.getElementById('rqres'); if (r){ r.innerHTML = rqResults(U.rq); } } });
 
+/* ================= fiche des mots-clés de la liste (PDF / impression) ================= */
+const KWS_STAT = new Set(['BURROWED','HIDDEN','STATIONARY','SHIELDED','SIEGE MODE','LOCKED IN','ENGAGED','UNENGAGED']);
+const KWS_TERM = new Set(KW_ALIAS.map(x => x[1]).concat(Object.keys(CORE_TERMS)));
+const KWS_CATS = [['arme','Mots-clés d’armes'],['effet','Effets et mots-clés des capacités'],['statut','Statuts'],['terme','Termes de règles cités']];
+/* unités / cartes d'un camp → { clé : {key, forms:Set, cat, srcs:Set} } */
+function kwsCollect(side){
+  const out = {}, rx = new RegExp(KW_RE.source, 'g');
+  const add = (key, form, cat, src) => { if (!key || !KW[key]) return;
+    const rank = c => ['arme','effet','statut','terme'].indexOf(c);
+    const c2 = KWS_STAT.has(key) ? 'statut' : cat === 'arme' ? 'arme' : KWS_TERM.has(key) ? 'terme' : cat;
+    const e = out[key] || (out[key] = {key, forms:new Set(), cat:c2, srcs:new Set()});
+    if (rank(c2) < rank(e.cat)) e.cat = c2;
+    if (form && form.trim().toUpperCase() !== String(KW[key].name || '').toUpperCase() && form.trim().toUpperCase() !== key) e.forms.add(form.trim()); e.srcs.add(src); };
+  const scan = (txt, src) => { const t = String(fr(txt) || txt || ''); for (const m of t.matchAll(rx)) add(kwKeyOf(m[0]), m[0], 'effet', src); };
+  const units = side === 'me' ? S.units : S.opp.units;
+  const seen = new Set();
+  units.forEach(u => { const d = udef(u); if (!d) return; const sig = u.key + '|' + (u.upgrades || []).join(','); if (seen.has(sig)) return; seen.add(sig);
+    const name = nm(u.key, d);
+    weaponsOf(u, true).forEach(w => (w.keywords || []).forEach(k => { const dd = kwDef(k); add(dd ? normKw(dd.name) : null, k, 'arme', name); }));
+    abilitiesOf(u).forEach(a => scan(a.text, name));
+    (d.combat_tags || []).forEach(t => { if (normKw(t) === 'FLYING' && KW.FLYING) add('FLYING', null, 'terme', name); }); });
+  const race = side === 'me' ? S.race : S.opp.race, R = DB.races[race], L = side === 'me' ? S.list : S.opp.list;
+  if (R && L){ const cards = [];
+    if (L.faction && R.faction_cards[L.faction]) cards.push([L.faction, R.faction_cards[L.faction]]);
+    [].concat(L.creep || []).forEach(k => { if ((R.creep_cards || {})[k]) cards.push([k, R.creep_cards[k]]); });
+    (L.tactical || []).forEach(k => { if (R.tactical_cards[k]) cards.push([k, R.tactical_cards[k]]); });
+    cards.forEach(([k, c]) => Object.values(c.abilities || {}).forEach(a => scan(a.text, nm(k, c)))); }
+  return out;
+}
+function kwsEntry(e){ const d = KW[e.key]; const txt = d.frg || d.en || '';
+  const forms = [...e.forms].filter(f => f.length < 40).slice(0, 4);
+  return `<div class="ke"><div class="kh"><b>${esc(d.name || e.key)}</b>${forms.length ? `<span class="kf">${esc(forms.join(' · '))}</span>` : ''}</div>
+    <p>${esc(txt).replace(/\n/g, '<br>')}</p><div class="ku">${esc([...e.srcs].join(', '))}</div></div>`; }
+function kwsBlocks(withOpp){
+  const B = [], sides = [['me', 'Ta liste · ' + (RACEFR[S.race] || '')]];
+  if (withOpp && S.opp.units.length) sides.push(['opp', 'Liste adverse · ' + (RACEFR[S.opp.race] || '')]);
+  let total = 0;
+  sides.forEach(([side, title], si) => { const all = kwsCollect(side);
+    B.push({h:`<div class="ks${si ? ' brk' : ''}">${esc(title)}</div>`});
+    KWS_CATS.forEach(([c, lbl]) => { const es = Object.values(all).filter(e => e.cat === c).sort((a, b) => a.key.localeCompare(b.key)); if (!es.length) return;
+      B.push({h:`<div class="kc">${esc(lbl)}</div>`, head:true}); es.forEach(e => { B.push({h:kwsEntry(e)}); total++; }); }); });
+  return {B, total};
+}
+const KWS_CSS = `*{box-sizing:border-box}
+.kpage{width:680px;height:962px;background:#fff;color:#16202a;font:9.2px/1.32 Helvetica,Arial,sans-serif;padding:30px 30px 26px;display:flex;flex-direction:column;overflow:hidden}
+.ktop{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--kc);padding-bottom:6px;margin-bottom:8px}
+.ktop b{font-size:15px}.ktop span{color:#5a6571;font-size:9px}
+.kbody{flex:1;column-count:2;column-gap:16px;column-fill:auto;min-height:0}
+.ks{column-span:all;font-weight:700;font-size:12px;color:#fff;background:var(--kc);padding:3px 8px;margin:2px 0 6px;border-radius:2px}
+.kc{font-weight:700;font-size:8.6px;letter-spacing:.1em;text-transform:uppercase;color:var(--kc);border-bottom:1px solid var(--kc);margin:6px 0 4px;padding-bottom:1px;break-after:avoid}
+.ke{break-inside:avoid;margin:0 0 5px;padding:0 0 4px;border-bottom:1px solid #e3e8ee}
+.kh{display:flex;flex-wrap:wrap;gap:2px 6px;align-items:baseline}.kh b{font-size:10px}
+.kf{font-size:8px;color:#5a6571;font-style:italic}
+.ke p{margin:1px 0 1px}
+.ku{font-size:7.8px;color:#5a6571}.ku:before{content:"Utilisé par : ";font-weight:700}
+.kfoot{margin-top:6px;font-size:8px;color:#8a96a3;text-align:right}`;
+/* découpe en pages A4 par mesure réelle (Shadow DOM isolé) */
+function kwsPages(withOpp){
+  const {B, total} = kwsBlocks(withOpp);
+  const host = document.createElement('div'); host.style.cssText = 'all:initial;display:block;position:fixed;left:-10000px;top:0';
+  const root = host.attachShadow({mode:'open'}); root.innerHTML = `<style>${KWS_CSS}</style>`; document.body.appendChild(host);
+  const pg = document.createElement('div'); pg.className = 'kpage'; pg.innerHTML = '<div class="ktop"><b>x</b></div><div class="kbody"></div><div class="kfoot">x</div>'; root.appendChild(pg);
+  const body = pg.querySelector('.kbody');
+  const fits = () => { const r = body.getBoundingClientRect(); return [...body.children].every(c => { const q = c.getBoundingClientRect(); return q.right <= r.right + 1 && q.bottom <= r.bottom + 1; }); };
+  const pages = []; let cur = [];
+  for (let i = 0; i < B.length; i++){ const b = B[i];
+    body.insertAdjacentHTML('beforeend', b.h);
+    if (b.head && B[i + 1]) body.insertAdjacentHTML('beforeend', B[i + 1].h);
+    const ok = fits(); if (b.head && B[i + 1]) body.lastElementChild.remove();
+    if (ok || !cur.length){ cur.push(b.h); continue; }
+    pages.push(cur); cur = [b.h]; body.innerHTML = b.h; }
+  if (cur.length) pages.push(cur);
+  host.remove();
+  return {pages, total};
+}
+function kwsPage(html, i, n){ const d = document.createElement('div'); d.className = 'kpage'; d.style.setProperty('--kc', (RACECOL[S.race] || ['#333'])[0]);
+  d.innerHTML = `<div class="ktop"><b>Mots-clés de la liste</b><span>StarCraft TMG · aide de jeu · ${new Date().toLocaleDateString('fr-FR')}</span></div><div class="kbody">${html.join('')}</div><div class="kfoot">Résumés en français des règles du livre${n > 1 ? ` · page ${i + 1}/${n}` : ''}</div>`;
+  return d; }
+async function kwsCanvas(el){ const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-10000px;top:0'; document.body.appendChild(host);
+  const xml = new XMLSerializer().serializeToString(el); host.remove();
+  const w = 680, h = 962;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml"><style>${KWS_CSS}</style>${xml}</div></foreignObject></svg>`;
+  const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode();
+  const s = 3, cv = document.createElement('canvas'); cv.width = w * s; cv.height = h * s; const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.scale(s, s); cx.drawImage(img, 0, 0); return cv; }
+function kwsPdf(canvases){ const enc = new TextEncoder(); const parts = []; let off = 0; const offs = [];
+  const push = x => { const u = typeof x === 'string' ? enc.encode(x) : x; parts.push(u); off += u.length; };
+  const obj = (n, body) => { offs[n] = off; push(`${n} 0 obj\n`); body.forEach(push); push(`\nendobj\n`); };
+  const b64 = d => { const b = atob(d.split(',')[1]); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  push('%PDF-1.4\n%âã\n'); const PW = 595.28, PH = 841.89, n = canvases.length; const kids = canvases.map((c, i) => `${3 + i * 3} 0 R`);
+  obj(1, ['<< /Type /Catalog /Pages 2 0 R >>']); obj(2, [`<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${n} >>`]);
+  canvases.forEach((cv, i) => { const p = 3 + i * 3, c = p + 1, im = p + 2; const jpg = b64(cv.toDataURL('image/jpeg', 0.9));
+    const cs = `q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
+    obj(p, [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 ${im} 0 R >> >> /Contents ${c} 0 R >>`]);
+    obj(c, [`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`]);
+    obj(im, [`<< /Type /XObject /Subtype /Image /Width ${cv.width} /Height ${cv.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`, jpg, '\nendstream']); });
+  const tot = 3 + n * 3, xref = off; let x = `xref\n0 ${tot}\n0000000000 65535 f \n`; for (let i = 1; i < tot; i++) x += String(offs[i]).padStart(10, '0') + ' 00000 n \n';
+  push(x + `trailer\n<< /Size ${tot} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`); return new Blob(parts, {type:'application/pdf'}); }
+const kwsCanDl = () => /github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname) || location.protocol === 'file:';
+let KWS = null;
+function kwsRender(){ const ov = $('#kwsOv'); if (!ov) return; const opp = $('#kwsOpp') ? $('#kwsOpp').checked : false; U.kwsOpp = opp; saveU();
+  KWS = kwsPages(opp); const pv = $('#kwsPrev'); pv.innerHTML = ''; const h = document.createElement('div'); h.style.cssText = 'all:initial;display:block';
+  const r = h.attachShadow({mode:'open'}); r.innerHTML = `<style>${KWS_CSS}.kpage{zoom:.75;margin:0 auto 10px;box-shadow:0 1px 4px rgb(0 0 0 / .25)}@media (max-width:700px){.kpage{zoom:.5}}</style>`;
+  KWS.pages.forEach((p, i) => r.appendChild(kwsPage(p, i, KWS.pages.length))); pv.appendChild(h);
+  $('#kwsInfo').textContent = KWS.total ? `${KWS.total} mot${KWS.total > 1 ? 's' : ''}-clé${KWS.total > 1 ? 's' : ''} · ${KWS.pages.length} page${KWS.pages.length > 1 ? 's' : ''} A4` : 'Aucun mot-clé trouvé : charge d’abord ta liste.'; }
+function openKwSheet(){
+  let ov = $('#kwsOv'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'kwsOv'; ov.className = 'kwsov nolink';
+  const hasOpp = S.opp.units.length > 0;
+  ov.innerHTML = `<div class="kwsdlg" role="dialog" aria-modal="true" aria-labelledby="kwsT"><div class="row" style="justify-content:space-between;align-items:center"><h2 id="kwsT" style="margin:0">Mots-clés de la liste</h2><button class="btn" id="kwsX" aria-label="Fermer">✕</button></div>
+    <p class="small muted" style="margin:6px 0">Chaque mot-clé utilisé par tes unités et tes cartes, avec sa règle en français et les unités concernées.</p>
+    <label class="small" style="display:flex;gap:6px;align-items:center;margin:4px 0 8px"><input type="checkbox" id="kwsOpp" ${hasOpp ? '' : 'disabled'} ${hasOpp && U.kwsOpp ? 'checked' : ''}> Inclure la liste adverse${hasOpp ? '' : ' (aucune liste adverse chargée)'}</label>
+    <div class="small muted" id="kwsInfo"></div>
+    <div class="kwsprev" id="kwsPrev"></div>
+    <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn primary" id="kwsPdfB">Télécharger en PDF</button><button class="btn" id="kwsPrint">Imprimer</button></div>
+    <p class="small" id="kwsMsg" style="margin:6px 0 0">${kwsCanDl() ? '' : 'Ici, le téléchargement et l’impression peuvent être bloqués : utilise l’aide de jeu du site si rien ne se passe.'}</p></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.id === 'kwsX') ov.remove(); });
+  $('#kwsOpp').addEventListener('change', kwsRender);
+  $('#kwsPdfB').addEventListener('click', kwsDownload);
+  $('#kwsPrint').addEventListener('click', kwsPrint);
+  kwsRender(); }
+async function kwsDownload(){ const m = $('#kwsMsg'); if (!KWS || !KWS.total){ m.textContent = 'Rien à exporter.'; return; }
+  m.textContent = 'Préparation du PDF…';
+  try { const cvs = []; for (let i = 0; i < KWS.pages.length; i++) cvs.push(await kwsCanvas(kwsPage(KWS.pages[i], i, KWS.pages.length)));
+    const blob = kwsPdf(cvs), name = `mots-cles-${(S.race || '').toLowerCase()}.pdf`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+    m.textContent = 'PDF prêt : ' + name; }
+  catch(e){ m.textContent = 'Le PDF n’a pas pu être créé ici. Essaie depuis l’aide de jeu du site.'; } }
+function kwsPrint(){ if (!KWS || !KWS.total) return;
+  let pr = $('#kwsPrintZone'); if (pr) pr.remove(); pr = document.createElement('div'); pr.id = 'kwsPrintZone';
+  const st = document.createElement('style'); st.textContent = KWS_CSS.replace(/(^|\})\s*\*\{box-sizing:border-box\}/, '$1').replace(/(^|\})([^{}@]+)\{/g, (m, a, sel) => a + sel.split(',').map(s => '#kwsPrintZone ' + s.trim()).join(',') + '{')
+    + `@media print{body>*:not(#kwsPrintZone){display:none!important}#kwsPrintZone{display:block!important}#kwsPrintZone .kpage{zoom:1.1672;break-after:page}@page{size:A4;margin:0}}#kwsPrintZone{display:none}`;
+  pr.appendChild(st); KWS.pages.forEach((p, i) => pr.appendChild(kwsPage(p, i, KWS.pages.length))); document.body.appendChild(pr);
+  try { window.print(); } catch(e){ $('#kwsMsg').textContent = 'L’impression est bloquée ici. Télécharge le PDF ou utilise l’aide de jeu du site.'; } }
+
 /* ================= attaque ================= */
 const AT = {who:'me', mode:'ranged', au:null, aw:null, ao:null, oRace:'ZERG', oUnit:null, tSrc:'army', to:null, tRace:'ZERG', tUnit:null, tm:null, f:{}, r:{}};
 function dbWeapons(race, key){ const d = allUnitsOf(race)[key]; const out = Object.entries(d.weapons||{}).map(([k, w]) => Object.assign({key:k, name:nm(k)}, w));
@@ -2975,6 +3114,7 @@ function renderRules(){
   const items = GL.filter(([k, t, f]) => !q || k.toLowerCase().includes(q) || t.toLowerCase().includes(q) || (f||'').toLowerCase().includes(q));
   const pid = PLX.ids.includes(U.pl) ? U.pl : PLX.ids[0];
   return `<div class="panel rsearch"><h2>Rechercher dans les règles</h2><input class="search" id="rq" type="search" placeholder="Ex. charge, HIDDEN, couvert, marqueur…" value="${esc(U.rq || '')}" autocomplete="off" aria-label="Rechercher dans les règles"><div id="rqres" style="margin-top:10px">${rqResults(U.rq)}</div></div>
+  <div class="panel" style="margin-top:14px"><div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2 style="margin:0">Mots-clés de ta liste</h2><p class="sub" style="margin:4px 0 0">Une fiche A4 avec la règle de chaque mot-clé utilisé par ton armée, à imprimer ou en PDF.</p></div><button class="btn primary" id="kwSheet2">Mots-clés de la liste</button></div></div>
   <div class="panel pl" id="plsheet" style="margin-top:14px"><h2>Règles en images</h2><p class="sub">Onze planches illustrées, vérifiées sur le livre de règles. Choisis un sujet.</p>
     <div class="plnav nolink">${PLX.ids.map(id => `<button data-plnav="${id}" class="${id === pid ? 'on' : ''}">${esc(PLX.name(id))}</button>`).join('')}</div>
     ${PLX.sheetHTML(pid)}</div>
@@ -3842,6 +3982,7 @@ document.addEventListener('click', e => {
   if (t.id === 'goPasteMe'){ loadMine(pastedList($('#pasteMe').value)); return; }
   if (t.id === 'goPasteOpp'){ loadOpp(pastedList($('#pasteOpp').value)); return; }
   if (t.id === 'saveGame'){ saveGameFile(); return; }
+  if (t.id === 'kwSheet' || t.id === 'kwSheet2'){ openKwSheet(); return; }
   if (t.id === 'addOpp'){ const race = $('#addRace').value, key = $('#addUnit').value, n = +$('#addN').value;
     if (S.opp.race !== race){ S.opp.units = []; S.opp.race = race; }
     const id = 'o' + Date.now().toString(36); S.opp.units.push({id, side:'o', race, key, start:n, alive:n, upgrades:[], loc:'res', engaged:false, dmg:0, act:{}, penalty:false});
