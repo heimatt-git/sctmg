@@ -526,6 +526,22 @@ details.stdet>summary::-webkit-details-marker{display:none}
 details.stdet>summary::after{content:"▾";margin-left:auto;color:var(--muted)}
 details.stdet[open]>summary::after{content:"▴"}
 details.stdet .row{margin-top:8px}
+/* ---------- pertes rapides + contrôle guidé ---------- */
+details.losses{margin-top:10px}
+.lossrow{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.lossrow .ln{min-width:0;flex:1 1 160px}
+.lossrow .lb{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lossrow .lb>.btn{min-height:40px;min-width:44px}
+.lossrow .dm{display:inline-flex;gap:4px;align-items:center;margin-left:4px}
+.losses .lh{font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+.mkguide{display:grid;gap:10px;margin:8px 0}
+.mkg{border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:8px}
+.mkg.done{border-color:var(--ok)}
+.mkbtns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.mkbtns .btn{min-height:48px;font-size:14px;padding:6px 4px;white-space:normal;line-height:1.2}
+.mkbtns .btn.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.mkbtns .btn.on.me{background:var(--ok);border-color:var(--ok)}
+.mkbtns .btn.on.opp{background:var(--bad);border-color:var(--bad)}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -1148,7 +1164,8 @@ function computeScore(){
 function applyControl(){
   const sum = (ids, adj, arr) => ids.reduce((a, id) => { const u = arr.find(x => x.id === id); return a + (u && u.loc === 'table' && !isBur(u) ? curSup(u) : 0); }, 0) + (adj || 0);
   liveMarkers().forEach(mk => {
-    const a = sum(mk.me, mk.meAdj, S.units), b = sum(mk.opp, mk.oppAdj, S.opp.units);
+    let a = sum(mk.me, mk.meAdj, S.units), b = sum(mk.opp, mk.oppAdj, S.opp.units);
+    if (mk.pick === 'me'){ a = 1; b = 0; } else if (mk.pick === 'opp'){ a = 0; b = 1; } else if (mk.pick === 'none'){ a = b = 0; }
     mk.prev = mk.owner; mk.gained = null;
     if (a > b) mk.owner = 'me'; else if (b > a) mk.owner = 'opp';
     if (mk.prev === 'opp' && mk.owner === 'me') mk.gained = 'me';
@@ -1535,7 +1552,7 @@ function renderScore(){
   const lm = liveMarkers().filter(x => sm !== 'activated_round' || x.active);
   const sc = computeScore();
   const unused = readyRes();
-  return `<div class="panel"><h2>1 · Contrôle des marqueurs</h2>
+  const ctrlFull = `<div class="panel"><h2>1 · Contrôle des marqueurs</h2>
     <p class="sub">Coche les unités qui contestent chaque marqueur : au moins une figurine à 3", en ligne de vue, même élévation, unité en cohésion. Volants et BURROWED ne contestent pas. C’est la somme du supply actuel qui compte. Le contrôle reste au dernier propriétaire tant que l’autre ne fait pas mieux.</p>
     <div class="mkgrid">${lm.map(mk => { const a = sumOf(mk.me, S.units, mk.meAdj), b = sumOf(mk.opp, S.opp.units, mk.oppAdj);
       const r = a > b ? ['ok','tu prends'] : b > a ? ['bad','l’adversaire prend'] : ['', a + b ? 'égalité : pas de changement' : 'personne : pas de changement'];
@@ -1545,7 +1562,28 @@ function renderScore(){
         <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
           <span class="stp"><button data-mkadj="${mk.id}|opp|-1">−</button><button data-mkadj="${mk.id}|opp|1">+</button></span>${mk.oppAdj ? ` <span class="mono">${mk.oppAdj > 0 ? '+' : ''}${mk.oppAdj}</span>` : ''}</div>
         <span class="pill ${r[0]}">${r[1]}</span></div>`; }).join('') || '<p class="muted">Aucun marqueur actif.</p>'}</div>
-    <div class="row" style="margin-top:8px"><button class="btn pri" id="applyMk">Appliquer le contrôle</button><span class="small muted">Les +/− adverses servent pour les bonus de supply (capacités) ou une armée non saisie.</span></div></div>
+    <div class="row" style="margin-top:8px"><button class="btn pri" id="applyMk">Appliquer le contrôle</button><span class="small muted">Les +/− adverses servent pour les bonus de supply (capacités) ou une armée non saisie.</span></div></div>`;
+  const own = mk => mk.owner === 'me' ? ['ok','à toi'] : mk.owner === 'opp' ? ['bad','à l’adversaire'] : ['','neutre'];
+  const picked = lm.filter(mk => mk.pick).length;
+  const ctrlGuided = `<div class="panel"><h2>1 · Contrôle des marqueurs</h2>
+    <p class="sub">Pour chaque marqueur, compare le supply actuel des unités qui le contestent : au moins une figurine à 3", qui le voit, au même niveau, unité en cohésion. Volants et BURROWED ne comptent pas. Le plus haut total prend le marqueur. « Personne » (égalité ou aucune unité) : il reste à son propriétaire actuel.</p>
+    <div class="mkguide">${lm.map(mk => { const a = sumOf(mk.me, S.units, mk.meAdj), b = sumOf(mk.opp, S.opp.units, mk.oppAdj), o = own(mk);
+      return `<div class="mkg ${mk.pick ? 'done' : ''}"><div class="row"><span class="mkid ${mk.aff.toLowerCase()}">${mk.id}</span><span class="small muted">${mkRel(mk)}${sm === 'sabotage' ? ' · Sabotage ' + mk.sab : ''}</span><span class="pill ${o[0]}" style="margin-left:auto">actuel : ${o[1]}</span></div>
+        <div class="mkbtns"><button class="btn big ${mk.pick === 'me' ? 'on me' : ''}" data-mkpick="${mk.id}|me">Moi</button><button class="btn big ${mk.pick === 'opp' ? 'on opp' : ''}" data-mkpick="${mk.id}|opp">Adversaire</button><button class="btn big ${mk.pick === 'none' ? 'on' : ''}" data-mkpick="${mk.id}|none">Personne</button></div>
+        ${a || b ? `<div class="small muted">Comptage coché : toi ${a} · adversaire ${b}</div>` : ''}</div>`; }).join('') || '<p class="muted">Aucun marqueur actif.</p>'}</div>
+    <details class="capsub"><summary>Compter le supply unité par unité</summary>
+    <p class="sub">Coche les unités qui contestent chaque marqueur : au moins une figurine à 3", en ligne de vue, même élévation, unité en cohésion. Volants et BURROWED ne contestent pas. C’est la somme du supply actuel qui compte. Le contrôle reste au dernier propriétaire tant que l’autre ne fait pas mieux.</p>
+    <div class="mkgrid">${lm.map(mk => { const a = sumOf(mk.me, S.units, mk.meAdj), b = sumOf(mk.opp, S.opp.units, mk.oppAdj);
+      const r = a > b ? ['ok','tu prends'] : b > a ? ['bad','l’adversaire prend'] : ['', a + b ? 'égalité : pas de changement' : 'personne : pas de changement'];
+      return `<div class="mkc"><div class="row"><span class="mkid ${mk.aff.toLowerCase()}">${mk.id}</span><span class="small muted">${mkRel(mk)}${sm === 'sabotage' ? ' · Sabotage ' + mk.sab : ''}${sm === 'activated_round' ? ' · activé round ' + mk.actRound : ''}</span>
+        <span class="pill ${mk.owner === 'me' ? 'ok' : mk.owner === 'opp' ? 'bad' : ''}" style="margin-left:auto">${mk.owner === 'me' ? 'à toi' : mk.owner === 'opp' ? 'à l’adversaire' : 'neutre'}</span></div>
+        <div class="small"><span class="lbl">Toi · ${a}</span> ${mine.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|me|${u.id}" ${mk.me.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité</span>'}</div>
+        <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
+          <span class="stp"><button data-mkadj="${mk.id}|opp|-1">−</button><button data-mkadj="${mk.id}|opp|1">+</button></span>${mk.oppAdj ? ` <span class="mono">${mk.oppAdj > 0 ? '+' : ''}${mk.oppAdj}</span>` : ''}</div>
+        <span class="pill ${r[0]}">${r[1]}</span></div>`; }).join('') || '<p class="muted">Aucun marqueur actif.</p>'}</div>
+    </details>
+    <div class="row" style="margin-top:10px"><button class="btn pri big" id="applyMk">Valider le contrôle</button><span class="small muted">${picked}/${lm.length} marqueur(s) choisi(s). Sans choix, le comptage coché est utilisé.</span></div></div>`;
+  return `${SIMPLE() ? ctrlGuided : ctrlFull}
   ${sm === 'quarters' ? quartersHTML() : ''}
   <div class="cols"><div class="panel"><h2>2 · Marquer les PV</h2><p class="sub">Calcul proposé selon la Mission Card <span class="nolink">${esc(m.name)}</span>. Vérifie et ajoute.</p>
     ${sc.manual ? `<div class="note warn">Artefact Hunt : la carte est incomplète sur la photo, le calcul n’est pas automatique. Lis la carte et ajoute les PV dans le bandeau.</div>${missionText(m)}` : ''}
@@ -2082,7 +2120,7 @@ function renderActivationSimple(){
     h += `<div class="panel active" id="blkAct"><h2>2 · Action : ${esc(unitName(u))}</h2>
       <div class="row">${ficheBtn(u, '')}${u.loc === 'table' && !isFlying(d) ? `<label class="chk"><input type="checkbox" data-eng="${u.id}" ${u.engaged ? 'checked' : ''}> Engagée</label>` : ''}
         <span class="pill race">supply ${curSup(u)}</span>${u.penalty ? '<span class="pill bad">pénalité</span>' : ''}</div>${stDetails(u)}${burNote(u)}
-      <div class="sactions">${u.act[S.phase] ? `<div class="sact info"><span>Déjà activée cette phase.</span><button class="btn ghost small" data-unact="1">Annuler son activation</button></div>` : simpleActionsHTML(u)}</div></div>`;
+      <div class="sactions">${u.act[S.phase] ? `<div class="sact info"><span>Déjà activée cette phase.</span><button class="btn ghost small" data-unact="1">Annuler son activation</button></div>` : simpleActionsHTML(u)}</div>${lossPanel([['Unités adverses', byEng(S.opp.units.filter(x => x.loc === 'table'))], ['Ton unité', u.loc === 'table' ? [u] : []]], 'lossAct')}</div>`;
   } else {
     h += `<div class="panel"><h2>2 · Action</h2><p class="muted">Choisis une unité ci-dessus.</p></div>`;
   }
@@ -2186,7 +2224,8 @@ function renderOppTurn(){
   <div class="panel"><h2>Tes réactions <span class="pill ${ok.length ? 'ok' : ''}">${ok.length} utilisable${ok.length > 1 ? 's' : ''}</span></h2><p class="small muted">${ready} ${esc(RES())} prêts.</p>
     <div class="ablist">${rows(ok) || '<p class="muted">Aucune réaction utilisable maintenant.</p>'}</div>
     ${other.length ? `<details class="capsub"><summary>Pas assez de ${esc(RES())} ou déjà utilisées (${other.length})</summary><div class="ablist">${rows(other)}</div></details>` : ''}</div>
-  ${def.length ? `<div class="panel"><h2>Si l’adversaire t’attaque</h2><ul class="small deflist">${def.join('')}</ul></div>` : ''}`;
+  ${def.length ? `<div class="panel"><h2>Si l’adversaire t’attaque</h2><ul class="small deflist">${def.join('')}</ul></div>` : ''}
+  <div class="panel">${lossPanel([['Tes unités', byEng(S.units.filter(x => x.loc === 'table'))], ['Unités adverses', byEng(S.opp.units.filter(x => x.loc === 'table'))]], 'lossOpp')}</div>`;
 }
 /* statuts repliés : pastilles visibles, cases dans le menu */
 function stDetails(u){
@@ -2194,6 +2233,20 @@ function stDetails(u){
   const pills = burPill(u) + (isStat(u) ? '<span class="pill">Stationary</span>' : '');
   return `<details class="stdet"><summary><span class="lbl">Statuts</span>${pills || '<span class="small muted">aucun</span>'}</summary><div class="row">${chk}</div></details>`;
 }
+
+/* ---------- pertes sans changer d'onglet ---------- */
+function lossRow(x){
+  return `<div class="lossrow"><span class="ln"><b>${esc(unitName(x))}</b> <span class="small muted">${x.alive}/${x.start} fig. · supply ${curSup(x)}${x.engaged ? ' · engagée' : ''}</span></span>
+    <span class="lb"><button class="btn" data-alive="${x.id}|-1">−1 fig.</button><button class="btn ghost" data-alive="${x.id}|1" aria-label="Remettre une figurine">+1</button>
+    <span class="dm small">Dégâts <button class="btn ghost small" data-dmg="${x.id}|-1" aria-label="Moins de dégâts">−</button><b class="mono">${x.dmg}</b><button class="btn ghost small" data-dmg="${x.id}|1" aria-label="Plus de dégâts">+</button></span></span></div>`;
+}
+function lossPanel(groups, id){
+  const n = groups.reduce((a, g) => a + g[1].length, 0);
+  return `<details class="capsub losses" id="${id}" ${(U.lossOpen || {})[id] ? 'open' : ''}><summary>Pertes${n ? '' : ' (aucune unité sur la table)'}</summary>
+    <p class="small muted" style="margin:6px 0">Retire les figurines dès qu’elles tombent : le supply détruit compte pour les PV du round.</p>
+    ${groups.filter(g => g[1].length).map(([t, arr]) => `<div class="lh">${esc(t)}</div>${arr.map(lossRow).join('')}`).join('')}</details>`;
+}
+const byEng = arr => arr.slice().sort((a, b) => (b.engaged ? 1 : 0) - (a.engaged ? 1 : 0));
 
 /* ================= statut BURROWED (glossaire : BURROWED, HIDDEN) ================= */
 const canBurrow = u => { if (!u) return false; const d = udef(u); if (u.race !== 'ZERG' || isFlying(d)) return false;
@@ -3570,7 +3623,7 @@ function nextStep(){
     S.vpRound[S.round] = {me:S.vp.me, opp:S.vp.opp};
     if (S.round >= lastRound() || specialWin()){ S.over = true; logA(`Fin de partie : ${S.vp.me} – ${S.vp.opp}`, 'sys'); U.tab = 'log'; }
     else { initiative(); S.round++; S.phase = 0; S.cleaned = false; S.firstPass = {}; S.passed = {};
-      S.markers.forEach(m => { m.me = []; m.opp = []; m.meAdj = 0; m.oppAdj = 0; m.gained = null; });
+      S.markers.forEach(m => { m.me = []; m.opp = []; m.meAdj = 0; m.oppAdj = 0; m.gained = null; m.pick = null; });
       S.quarters = null; statusRoundStart(); logA('Début du round ' + S.round + ' (1er joueur : ' + (S.fpm === 'me' ? 'toi' : 'adversaire') + ')', 'sys'); }
   }
   save(); render(); window.scrollTo({top:0});
@@ -3594,6 +3647,7 @@ document.addEventListener('click', e => {
   if (d.burpick){ const u = findU(d.burpick); const prev = snapSt(u, ['burrowed']); setBur(u, true, 'Rapid Burrowing'); const e = (S.spent || []).filter(x => x.key === 'RAPID_BURROWING').pop(); if (e) e.bur = {uid:u.id, prev}; save(); closePop(); render(); toast(unitName(u) + ' est BURROWED.'); return; }
   if (d.turn){ S.oppTurn = d.turn === 'opp'; save(); render(); requestAnimationFrame(() => { const el = document.querySelector(!oppTurnNow() && U.sel ? '#blkAct' : '.turnbar'); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); }); return; }
   if (d.oppact){ logA('L’adversaire active une unité', 'pass'); save(); toast('Noté. Toujours à l’adversaire.'); return; }
+  if (d.mkpick){ const [mid, w] = d.mkpick.split('|'); const mk = S.markers.find(x => x.id === +mid); if (mk){ mk.pick = mk.pick === w ? null : w; save(); render(); } return; }
   if (d.tokdel){ delTok(d.tokdel); save(); render(); return; }
   if (d.tokadd){ const [id, k] = d.tokadd.split('|'); addTok(id, k); save(); render(); return; }
   if (t.id === 'handGo'){ handApply(); return; }
@@ -3640,7 +3694,7 @@ document.addEventListener('click', e => {
     if (l === 'dead'){ setAlive(u, 0); logA(unitName(u) + ' détruite', 'loss'); }
     else { if (u.loc === 'dead') { u.alive = u.start; } if (l === 'table' && u.loc !== 'table') u.stat = false; u.loc = l; if (l !== 'table'){ u.engaged = false; statusOffTable(u); } }
     save(); render(); return; }
-  if (d.alive){ const [id, n] = d.alive.split('|'); const u = findU(id); const lost = setAlive(u, u.alive + +n); if (lost > 0) logA(`${unitName(u)} : supply −${lost}`, 'loss'); save(); render(); return; }
+  if (d.alive){ const [id, n] = d.alive.split('|'); const u = findU(id); const lost = setAlive(u, u.alive + +n); if (lost > 0) logA(`${unitName(u)} : supply −${lost}`, 'loss'); save(); render(); if (SIMPLE() && U.tab === 'phase') toast(u.loc === 'dead' ? unitName(u) + ' détruite.' + (lost > 0 ? ' Supply −' + lost + '.' : '') : unitName(u) + ' : ' + u.alive + '/' + u.start + ' fig.' + (lost > 0 ? ' Supply −' + lost + '.' : '')); return; }
   if (d.dmg){ const [id, n] = d.dmg.split('|'); const u = findU(id); u.dmg = Math.max(0, u.dmg + +n); save(); render(); return; }
   if (d.delopp){ S.opp.units = S.opp.units.filter(x => x.id !== d.delopp); save(); render(); return; }
   if (d.aside){ U.armySide = d.aside; saveU(); render(); return; }
@@ -3710,7 +3764,7 @@ document.addEventListener('change', e => {
   if (U.tab === 'attack' && t.type === 'checkbox' && (id.startsWith('f_') || t.dataset.tag != null)){ readAtk(); renderPipe(); return; }
   if (t.dataset.payred){ const k = t.dataset.payred, i = PAY.red.indexOf(k); if (t.checked && i < 0) PAY.red.push(k); if (!t.checked && i >= 0) PAY.red.splice(i, 1); POP.stack = [{html:payHTML()}]; renderPop(); return; }
 });
-document.addEventListener('toggle', e => { if (e.target.id === 'cmpBox'){ U.cmpOpen = e.target.open; saveU(); } if (e.target.id === 'seqBox'){ U.seqOpen = e.target.open; saveU(); } if (e.target.id === 'cap3Box'){ U.cap3 = e.target.open; saveU(); } }, true);
+document.addEventListener('toggle', e => { if (e.target.id === 'cmpBox'){ U.cmpOpen = e.target.open; saveU(); } if (e.target.id === 'seqBox'){ U.seqOpen = e.target.open; saveU(); } if (e.target.id === 'cap3Box'){ U.cap3 = e.target.open; saveU(); } if (e.target.id === 'lossAct' || e.target.id === 'lossOpp'){ U.lossOpen = Object.assign(U.lossOpen || {}, {[e.target.id]: e.target.open}); saveU(); } }, true);
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.r){ AT.r[t.dataset.r] = t.value === '' ? null : +t.value; const k = t.dataset.r; renderPipe(); const n = document.querySelector(`[data-r="${k}"]`); if (n){ n.focus(); const v = n.value; n.value = ''; n.value = v; } return; }
