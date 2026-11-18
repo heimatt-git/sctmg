@@ -307,6 +307,22 @@ button.group-h[aria-expanded="false"]>span:first-child::before{content:"▸ "}
 .rolebar .rb-leg span.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .rolebar .rb-leg .zero{color:var(--muted)}
 .rolebar .rb-leg b{font-family:var(--f-mono);font-weight:600}
+
+/* v8 : plusieurs listes, comparaison, plan contre une liste adverse */
+.listbar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end;background:var(--surface);border:1px solid var(--line);padding:10px 14px}
+.listbar .field{min-width:0;flex:1 1 180px}
+.listbar .field input,.listbar .field select{width:100%;box-sizing:border-box}
+.listbar .lb-btns{display:flex;flex-wrap:wrap;gap:6px}
+.cmpdlg table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.cmpdlg th,.cmpdlg td{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:normal}
+.cmpdlg th:first-child{width:32%}
+.cmpdlg td.diff{font-weight:700}
+.cmpdlg .sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.cmpdlg .sel select{width:100%}
+.oppbox{border:1px solid var(--line);background:var(--surface-2);padding:10px 12px;margin-bottom:12px;display:grid;gap:6px}
+.oppbox .row{display:flex;flex-wrap:wrap;gap:6px}
+.oppbox input,.oppbox select{flex:1 1 200px;min-width:0;padding:6px 8px;font:inherit;border:1px solid var(--line);background:var(--surface);color:inherit}
+.oppbox p{margin:0}
 </style>
 
 <style>[hidden]{display:none!important}body{margin:0}
@@ -457,7 +473,7 @@ function defaultState(){
     scale:'Skirmish',custom:3000,mission:{r1:null,inc:null},mode:'proxy',lists,collection:{units:{}},nextUid:100};
 }
 function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&s.lists&&s.collection){const d=defaultState();return Object.assign(d,s,{faction:Object.assign(d.faction,s.faction),mission:Object.assign(d.mission,s.mission||{})});}}catch(e){}return defaultState();}
-function save(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
+function save(){syncSlots();try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
 let state=load();
 const openSheets=new Set();
 
@@ -563,7 +579,7 @@ function renderList(){
   const fOpts=Object.entries(R.faction_cards).map(([k,f])=>`<option value="${k}" ${k===c.fk?'selected':''}>${esc(nm(k,f))}</option>`).join('');
   const meter=(label,u,lim)=>`<div class="cell"><div class="m-head"><span class="lbl">${label}</span><span class="big">${u}<small> / ${lim}</small></span></div><div class="bar ${u>lim?'over':''}"><i style="width:${Math.min(100,lim?u/lim*100:0)}%"></i></div></div>`;
   const slotChips=SLOTS.filter(s=>c.avail[s]||c.used[s]).map(s=>`<span class="slot ${c.used[s]>c.avail[s]?'over':c.used[s]===c.avail[s]?'full':''}"><b>${SLOTFR[s]}</b>${c.used[s]}/${c.avail[s]}</span>`).join('');
-  let h=`<section class="controls">
+  let h=listBar()+`<section class="controls">
     <label class="field"><span>Faction Card</span><select id="f-faction" data-act="faction">${fOpts}</select></label>
     <label class="field"><span>Format</span><select id="f-scale" data-act="scale">${scales.map(s=>{const sc=DB.army_building_rules.engagement_scales[s];return `<option value="${s}" ${s===state.scale?'selected':''}>${SCALEFR[s]||s} · ${sc.mineral_limit}</option>`;}).join('')}</select></label>
     ${typeof DB.army_building_rules.engagement_scales[state.scale].mineral_limit!=='number'?`<label class="field"><span>Plafond minéraux</span><input type="number" id="f-custom" min="2001" step="50" value="${limitOf()}" data-act="custom"></label>`:''}
@@ -1048,7 +1064,7 @@ function scoreRow(l,v,t){return `<div class="srow" title="${esc(t)}"><span class
 function runGen(){if(genBusy)return;genBusy=true;render();
   setTimeout(()=>{try{const g=genOpts();genRes=generate({opp:g.opp,oppFac:g.oppFac,allFac:g.allFac,minPct:g.minPct,roles:g.roles,useCol:g.useCol,favMode:g.favMode,divMode:g.divMode});}catch(e){genRes=null;console.error(e);}genBusy=false;render();},30);}
 function loadGen(i){const x=genRes&&genRes.lists[i];if(!x)return;const race=genRes.race;
-  state.faction[race]=x.fk;state.lists[race]={units:x.L.units.map(e=>({uid:state.nextUid++,key:e.key,comp:e.comp,up:e.up.slice()})),tactical:x.L.tactical.slice(),creep:x.L.creep};
+  addSlot(race,{units:x.L.units.map(e=>({uid:state.nextUid++,key:e.key,comp:e.comp,up:e.up.slice()})),tactical:x.L.tactical.slice(),creep:x.L.creep},'Liste générée',x.fk);
   state.race=race;state.view='list';openSheets.clear();render();window.scrollTo(0,0);}
 
 /* ---------- main render ---------- */
@@ -1063,6 +1079,9 @@ document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]');if(!b||b.tagName==='SELECT'||b.tagName==='INPUT')return;
   const a=b.dataset.act,v=b.dataset.v,L=curList();
   if(a==='tac-info'){openTac(b.dataset.k);return;}
+  if(slotAction(a,b))return;
+  if(a==='opp-set'){oppSet();return;}
+  if(a==='opp-clear'){state.oppList=null;save();openPlan();return;}
   if(a==='upinfo'){openUpInfo(b.dataset.u,v);return;}
   if(a==='goissues'){const el=document.querySelector('.issues-h')||document.getElementById('issues');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return;}
   if(a==='grp'){const g=b.dataset.g;if(catClosed.has(g))catClosed.delete(g);else catClosed.add(g);applyCat();return;}
@@ -1100,6 +1119,8 @@ document.addEventListener('click',ev=>{
 document.addEventListener('change',ev=>{
   const t=ev.target,a=t.dataset&&t.dataset.act;if(!a)return;const L=curList();
   switch(a){
+    case 'slot-sel':switchSlot(+t.value);return;
+    case 'slot-name':{const s=curSlot();if(s){s.name=String(t.value).trim().slice(0,40)||s.name;}break;}
     case 'faction':state.faction[state.race]=t.value;break;
     case 'scale':state.scale=t.value;break;
     case 'custom':state.custom=Math.max(2001,Math.round(+t.value)||2001);break;
@@ -1121,7 +1142,7 @@ document.addEventListener('input',ev=>{const t=ev.target;if(!t.dataset||t.datase
 document.addEventListener('focusin',ev=>{const t=ev.target;if(t.dataset&&t.dataset.act==='col'){try{t.select();}catch(e){}}});
 
 /* ---------- files ---------- */
-function listFile(){const L=curList(),R=DB.races[state.race];return {type:'sctmg-list',format_version:1,database_version:DB.metadata.database_version,saved:new Date().toISOString(),race:state.race,faction:state.faction[state.race],scale:state.scale,mineral_limit:limitOf(),mission:{round1:state.mission.r1,per_round:state.mission.inc},creep:L.creep,tactical:L.tactical.slice(),units:L.units.map(e=>{const u=R.units[e.key];return {key:e.key,models:(u.composition_options[e.comp]||u.composition_options[0]).models,upgrades:e.up.slice()};})};}
+function listFile(){const L=curList(),R=DB.races[state.race];return {type:'sctmg-list',format_version:1,name:(curSlot()||{}).name,database_version:DB.metadata.database_version,saved:new Date().toISOString(),race:state.race,faction:state.faction[state.race],scale:state.scale,mineral_limit:limitOf(),mission:{round1:state.mission.r1,per_round:state.mission.inc},creep:L.creep,tactical:L.tactical.slice(),units:L.units.map(e=>{const u=R.units[e.key];return {key:e.key,models:(u.composition_options[e.comp]||u.composition_options[0]).models,upgrades:e.up.slice()};})};}
 function colFile(){return {type:'sctmg-collection',format_version:1,families_version:FAM.version,database_version:DB.metadata.database_version,saved:new Date().toISOString(),mode:state.mode,units:state.collection.units,favorites:Object.keys(state.collection.favorites||{})};}
 function recapText(){
   const c=compute(),{R,L,F,race}=c;const lines=[];
@@ -1154,9 +1175,9 @@ function importData(txt){
     const units=(d.units||[]).map(u=>{const U=R.units[u.key];if(!U){skipped++;return null;}let ci=U.composition_options.findIndex(o=>o.models===u.models);if(ci<0){ci=0;skipped++;}
       return {uid:state.nextUid++,key:u.key,comp:ci,up:(u.upgrades||[]).filter(k=>U.upgrades[k])};}).filter(Boolean);
     const tactical=(d.tactical||[]).filter(k=>R.tactical_cards[k]||(skipped++,false));
-    state.race=d.race;if(R.faction_cards[d.faction])state.faction[d.race]=d.faction;
+    state.race=d.race;const fk=R.faction_cards[d.faction]?d.faction:state.faction[d.race];
     if(DB.army_building_rules.engagement_scales[d.scale])state.scale=d.scale;if(d.mineral_limit)state.custom=d.mineral_limit;if(d.mission)state.mission={r1:d.mission.round1??null,inc:d.mission.per_round??null};
-    state.lists[d.race]={units,tactical,creep:R.creep_cards[d.creep]?d.creep:null};state.view='list';openSheets.clear();render();
+    addSlot(d.race,{units,tactical,creep:R.creep_cards[d.creep]?d.creep:null},d.name||'Liste importée',fk);state.view='list';openSheets.clear();render();
     return skipped?['warn',`Liste importée. ${skipped} élément(s) ne correspondent plus à la base actuelle et ont été ignorés ou ajustés.`]:['ok','Liste importée.'];
   }
   return ['err',"Fichier non reconnu : il doit venir de l'export Liste ou Collection de ce builder."];
@@ -1478,6 +1499,39 @@ var PLAN = (function(){
   const kwHas = (w, k) => (w.keywords || []).some(x => String(x).toUpperCase().startsWith(k));
   const short = (t, n) => { t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length <= n) return t; const cut = t.slice(0, n); const i = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf(' ')); return cut.slice(0, i > n * 0.6 ? i : n).replace(/[ ,;:.]+$/, '') + '…'; };
 
+
+  /* ---------- estimation simple des dégâts (plan contre une liste adverse) ---------- */
+  const tnum = v => { const m = String(v ?? '').match(/(\d)\s*\+/); return m ? +m[1] : null; };
+  const pOf = t => t == null ? 0 : Math.max(0, Math.min(1, (7 - t) / 6));
+  const expD = v => { const k = String(v ?? '').replace(/\s/g, '').toUpperCase(); const T = {D3:2, 'D3+1':3, D6:3.5, 'D6+1':4.5, '2D6':7}; return T[k] ?? (parseFloat(k) || 0); };
+  const kwN = (w, base) => { for (const k of w.keywords || []) { const u = String(k).toUpperCase(); if (u.startsWith(base)) { const m = u.match(/\((\d+)\)/); return m ? +m[1] : 1; } } return 0; };
+  const hitsTarget = (w, t) => { const x = String(w.target || '').toLowerCase(); return x === 'all' || (x === 'flying' ? t.fly : x === 'ground' ? !t.fly : true); };
+  function wDmg(w, a, t){
+    const tags = t.tags.map(x => String(x).toLowerCase()), st = [].concat(w.surge_type || []).map(x => String(x).toLowerCase());
+    const match = st.some(x => tags.includes(x)), pH = pOf(tnum(w.hit));
+    let hits, moved;
+    if (isTpl(w)){ const aff = Math.min(3, t.u.models), mod = parseInt((String(w.roa).match(/[+-]\s*\d+/) || ['0'])[0].replace(/\s/g, ''), 10) || 0;
+      hits = Math.max(0, aff + mod) * pH; moved = match ? Math.min(aff, hits) : 0; }
+    else { const dice = (w.one ? 1 : a.u.models) * (parseInt(w.roa, 10) || 0); hits = dice * pH; const pr = kwN(w, 'PRECISION'); if (pr) hits += Math.min(pr, dice - hits);
+      moved = w.s_dice && match ? Math.min(expD(w.s_dice), hits) : 0; }
+    const fails = (hits - moved) * (1 - pOf(tnum(t.d.stats.armour)));
+    let dm = expD(w.dmg) || 1;
+    (w.keywords || []).forEach(k => { const m = String(k).toUpperCase().match(/PIERCE\s*\[?\s*([A-Z]+)\s*\]?\s*\(?(\d+)\)?/); if (m && tags.includes(m[1].toLowerCase())) dm = +m[2]; });
+    return (moved + fails) * dm;
+  }
+  function volley(a, t, ph){
+    if (ph === 'COMBAT' && (a.fly || t.fly)) return null;
+    const ws = a.ws.filter(w => w.phase === ph && hitsTarget(w, t)); if (!ws.length) return null;
+    const side = ws.filter(w => kwHas(w, 'SIDEARM')), main = ws.filter(w => !kwHas(w, 'SIDEARM'));
+    const dmg = Math.max(0, ...main.map(w => wDmg(w, a, t))) + side.reduce((s, w) => s + wDmg(w, a, t), 0);
+    if (!(dmg > 0)) return null;
+    let left = dmg, k = 0; const hp = t.d.stats.hp || 1, first = hp + (t.d.stats.shield || 0);
+    while (k < t.u.models){ const need = k === 0 ? first : hp; if (left >= need){ left -= need; k++; } else break; }
+    return {dmg, kills:k, supLost: supplyFor(t.d, t.u.models) - supplyFor(t.d, t.u.models - k)};
+  }
+  function bestVs(a, foes){ let r = null;
+    foes.forEach(t => ['ASSAULT', 'COMBAT'].forEach(ph => { const v = volley(a, t, ph); if (v && (!r || v.supLost > r.v.supLost || (v.supLost === r.v.supLost && (v.kills > r.v.kills || (v.kills === r.v.kills && v.dmg > r.v.dmg))))) r = {t, ph, v}; }));
+    return r; }
   /* ---------- analyse d'une unité ---------- */
   function profile(u){
     const d = u.def, ws = weaponsOf(d, u.upgrades), tags = d.combat_tags || [];
@@ -1684,6 +1738,19 @@ var PLAN = (function(){
     if (st.length) H('Statuts et modes', st.map(([t, L]) => `<p class="pl-ph">${E(t)}</p><ul class="${ul}">${L.map(x => `<li>${x}</li>`).join('')}</ul>`).join(''));
 
     }
+
+    /* face à une liste adverse précise */
+    if (ctx.opp && (ctx.opp.units || []).length){
+      const O = ctx.opp.units.map(profile), how = ph => ph === 'COMBAT' ? 'en charge' : 'au tir';
+      const tg = P.filter(p => !p.u.summoned).map(p => ({p, b: bestVs(p, O)})).filter(x => x.b);
+      H(`Face à : ${ctx.opp.label || 'liste adverse'}`, `<p class="pl-ph">Cibles prioritaires</p>${tg.length ? `<ul class="${ul}">${tg.map(x => `<li><b>${E(x.p.u.name)}</b> → <b>${E(x.b.t.u.name)}</b> ${how(x.b.ph)} : ${x.b.v.kills ? `≈ ${x.b.v.kills} fig. sur ${x.b.t.u.models}` : `≈ ${Math.round(x.b.v.dmg * 10) / 10} dégâts, pas assez pour retirer une figurine`}${x.b.v.supLost ? `, <b>−${x.b.v.supLost} supply (≈ +${x.b.v.supLost} PV)</b>` : ''}.</li>`).join('')}</ul>` : '<p>Aucune de tes unités n’a d’arme efficace contre cette liste.</p>'}
+        ${(() => { const th = O.map(o => ({o, b: bestVs(o, P.filter(p => !p.u.summoned))})).filter(x => x.b).sort((a, b) => b.b.v.supLost - a.b.v.supLost || b.b.v.kills - a.b.v.kills || b.b.v.dmg - a.b.v.dmg);
+          const fl = O.filter(o => o.fly), aa = P.filter(p => p.aa);
+          return `<p class="pl-ph">Menaces</p><ul class="${ul}">${th.slice(0, 4).map(x => `<li><b>${E(x.o.u.name)}</b> est dangereux pour tes <b>${E(x.b.t.u.name)}</b> ${how(x.b.ph)} : ≈ ${x.b.v.kills} fig${x.b.v.supLost ? `., −${x.b.v.supLost} supply` : ''}. Neutralise-le tôt ou garde-le hors de portée.</li>`).join('')}
+            ${fl.length ? `<li>Volants adverses : ${E(fl.map(o => o.u.name).join(', '))}. ${aa.length ? 'Tes unités anti-aériennes : ' + E(aa.map(p => p.u.name).join(', ')) + '.' : '<b>Aucune de tes armes ne les touche</b> : cache-toi derrière le décor.'}</li>` : ''}</ul>`; })()}
+        <p class="pl-note">Estimation moyenne pour une unité complète (à portée, visible, sans couvert ni capacités du défenseur). Gabarits : 3 figurines touchées.</p>`);
+    }
+
     /* points faibles */
     const weak = [];
     if (!P.some(p => p.aa)) weak.push('Aucune arme ne touche les volants : face à une armée aérienne, tu subiras sans riposter. Couvre-toi avec le décor.');
@@ -1722,10 +1789,10 @@ function planCtx(cls){const c=compute(),{R,L,F,race}=c;const cnt={};
   const cards=[{key:c.fk,def:F}].concat(L.tactical.map(k=>({key:k,def:R.tactical_cards[k]})).filter(x=>x.def)).concat(creep);
   const D=PLAN.DEFAULTS[state.scale]||PLAN.DEFAULTS.Standard;const m=state.mission;
   const mission=m.r1!=null?{start:m.r1,inc:m.inc||0,rounds:D.rounds,isDefault:false,scale:state.scale}:Object.assign({isDefault:true,scale:state.scale},D);
-  return {units,cards,creep,mission,resName:resName(race),resTotal:c.res,fr:t=>TR_ALL[t]||null,cls};}
+  return {units,cards,creep,mission,resName:resName(race),resTotal:c.res,fr:t=>TR_ALL[t]||null,cls,opp:oppCtx()};}
 const pov=document.getElementById('pov');
 function openPlan(){const c=compute();if(!c.rows.length){document.getElementById('pov-body').innerHTML='<p class="tags">Ajoute des unités à ta liste pour obtenir un plan de jeu.</p>';}
-  else document.getElementById('pov-body').innerHTML=PLAN.build(planCtx());
+  else document.getElementById('pov-body').innerHTML=oppBox()+PLAN.build(planCtx());
   document.getElementById('pov-title').textContent='Plan de jeu · '+RLABEL[state.race];pov.hidden=false;document.getElementById('pov-close').focus();}
 document.getElementById('pov-close').onclick=()=>{pov.hidden=true;};
 pov.addEventListener('click',e=>{if(e.target===pov)pov.hidden=true;});
@@ -1863,7 +1930,7 @@ function checkHash(){const m=location.hash.match(/^#list=([A-Za-z0-9_-]+)/);if(!
   const cur=state.lists[d.race];
   window.__pendingList=JSON.stringify(d);
   document.getElementById('tov-title').textContent='Liste partagée';
-  document.getElementById('tov-body').innerHTML=`<div class="sharedlg"><p>${esc(RLABEL[d.race])} · ${esc(nm(d.faction,R.faction_cards[d.faction])||'')} · ${(d.units||[]).length} unité(s), ${(d.tactical||[]).length} carte(s).</p>${cur&&cur.units.length&&!cur.example?`<p class="tags">Elle remplacera ta liste ${esc(RLABEL[d.race])} actuelle. Exporte-la d'abord si tu veux la garder.</p>`:''}<div class="row"><button class="btn primary" data-act="share-load">Charger la liste</button><button class="btn" data-act="share-skip">Ignorer</button></div></div>`;
+  document.getElementById('tov-body').innerHTML=`<div class="sharedlg"><p>${esc(RLABEL[d.race])} · ${esc(nm(d.faction,R.faction_cards[d.faction])||'')} · ${(d.units||[]).length} unité(s), ${(d.tactical||[]).length} carte(s).</p><p class="tags">Elle sera ajoutée à tes listes ${esc(RLABEL[d.race])}, sans remplacer les autres.</p><div class="row"><button class="btn primary" data-act="share-load">Charger la liste</button><button class="btn" data-act="share-skip">Ignorer</button></div></div>`;
   tov.hidden=false;}
 addEventListener('hashchange',checkHash);
 document.addEventListener('click',e=>{if(e.target.closest('[data-act]'))return;const p=e.target.closest('.pill.err,.pill.warn');if(!p)return;const el=document.querySelector('.issues-h')||document.getElementById('issues');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});setTimeout(checkHash,0);
@@ -1913,6 +1980,73 @@ function roleBar(c){if(!c.rows.length)return '';
     <div class="rb-bar" role="img" aria-label="${agg.filter(a=>a.n).map(a=>`${a.l} ${pc(a)} %`).join(', ')}">${agg.map((a,i)=>a.n?`<span class="rb-seg rb-${i}" style="flex:${a.min}" title="${a.l} : ${pc(a)} % des minéraux · ${a.min} min · supply ${a.sup}"></span>`:'').join('')}</div>
     <div class="rb-leg">${agg.map((a,i)=>`<div class="${a.n?'':'zero'}"><span class="sw rb-${i}"></span>${a.l} ${a.n?`<b>${pc(a)} %</b> · ${a.n} unité${a.n>1?'s':''} · supply ${a.sup}`:'· aucune'}</div>`).join('')}</div></section>`;}
 
+
+/* ---------- v8 : plusieurs listes par race ---------- */
+function ensureSlots(){state.slots=state.slots||{};state.cur=state.cur||{};state.slotSeq=state.slotSeq||0;
+  RACES.forEach(r=>{if(!state.slots[r]||!state.slots[r].length)state.slots[r]=[{id:++state.slotSeq,name:'Liste 1',data:state.lists[r],faction:state.faction[r]}];
+    let s=state.slots[r].find(x=>x.id===state.cur[r]);if(!s){s=state.slots[r][0];state.cur[r]=s.id;}
+    state.lists[r]=s.data;if(s.faction)state.faction[r]=s.faction;});}
+function syncSlots(){if(!state.slots)return;RACES.forEach(r=>{const s=(state.slots[r]||[]).find(x=>x.id===state.cur[r]);if(s){s.data=state.lists[r];s.faction=state.faction[r];}});}
+const curSlot=()=>(state.slots[state.race]||[]).find(x=>x.id===state.cur[state.race]);
+function uniqName(r,n){const names=new Set(state.slots[r].map(x=>x.name));if(!names.has(n))return n;let i=2;while(names.has(n+' '+i))i++;return n+' '+i;}
+function addSlot(r,data,name,fk){syncSlots();const id=++state.slotSeq;state.slots[r].push({id,name:uniqName(r,name),data,faction:fk||state.faction[r]});state.cur[r]=id;state.lists[r]=data;if(fk)state.faction[r]=fk;openSheets.clear();}
+function switchSlot(id){syncSlots();const s=state.slots[state.race].find(x=>x.id===id);if(!s)return;state.cur[state.race]=id;state.lists[state.race]=s.data;if(s.faction)state.faction[state.race]=s.faction;openSheets.clear();render();}
+function slotFile(r,s){const R=DB.races[r];return {type:'sctmg-list',race:r,name:s.name,faction:s.faction,creep:s.data.creep,tactical:(s.data.tactical||[]).slice(),units:(s.data.units||[]).map(e=>{const u=R.units[e.key];return u?{key:e.key,models:(u.composition_options[e.comp]||u.composition_options[0]).models,upgrades:e.up.slice()}:null;}).filter(Boolean)};}
+function listBar(){const r=state.race,sl=state.slots[r],cur=curSlot();
+  return `<section class="listbar" aria-label="Mes listes"><label class="field"><span>Mes listes ${RLABEL[r]}</span><select data-act="slot-sel">${sl.map(s=>`<option value="${s.id}" ${s.id===cur.id?'selected':''}>${esc(s.name)} · ${(s.data.units||[]).length} unité${(s.data.units||[]).length>1?'s':''}</option>`).join('')}</select></label>
+    <label class="field"><span>Nom de la liste</span><input type="text" data-act="slot-name" value="${esc(cur.name)}" maxlength="40"></label>
+    <div class="lb-btns"><button class="btn sm" data-act="slot-new">Nouvelle</button><button class="btn sm" data-act="slot-dup">Dupliquer</button><button class="btn sm" data-act="slot-cmp" ${sl.length<2?'disabled title="Il faut au moins deux listes"':''}>Comparer</button><button class="btn sm danger" data-act="slot-del" ${sl.length<2?'disabled':''}>Supprimer</button></div></section>`;}
+function slotAction(a,b){const r=state.race,cur=curSlot();
+  if(a==='slot-new'){addSlot(r,{units:[],tactical:[],creep:null},'Nouvelle liste',state.faction[r]);render();return true;}
+  if(a==='slot-dup'){syncSlots();const c=JSON.parse(JSON.stringify(cur.data));delete c.example;(c.units||[]).forEach(e=>e.uid=state.nextUid++);addSlot(r,c,cur.name+' (copie)',state.faction[r]);render();return true;}
+  if(a==='slot-del'){if(state.slots[r].length<2)return true;if(!b.dataset.armed){b.dataset.armed='1';b.textContent='Confirmer la suppression';setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent='Supprimer';}},3500);return true;}
+    state.slots[r]=state.slots[r].filter(x=>x.id!==cur.id);const s=state.slots[r][0];state.cur[r]=s.id;state.lists[r]=s.data;if(s.faction)state.faction[r]=s.faction;openSheets.clear();render();return true;}
+  if(a==='slot-cmp'){syncSlots();const sl=state.slots[r];openCompare(cur.id,(sl.find(x=>x.id!==cur.id)||cur).id);return true;}
+  return false;}
+/* ---------- v8 : comparer deux listes ---------- */
+function statsOf(s){const r=state.race,keepL=state.lists[r],keepF=state.faction[r];state.lists[r]=s.data;if(s.faction)state.faction[r]=s.faction;let c;try{c=compute();}finally{state.lists[r]=keepL;state.faction[r]=keepF;}
+  const roles={};ROLE_ORDER.forEach(([k])=>roles[k]=0);c.rows.forEach(x=>{if(roles[x.u.combat_role]!=null)roles[x.u.combat_role]+=x.cost;});const tot=c.rows.reduce((a,x)=>a+x.cost,0)||1;
+  return {c,roles,tot,errs:c.issues.filter(i=>i[0]==='err').length};}
+function openCompare(a,b){const r=state.race,sl=state.slots[r],A=sl.find(x=>x.id===a),B=sl.find(x=>x.id===b);if(!A||!B)return;const sa=statsOf(A),sb=statsOf(B);
+  const opt=sel=>sl.map(s=>`<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.name)}</option>`).join('');
+  const row=(l,x,y)=>`<tr><th>${l}</th><td class="${x!==y?'diff':''}">${x}</td><td class="${x!==y?'diff':''}">${y}</td></tr>`;
+  const F=(s,st)=>esc(nm(s.faction,DB.races[r].faction_cards[s.faction])||'');
+  const slots=st=>SLOTS.filter(k=>st.c.avail[k]||st.c.used[k]).map(k=>`${SLOTFR[k]} ${st.c.used[k]}/${st.c.avail[k]}`).join(' · ');
+  const units=st=>st.c.rows.map(x=>`${esc(nm(x.e.key,x.u))} (${x.c.models})`).join(', ')||'–';
+  let h=`<div class="cmpdlg"><div class="sel"><select id="cmpA" aria-label="Liste A">${opt(a)}</select><select id="cmpB" aria-label="Liste B">${opt(b)}</select></div>
+    <table><thead><tr><th></th><th>${esc(A.name)}</th><th>${esc(B.name)}</th></tr></thead><tbody>
+    ${row('Faction Card',F(A,sa),F(B,sb))}
+    ${row('Minéraux',`${sa.c.min} / ${sa.c.lim}`,`${sb.c.min} / ${sb.c.lim}`)}
+    ${row('Gas',`${sa.c.gas} / ${sa.c.gasCap}`,`${sb.c.gas} / ${sb.c.gasCap}`)}
+    ${row('Supply Pool',sa.c.pool,sb.c.pool)}
+    ${row('Ressource par round',`${sa.c.res} ${resName(r)}`,`${sb.c.res} ${resName(r)}`)}
+    ${row('Army slots',slots(sa),slots(sb))}
+    ${row('Unités',sa.c.rows.length,sb.c.rows.length)}
+    ${ROLE_ORDER.map(([k,l])=>row(l+' (minéraux)',`${Math.round(sa.roles[k]*100/sa.tot)} %`,`${Math.round(sb.roles[k]*100/sb.tot)} %`)).join('')}
+    ${row('État',sa.errs?`${sa.errs} problème(s)`:'Légale',sb.errs?`${sb.errs} problème(s)`:'Légale')}
+    ${row('Composition',units(sa),units(sb))}</tbody></table>
+    <p class="tags" style="margin-top:8px">En gras : ce qui diffère entre les deux listes.</p></div>`;
+  document.getElementById('tov-title').textContent='Comparer deux listes';document.getElementById('tov-body').innerHTML=h;tov.hidden=false;}
+document.addEventListener('change',e=>{if(e.target.id==='cmpA'||e.target.id==='cmpB')openCompare(+document.getElementById('cmpA').value,+document.getElementById('cmpB').value);
+  if(e.target.id==='opp-own'&&e.target.value){const [r,id]=e.target.value.split('|');const s=(state.slots[r]||[]).find(x=>x.id===+id);if(s){syncSlots();state.oppList=slotFile(r,s);save();openPlan();}}});
+/* ---------- v8 : plan contre une liste adverse ---------- */
+function oppCtx(){const o=state.oppList;if(!o)return null;const R=DB.races[o.race];if(!R)return null;const cnt={},seen={};
+  const units=(o.units||[]).map(u=>{const def=R.units[u.key]||(R.summoned_units||{})[u.key];if(!def)return null;const n=nm(u.key,def);cnt[n]=(cnt[n]||0)+1;return {key:u.key,def,models:u.models,upgrades:(u.upgrades||[]).slice(),name:n};}).filter(Boolean);
+  units.forEach(u=>{if(cnt[u.name]>1){seen[u.name]=(seen[u.name]||0)+1;u.name+=' #'+seen[u.name];}});
+  return {race:o.race,label:`${RLABEL[o.race]}${o.name?' · '+o.name:''}`,units};}
+function oppBox(){const o=state.oppList,R=o&&DB.races[o.race];
+  const own=RACES.flatMap(r=>(state.slots[r]||[]).filter(s=>!(r===state.race&&s.id===state.cur[r])&&(s.data.units||[]).length).map(s=>[r,s]));
+  return `<div class="oppbox">${o&&R?`<p><b>Face à</b> : ${esc(RLABEL[o.race])} · ${esc(nm(o.faction,R.faction_cards[o.faction])||'')}${o.name?' · '+esc(o.name):''} · ${(o.units||[]).length} unité(s) <button class="btn sm" data-act="opp-clear">Retirer</button></p>`:'<p class="tags">Pour des cibles et des menaces précises, colle le lien de partage d’une liste adverse (bouton « Jouer / partager »), ou choisis une de tes listes.</p>'}
+    <div class="row"><input id="opp-link" placeholder="Lien de partage ou texte de la liste exportée" aria-label="Liste adverse"><button class="btn sm primary" data-act="opp-set">Analyser</button></div>
+    ${own.length?`<div class="row"><select id="opp-own" aria-label="Une de mes listes"><option value="">Ou une de mes listes…</option>${own.map(([r,s])=>`<option value="${r}|${s.id}">${esc(RLABEL[r])} · ${esc(s.name)}</option>`).join('')}</select></div>`:''}
+    <p class="tags" id="opp-msg"></p></div>`;}
+function oppSet(){const v=(document.getElementById('opp-link')||{}).value||'';let d=null;
+  try{const m=v.match(/#(?:list|me|opp)=([A-Za-z0-9_-]+)/);d=m?JSON.parse(b64u.dec(m[1])):JSON.parse(v.trim());}catch(e){d=null;}
+  const msg=document.getElementById('opp-msg');
+  if(!d||d.type!=='sctmg-list'||!DB.races[d.race]){if(msg)msg.textContent='Lien ou texte non reconnu : colle le lien de partage du builder ou le contenu du fichier exporté.';return;}
+  state.oppList=d;save();openPlan();}
+
+ensureSlots();
 render();
 })();
 </script>
