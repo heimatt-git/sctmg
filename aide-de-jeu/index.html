@@ -1255,8 +1255,8 @@ function tree(u){
     A('res', 'As-tu assez de supply pour la faire entrer ?', `Supply de l’unité : ${cs} · supply disponible : ${fmtSup(av)}${av === Infinity ? ' (dernier round : illimité)' : ''}`,
       [['Oui','resgo'],['Non','nosup']], (av === Infinity || cs <= av) ? 0 : 1);
     A('resgo', 'La faire entrer maintenant ?', S.round === 1 ? 'Conseil du livre : au round 1, déploie d’abord des unités bon marché pour contester les marqueurs et voir ce que fait l’adversaire ; tes unités chères arrivent mieux aux rounds 2 et 3.' : 'Une unité qui reste en réserve ne marque rien et ne protège rien. Au dernier round, celles qui y sont encore comptent comme détruites.',
-      [['Oui, je déploie','deploy'],['Non, j’attends','wait']]);
-    const depAb = abilitiesOf(u).filter(a => /nominated to deploy from Reserves/i.test(a.text || ''));
+      [['Oui, par mon Entry Edge','deploy'], ...depTree(u, A, L), ['Non, j’attends','wait']]);
+    const depAb = abilitiesOf(u).filter(a => /nominated to deploy from Reserves/i.test(a.text || '') && !DEP_UNIT[upK(a.key)]);
     L('deploy', {title:'Deploy', act:'deploy', steps:[
       'Vérifie que son supply actuel (' + cs + ') tient dans le supply disponible.',
       'Pose le modèle de tête au contact de ton Entry Edge, hors de la table, puis déplace-le jusqu’à ' + spTxt + ' avec les règles normales de Move.',
@@ -1355,7 +1355,8 @@ function applyAct(u, kind, extra){
   u.act[S.phase] = true;
   const n = unitName(u), wasBur = !!u.burrowed;
   const LBL = {deploy:'Deploy', move:'Move', hold:'Hold', dis0:'Disengage (sans pénalité)', dis1:'Disengage (pénalité)', ranged:'Ranged Attack', run:'Run', charge:'Charge', cc:'Close Combat', ccno:'Activée sans attaque', gather:'Gather', sabotage:'Sabotage'};
-  if (kind === 'deploy') u.loc = 'table';
+  if (kind === 'deploy'){ u.loc = 'table'; u.depR = S.round; }
+  if (kind === 'deploy' && DEP_LBL) LBL.deploy = 'Deploy (' + DEP_LBL + ')'; DEP_LBL = '';
   if (u.burrowed && (['dis0','dis1','cc'].includes(kind) || (['move','run'].includes(kind) && !hasTunnel(u)))) setBur(u, false, LBL[kind]);
   if (kind === 'dis0') { u.engaged = false; u.penalty = false; }
   if (kind === 'dis1') { u.engaged = false; u.penalty = true; }
@@ -1435,7 +1436,8 @@ function renderFlow(u){
     ${(PL_LEAF[id] || []).length ? `<div class="row small">${PL_LEAF[id].map(p => `<button class="btn ghost small" data-pl="${p}">Schéma : ${esc(PLX.name(p))}</button>`).join('')}</div>` : ''}
     <div class="row">
       ${l.attack ? `<button class="btn acc" data-goatk="${l.attack}">Résoudre l’attaque pas à pas</button>` : ''}
-      ${l.act && !l.charge && !l.ccEnd && !l.sabotage ? `<button class="btn pri" data-act="${l.act}">Valider l’action</button>` : ''}
+      ${l.act && !l.charge && !l.ccEnd && !l.sabotage ? `<button class="btn pri" data-act="${l.act}"${l.x ? ` data-x="${esc(l.x)}"` : ''}>Valider l’action</button>` : ''}
+      ${(l.btns || []).map(([lb, ac, x]) => `<button class="btn pri" data-act="${ac}" data-x="${esc(x)}">${esc(lb)}</button>`).join('')}
       ${l.charge ? `<button class="btn pri" data-act="charge" data-x="ok">Charge réussie</button><button class="btn" data-act="charge" data-x="ko">Charge ratée</button>` : ''}
       ${l.ccEnd ? `<button class="btn pri" data-act="cc" data-x="eng">Terminé, toujours engagée</button><button class="btn" data-act="cc" data-x="free">Terminé, plus engagée</button>` : ''}
       ${l.undo ? `<button class="btn ghost" data-unact="1">Annuler son activation</button>` : ''}
@@ -2096,7 +2098,7 @@ function simpleActions(u){
   if (ph === 'MOVEMENT'){
     if (u.loc === 'res'){
       const av = avail(S.units);
-      if (av === Infinity || cs <= av) A.push({label:'Deploy', act:'deploy', note:`Entre par ton Entry Edge, jusqu’à ${sp}". Ne finit pas dans la Zone of Influence adverse. Supply ${cs} (disponible ${fmtSup(av)}).`, cls:'pri', pl:'deploiement'});
+      if (av === Infinity || cs <= av) depSimpleActions(u, cs, av, sp).forEach(x => A.push(x));
       else info(`Pas assez de supply pour entrer : ${cs} demandé, ${fmtSup(av)} disponible. Laisse-la en réserve.`);
       info('Ou ne l’active pas : elle reste en réserve.');
       return A;
@@ -2148,7 +2150,7 @@ function simpleActionsHTML(u){
     if (a.charge) return `<div class="sact"><div class="sbtns"><button class="btn pri" data-act="charge" data-x="ok">Charge réussie</button><button class="btn" data-act="charge" data-x="ko">Charge ratée</button></div><span class="small">${linkify(a.note)} <button class="btn ghost small" data-pl="charge">schéma</button></span></div>`;
     if (a.ccEnd) return `<div class="sact"><div class="sbtns"><button class="btn pri" data-act="cc" data-x="eng">Combat fait, toujours engagée</button><button class="btn" data-act="cc" data-x="free">Combat fait, plus engagée</button></div><span class="small">${linkify(a.note)} <button class="btn ghost small" data-pl="combat">schéma</button></span></div>`;
     if (a.sabotage) return `<div class="sact"><div class="sbtns">${liveMarkers().map(m => `<span class="pill">Marqueur ${m.id} : ${m.sab}</span><button class="btn" data-act="sabotage" data-x="${m.id}:-1">−1</button><button class="btn" data-act="sabotage" data-x="${m.id}:1">+1</button>`).join('')}</div><span class="small">Sabotage (mission) : au lieu d’une action, change de 1 le niveau d’un marqueur contrôlé.</span></div>`;
-    return `<div class="sact"><div class="sbtns"><button class="btn ${a.cls || ''}" data-act="${a.act}">${esc(a.label)}</button></div><span class="small">${linkify(a.note || '')} ${pl}</span></div>`;
+    return `<div class="sact"><div class="sbtns"><button class="btn ${a.cls || ''}" data-act="${a.act}"${a.x ? ` data-x="${esc(a.x)}"` : ''}>${esc(a.label)}</button></div><span class="small">${linkify(a.note || '')} ${pl}</span></div>`;
   }).join('');
 }
 
@@ -2282,6 +2284,7 @@ function renderOppTurn(){
   const def = defenseLines();
   return `<div class="panel oppturn active"><h2>Tour adverse</h2>
     <p class="sub">L’adversaire active une unité. Une réaction se déclare au moment exact du déclencheur, une seule par activation adverse.</p>
+    ${oppDeployHTML()}
     <div class="row"><button class="btn pri big" data-turn="me" ${S.passed.me ? 'disabled' : ''}>${S.passed.me ? 'Tu as passé : l’adversaire continue' : 'L’adversaire a joué → à moi'}</button>${S.passed.me ? '<button class="btn" data-oppact="1">Il a joué une unité</button>' : ''}<button class="btn" data-pass="opp">L’adversaire passe</button></div></div>
   <div class="panel"><h2>Tes réactions <span class="pill ${ok.length ? 'ok' : ''}">${ok.length} utilisable${ok.length > 1 ? 's' : ''}</span></h2><p class="small muted">${ready} ${esc(RES())} prêts.</p>
     <div class="ablist">${rows(ok) || '<p class="muted">Aucune réaction utilisable maintenant.</p>'}</div>
@@ -2580,6 +2583,7 @@ function addTok(uid, kind){ S.tokens = S.tokens || []; const id = 'k' + Date.now
 function delTok(id){ S.tokens = (S.tokens || []).filter(t => t.id !== id); }
 const tokens = () => S.tokens || [];
 function tokLine(t){
+  if (t.kind === 'drop') return dropLine(t);
   const u = findU(t.uid), who = u ? esc(unitName(u)) + (u.side === 'o' ? ' (adversaire)' : '') : '?';
   if (t.kind === 'shade' || t.kind === 'tunnel') return `<b>${TOKNAME[t.kind]}</b> de ${who} : à la fin du round, ${u && u.side === 'o' ? 'l’adversaire peut' : 'tu peux'} replacer toute l’unité en cohésion, le pion servant de modèle de tête.`;
   const th = t.kind === 'storm4' ? 4 : 5;
@@ -2626,6 +2630,7 @@ function extrasCleanup(){
 }
 /* hook paiement */
 function extrasFromAbility(holder, a, entry){
+  if (a.card && DEP_IND[a.key]) return depIndAdd(holder, a, entry);
   const u = findU(holder); if (!u) return null;
   if (TOK[a.key]){ entry.tok = addTok(u.id, TOK[a.key]); return null; }
   if (SUM[a.key]){ const r = summon(u, SUM[a.key]); if (r){ entry.sum = r; return 'Invoquée : ' + unitName(findU(r.uid)) + ' (pas activable cette phase ; ensuite, juste après ' + unitName(u) + ')' + (a.key === 'HOLO_DECOY' ? '. Elle peut faire un Move tout de suite.' : '.'); } }
@@ -2636,6 +2641,154 @@ function extrasBlock(holder, a){
   if (u && SHIELD_AB[a.key] && !isShielded(u)) return nm(a.key, a) + ' : l’unité n’est plus Shielded.';
   if (u && (TOK[a.key] || SUM[a.key]) && u.loc !== 'table') return nm(a.key, a) + ' : l’unité doit être sur la table.';
   return null;
+}
+
+/* ================= déploiement depuis la réserve : capacités d'unités et cartes ================= */
+/* capacités d'unités déclenchées « when nominated to deploy from Reserves » */
+const DEP_UNIT = {
+  BURROW_AMBUSH:{id:'ambush', label:'Burrow Ambush', kind:'place', ends:true,
+    steps:['Résous l’effet PLACE (18) à partir de ton Entry Edge.', 'Aucune figurine ne peut être placée à 10" ou moins d’une figurine ennemie.', 'L’activation de l’unité se termine.']},
+  RAPID_REINFORCEMENTS:{id:'rapid', label:'Rapid Reinforcements', kind:'friend', ends:true, offEdge:true,
+    steps:['Résous l’effet PLACE (10) à partir d’une autre unité amie sur la table.', 'Aucune figurine ne peut être placée à 8" ou moins d’une figurine ennemie.', 'L’activation de l’unité se termine.']},
+  INTERNAL_TECH_MODULE:{id:'itm', label:'Internal Tech Module', kind:'edge', offEdge:true,
+    steps:['Déploie l’unité depuis n’importe quel bord de table qui n’est pas l’Entry Edge d’un joueur.', 'Elle ne peut pas être placée à 8" ou moins d’une figurine ennemie.']},
+  PHASE_PRISM:{id:'prism', label:'Phase Prism', kind:'prism', ends:true, offEdge:true,
+    steps:['Choisis une autre unité amie sur la table : Artanis résout l’effet PLACE (0) à partir d’elle.', 'Cette unité amie est retirée du champ de bataille et remise en réserve.', 'L’activation d’Artanis se termine.']}
+};
+/* capacités de cartes qui font déployer l'unité active ailleurs */
+const DEP_CARD = {
+  TIMING_PUSH:{label:'Timing Push', elig:u => /zergling/i.test(u.key), eligTxt:'unité de Zerglings',
+    steps:['L’unité se déploie depuis n’importe quel bord de table qui n’est pas l’Entry Edge d’un joueur.', 'L’action doit se terminer à plus de 10" de toute figurine ennemie.']},
+  ARMED_AND_READY:{label:'Armed and Ready', elig:u => (udef(u).combat_tags || []).includes('Biological'), once:'Biological', eligTxt:'unité Biological',
+    steps:['L’unité se déploie depuis n’importe quel bord de table qui n’est pas l’Entry Edge d’un joueur.', 'Aucune figurine ne peut être placée à 10" ou moins d’une figurine ennemie.']},
+  WARP_IN:{label:'Warp In', elig:u => !isFlying(udef(u)), once:'Ground', eligTxt:'unité Ground',
+    steps:['L’unité se déploie depuis n’importe quel bord de table qui n’est pas l’Entry Edge d’un joueur.', 'Le déploiement doit se terminer à plus de 10" de toute figurine ennemie.']}
+};
+/* cartes qui posent un Faction Indicator : déploiement à la fin du round */
+const DEP_IND = {VENTRAL_SACS:'Ventral Sacs', READY_FOR_DUST_OFF:'Ready for Dust Off', WARP_CONDUIT:'Warp Conduit'};
+const upK = k => String(k || '').toUpperCase();
+const sideUnits = u => u.side === 'o' ? S.opp.units : S.units;
+const depTagOk = (x, tag) => tag === 'Ground' ? !isFlying(udef(x)) : (udef(x).combat_tags || []).includes(tag);
+/* autre unité amie du même type déjà déployée ce round ? */
+const depAlready = (u, tag) => sideUnits(u).some(x => x.id !== u.id && x.depR === S.round && depTagOk(x, tag));
+const zagUsed = side => ((S.zag || {})[side] || {}).r === S.round ? S.zag[side].n : 0;
+function oppCardList(){ const ol = S.opp.list || {}, R = DB.races[S.opp.race || ol.race]; if (!R) return [];
+  return [[ol.faction, R.faction_cards], ...(ol.tactical || []).map(k => [k, R.tactical_cards])].filter(([k, g]) => k && g && g[k]).map(([k, g]) => [k, g[k]]); }
+/* options de déploiement de l'unité u (en réserve) */
+function depOpts(u){
+  const out = [], side = u.side === 'o' ? 'opp' : 'me', friends = sideUnits(u).filter(x => x.id !== u.id && x.loc === 'table');
+  abilitiesOf(u).forEach(a => { const m = DEP_UNIT[upK(a.key)]; if (!m || out.some(o => o.id === m.id)) return;
+    const o = Object.assign({}, m, {src:nm(a.key, a)});
+    if ((m.kind === 'friend' || m.kind === 'prism') && !friends.length) o.off = 'Aucune autre unité amie sur la table.';
+    if (m.kind === 'prism') o.targets = friends;
+    out.push(o); });
+  const zag = friends.find(x => abilitiesOf(x).some(a => upK(a.key) === 'INFESTED_DROP'));
+  if (zag){ const used = zagUsed(side), cs = curSup(u);
+    out.push({id:'zag', label:'Infested Drop (Zagara)', kind:'zag', src:'Infested Drop', off:used + cs > 1 ? `Supply cumulé limité à 1 par round (déjà ${used}, cette unité ${cs}).` : null,
+      steps:['Le socle de Zagara compte comme une Entry Edge : déploie l’unité depuis ce socle, avec les règles normales de Deploy.', `Ce round, les unités déployées ainsi ne peuvent pas dépasser 1 de supply au total (déjà utilisé : ${used}).`]}); }
+  const cards = side === 'me' ? S.cards.map(c => [c, cardDef(c), c.key]) : oppCardList().map(([k, d]) => [null, d, k]);
+  cards.forEach(([c, d, ck]) => Object.entries(d.abilities || {}).forEach(([ak, a]) => { const m = DEP_CARD[ak]; if (!m) return;
+    const o = {id:'card:' + ak, label:m.label + ' · carte ' + nm(ck, d), kind:'card', card:c ? c.id : null, ak, offEdge:true, steps:m.steps.slice(), src:nm(ck, d)};
+    if (!m.elig(u)) return;
+    if (c && !c.ready) o.off = 'Carte déjà épuisée ce round.';
+    if (m.once && depAlready(u, m.once)) o.off = `Une autre unité ${m.once} amie s’est déjà déployée ce round.`;
+    if (c) o.steps.push('La carte ' + nm(ck, d) + ' est épuisée.');
+    out.push(o); }));
+  return out;
+}
+const depLabel = (u, x) => { if (!x || x === 'std') return ''; const id = String(x).split(':').slice(0, x.startsWith('card:') ? 2 : 1).join(':'); const o = depOpts(u).find(z => z.id === id) || {}; return o.label || ''; };
+/* rappels liés aux cartes adverses (et aux tiennes pour l'adversaire) */
+function depWarns(u, o){
+  const w = [], opp = u.side !== 'o';
+  if (o && o.offEdge){
+    if (opp && oppCardHas('PHOTON_OVERCHARGE')) w.push('L’adversaire a Photon Overcharge : quand ton unité entre ailleurs que par ton Entry Edge, il peut lui infliger HITS 3 (1).');
+    if (o.kind === 'edge' || o.kind === 'card'){ if (opp && oppCardHas('COMSAT_STATION')) w.push('L’adversaire a Comsat Station : vérifie qu’il n’a pas interdit ce bord de table ce round.'); }
+  }
+  if (o && o.ends) w.push('L’activation se termine dès le placement.');
+  return w;
+}
+/* Raiders Roll : Stimpack à −1 CP au moment du déploiement */
+function raidersRoll(u){
+  if (u.side === 'o' || !abilitiesOf(u).some(a => upK(a.key) === 'RAIDERS_ROLL')) return false;
+  const st = abilitiesOf(u).find(a => upK(a.key) === 'STIMPACK'); if (!st) return false;
+  const rr = abilitiesOf(u).find(a => upK(a.key) === 'RAIDERS_ROLL');
+  ABREG[u.id + '|' + st.key] = [u.id, st];
+  if (usedOf(u.id, st.key)) return false;
+  PAY.holder = u.id; PAY.key = st.key; PAY.sel = []; PAY.red = costVal(st) > 0 ? [u.id + '|' + rr.key] : [];
+  openSheet(`<p class="small" style="margin:0 0 6px"><b>Raiders Roll</b> : l’unité peut résoudre Stimpack maintenant, avec 1 CP de moins (minimum 0). Ferme si tu ne veux pas.</p>` + payHTML());
+  return true;
+}
+/* applique un déploiement (mode x) puis l'activation */
+let DEP_LBL = '';
+function doDeploy(u, x){
+  x = x || 'std'; const parts = String(x).split(':'); DEP_LBL = depLabel(u, x);
+  if (parts[0] === 'card' && u.side !== 'o'){ const o = depOpts(u).find(z => z.id === 'card:' + parts[1]);
+    if (o && o.card){ const c = S.cards.find(z => z.id === o.card); if (!c || !c.ready){ toast('Carte déjà épuisée.'); return; }
+      c.ready = false; S.used[c.id + ':' + o.ak] = {n:1, r:S.round};
+      S.spent = S.spent || []; S.spent.push({id:Date.now().toString(36) + 'd', r:S.round, p:S.phase, holder:c.id, key:o.ak, name:DEP_CARD[o.ak].label, who:unitName(u), cards:[c.id], amount:0, red:[]}); } }
+  if (parts[0] === 'prism'){ const t = findU(parts[1]); if (t){ t.loc = 'res'; t.engaged = false; statusOffTable(t); logA(unitName(t) + ' remise en réserve (Phase Prism)', 'act'); } }
+  if (parts[0] === 'zag'){ const side = u.side === 'o' ? 'opp' : 'me'; S.zag = S.zag || {}; S.zag[side] = {r:S.round, n:zagUsed(side) + curSup(u)}; }
+  u.depR = S.round;
+  if (u.side === 'o'){ u.loc = 'table'; u.engaged = false; const lb = depLabel(u, x);
+    logA('Adversaire : ' + unitName(u) + ' entre en jeu' + (lb ? ' (' + lb + ')' : ''), 'act'); save(); render();
+    const o = depOpts(u).find(z => z.id === (parts[0] === 'card' ? 'card:' + parts[1] : parts[0]));
+    const mine = S.cards.find(c => c.ready && cardAbilities(c).some(a => a.key === 'PHOTON_OVERCHARGE'));
+    toast(unitName(u) + ' est sur la table.' + (o && o.offEdge && mine ? ' Photon Overcharge possible : HITS 3 (1) sur elle (Tes réactions).' : ''));
+    return; }
+  applyAct(u, 'deploy', x);
+  raidersRoll(u);
+}
+/* boutons du mode simplifié */
+function depSimpleActions(u, cs, av, sp){
+  const A = [{label:'Deploy', act:'deploy', note:`Entre par ton Entry Edge, jusqu’à ${sp}". Ne finit pas dans la Zone of Influence adverse. Supply ${cs} (disponible ${fmtSup(av)}).`, cls:'pri', pl:'deploiement'}];
+  depOpts(u).forEach(o => { const note = o.steps.join(' ') + (depWarns(u, o).length ? ' ' + depWarns(u, o).join(' ') : '');
+    if (o.kind === 'prism'){ if (o.off) A.push({info:o.label + ' : ' + o.off}); else o.targets.forEach(t => A.push({label:o.label + ' via ' + unitName(t), act:'deploy', x:'prism:' + t.id, note:note.replace('une autre unité amie sur la table', unitName(t))})); return; }
+    if (o.off) A.push({info:o.label + ' : ' + o.off}); else A.push({label:o.label, act:'deploy', x:o.id, note}); });
+  if (abilitiesOf(u).some(a => upK(a.key) === 'RAIDERS_ROLL')) A.push({info:'Raiders Roll : après le déploiement, l’aide te propose Stimpack avec 1 CP de moins.'});
+  return A;
+}
+/* nœuds du mode guidé */
+function depTree(u, A, L, baseOpts){
+  const opts = depOpts(u);
+  opts.forEach(o => {
+    const warn = depWarns(u, o);
+    if (o.kind === 'prism'){ L('dep_prism', {title:o.label, steps:o.steps, warn:o.off || warn.join(' ') || null, btns:o.off ? [] : o.targets.map(t => ['Via ' + unitName(t) + ' (elle retourne en réserve)', 'deploy', 'prism:' + t.id])}); return; }
+    L('dep_' + o.id, {title:o.label, act:o.off ? null : 'deploy', x:o.id, steps:o.steps.concat(['Supply : l’unité doit tenir dans le supply disponible, comme pour un Deploy normal.']), warn:o.off || warn.join(' ') || null});
+  });
+  return opts.map(o => [o.label, 'dep_' + (o.kind === 'prism' ? 'prism' : o.id)]);
+}
+/* tour adverse : noter comment une unité adverse entre en jeu */
+function oppDeployHTML(){
+  if (PH[S.phase].id !== 'MOVEMENT') return '';
+  const res = S.opp.units.filter(x => x.loc === 'res'); if (!res.length) return '';
+  const av = avail(S.opp.units);
+  return `<details class="capsub" id="oppDep" ${(U.lossOpen || {}).oppDep ? 'open' : ''}><summary>L’adversaire déploie une unité</summary>
+    <p class="small muted" style="margin:6px 0">Supply adverse disponible : ${fmtSup(av)}. Choisis l’unité et la façon dont elle entre.</p>
+    ${res.map(x => { const cs = curSup(x), opts = depOpts(x).filter(o => !o.off);
+      return `<div class="lossrow"><span class="ln"><b>${esc(unitName(x))}</b> <span class="small muted">supply ${cs}${av !== Infinity && cs > av ? ' · trop de supply' : ''}</span></span><span class="lb">
+        <button class="btn" data-odep="${x.id}|std">Par son Entry Edge</button>
+        ${opts.map(o => o.kind === 'prism' ? o.targets.map(t => `<button class="btn ghost" data-odep="${x.id}|prism:${t.id}">${esc(o.label)} via ${esc(unitName(t))}</button>`).join('') : `<button class="btn ghost" data-odep="${x.id}|${esc(o.id)}" title="${esc(o.steps.join(' '))}">${esc(o.label)}</button>`).join('')}</span></div>`; }).join('')}</details>`;
+}
+/* Faction Indicator posé par une carte : déploiement à la fin du round */
+function depIndAdd(card, a, entry){
+  S.tokens = S.tokens || []; const id = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+  S.tokens.push({id, uid:card, kind:'drop', r:S.round, name:DEP_IND[a.key] || nm(a.key, a)}); entry.tok = id;
+  logA('Faction Indicator posé (' + (DEP_IND[a.key] || nm(a.key, a)) + ')', 'act');
+  return 'Faction Indicator posé : à la fin du round, tu pourras déployer une unité Ground de ta réserve à son contact (phase Score).';
+}
+function dropLine(t){
+  const res = S.units.filter(x => x.loc === 'res' && !isFlying(udef(x))), av = avail(S.units), endNow = PH[S.phase].id === 'score';
+  const used = t.used ? findU(t.used) : null;
+  return `<b>Faction Indicator</b> (${esc(t.name)}) : à la fin du round, tu peux déployer une unité Ground depuis ta réserve, au contact socle à socle de l’indicateur.`
+    + (used ? ` <span class="pill ok">${esc(unitName(used))} déployée</span>` : endNow ? (res.length ? `<span class="row" style="margin-top:6px">${res.map(x => `<button class="btn small" data-dropdep="${t.id}|${x.id}" ${av !== Infinity && curSup(x) > av ? 'disabled title="Pas assez de supply"' : ''}>${esc(unitName(x))} · supply ${curSup(x)}</button>`).join('')}</span>` : ' <span class="small muted">Aucune unité Ground en réserve.</span>') : ' <span class="small muted">Les boutons apparaîtront en phase Score.</span>');
+}
+function dropDeploy(tid, uid){
+  const t = tokens().find(z => z.id === tid), u = findU(uid); if (!t || !u) return;
+  u.loc = 'table'; u.engaged = false; u.depR = S.round; t.used = u.id;
+  logA(unitName(u) + ' déployée au contact du Faction Indicator (' + t.name + ')', 'act');
+  save(); render();
+  const ph = oppCardHas('PHOTON_OVERCHARGE');
+  toast(unitName(u) + ' est sur la table.' + (ph ? ' L’adversaire peut utiliser Photon Overcharge : HITS 3 (1).' : ''));
 }
 
 /* ================= v9 : liens collés, sauvegarde de partie, retour vers le builder ================= */
@@ -3951,7 +4104,10 @@ document.addEventListener('click', e => {
   if (d.ans != null){ const u = S.units.find(x => x.id === U.sel); const p = (U.flow[u.id] = U.flow[u.id] || []); p.length = +d.depth; p[+d.depth] = +d.ans;
     if (d.seteng && u.engaged !== (+d.ans === 0)){ u.engaged = +d.ans === 0; save(); } saveU(); render(); return; }
   if (d.back != null){ const p = U.flow[U.sel] || []; p.length = +d.back; saveU(); render(); return; }
+  if (d.act === 'deploy'){ doDeploy(S.units.find(x => x.id === U.sel), d.x); return; }
   if (d.act){ applyAct(S.units.find(x => x.id === U.sel), d.act, d.x); return; }
+  if (d.odep){ const [id, x] = d.odep.split('|'); const u = findU(id); if (u) doDeploy(u, x); return; }
+  if (d.dropdep){ const [tid, uid] = d.dropdep.split('|'); dropDeploy(tid, uid); return; }
   if (d.unact){ const u = S.units.find(x => x.id === U.sel); u.act[S.phase] = false; save(); render(); return; }
   if (d.goatk){ U.tab = 'attack'; AT.who = 'me'; AT.mode = d.goatk; AT.au = U.sel; AT.aw = null; atkPrefill(); saveU(); render(); window.scrollTo({top:0}); return; }
   if (d.pass){ S.passed[d.pass] = true; if (d.pass === 'opp') S.oppTurn = false; if (!S.firstPass[S.phase]){ S.firstPass[S.phase] = d.pass; if (S.phase <= 2) S.stats.passFirst[d.pass]++; } logA((d.pass === 'me' ? 'Tu passes' : 'L’adversaire passe') + (S.firstPass[S.phase] === d.pass ? ' en premier' : ''), 'pass'); save(); render(); return; }
