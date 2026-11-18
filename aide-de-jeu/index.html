@@ -752,7 +752,7 @@ function setAlive(u, n){
   n = Math.max(0, Math.min(u.start, n));
   const before = u.loc === 'table' ? curSup(u) : 0;
   u.alive = n;
-  if (!n){ u.loc = 'dead'; u.engaged = false; }
+  if (!n){ if (u.loc !== 'dead') u.deadR = S.round; u.loc = 'dead'; u.engaged = false; }
   else if (u.loc === 'dead') u.loc = 'table';
   const after = u.loc === 'table' ? curSup(u) : 0;
   const lost = before - after, side = u.side === 'o' ? 'opp' : 'me';
@@ -1090,15 +1090,16 @@ function renderGame(){
     ${m.to_confirm ? `<div class="note warn" style="margin-top:10px"><span class="lbl">Carte incomplète</span>${m.to_confirm.map(esc).join('<br>')}</div>` : ''}
     <details style="margin-top:12px" open><summary>Texte de la Mission Card</summary>${missionText(m)}</details>
     <div class="row" style="margin-top:12px"><button class="btn pri" id="newGameSetup">Commencer une nouvelle partie avec ces réglages</button></div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="saveGame">Sauvegarder la partie</button><label class="btn" style="cursor:pointer">Reprendre une partie<input type="file" id="fileGame" accept=".json,application/json" hidden></label><span class="small muted">Pour la continuer sur un autre appareil ou un autre jour.</span></div>
     <div id="ngConfirm" hidden class="note warn" style="margin-top:8px">Le round, les PV, le journal et l’état des unités repartent à zéro. <button class="btn" id="ngYes">Oui, commencer</button> <button class="btn ghost" id="ngNo">Non</button></div></div>
   <div class="panel"><h2>${esc(d.name)}</h2><p class="sub">Tu es <b>${COLFR[myCol()]}</b>. Bandes colorées : Entry Edges et Zone of Influence (6"). Marqueurs 1 et 3 rouges, 2 et 4 bleus, 5 neutre. Pointillés : marqueur désactivé.</p>${mapSVG()}</div></div>
   <div class="cols"><div class="panel"><h2>Ma liste</h2><p class="sub">${myL._sample ? '<b>Exemple affiché.</b> ' : ''}${esc(RACEFR[S.race])} · ${S.units.length} unités · ${S.cards.length} cartes. Charge l’export JSON du builder.</p><div class="row" style="margin-bottom:10px">${planBtn('pri')}<span class="small muted">Rôles, ordre d’entrée, capacités, cibles et menaces face à l’armée adverse.</span></div>
       <div class="row"><input type="file" id="fileMe" accept=".json,application/json"></div>
-      <textarea class="paste" id="pasteMe" placeholder='Ou colle ici le contenu du fichier {"type":"sctmg-list", …}'></textarea>
+      <textarea class="paste" id="pasteMe" placeholder='Ou colle ici ton lien de partage du builder, ou le contenu du fichier exporté'></textarea>
       <div class="row" style="margin-top:6px"><button class="btn" id="goPasteMe">Charger le texte collé</button></div></div>
     <div class="panel"><h2>Liste adverse</h2><p class="sub">${opL && opL._sample ? '<b>Exemple affiché.</b> ' : ''}${S.opp.units.length ? esc(RACEFR[S.opp.race]) + ' · ' + S.opp.units.length + ' unités.' : 'Aucune unité.'} Importe son export du builder, ou ajoute ses unités une par une.</p>
       <div class="row"><input type="file" id="fileOpp" accept=".json,application/json"></div>
-      <textarea class="paste" id="pasteOpp" placeholder="Ou colle ici son export JSON"></textarea>
+      <textarea class="paste" id="pasteOpp" placeholder="Ou colle ici son lien de partage (envoyé depuis son builder) ou son export JSON"></textarea>
       <div class="row" style="margin-top:6px"><button class="btn" id="goPasteOpp">Charger le texte collé</button></div>
       <div class="grid3" style="margin-top:12px;grid-template-columns:1fr 2fr 1fr"><label class="fld"><span class="lbl">Race</span><select id="addRace">${Object.keys(DB.races).map(r => opt(r, RACEFR[r], r === U.addRace)).join('')}</select></label>
         <label class="fld"><span class="lbl">Unité</span><select id="addUnit">${Object.entries(DB.races[U.addRace].units).map(([k, x]) => opt(k, nm(k, x), k === U.addUnit)).join('')}</select></label>
@@ -1652,6 +1653,39 @@ var PLAN = (function(){
   const kwHas = (w, k) => (w.keywords || []).some(x => String(x).toUpperCase().startsWith(k));
   const short = (t, n) => { t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length <= n) return t; const cut = t.slice(0, n); const i = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf(' ')); return cut.slice(0, i > n * 0.6 ? i : n).replace(/[ ,;:.]+$/, '') + '…'; };
 
+
+  /* ---------- estimation simple des dégâts (plan contre une liste adverse) ---------- */
+  const tnum = v => { const m = String(v ?? '').match(/(\d)\s*\+/); return m ? +m[1] : null; };
+  const pOf = t => t == null ? 0 : Math.max(0, Math.min(1, (7 - t) / 6));
+  const expD = v => { const k = String(v ?? '').replace(/\s/g, '').toUpperCase(); const T = {D3:2, 'D3+1':3, D6:3.5, 'D6+1':4.5, '2D6':7}; return T[k] ?? (parseFloat(k) || 0); };
+  const kwN = (w, base) => { for (const k of w.keywords || []) { const u = String(k).toUpperCase(); if (u.startsWith(base)) { const m = u.match(/\((\d+)\)/); return m ? +m[1] : 1; } } return 0; };
+  const hitsTarget = (w, t) => { const x = String(w.target || '').toLowerCase(); return x === 'all' || (x === 'flying' ? t.fly : x === 'ground' ? !t.fly : true); };
+  function wDmg(w, a, t){
+    const tags = t.tags.map(x => String(x).toLowerCase()), st = [].concat(w.surge_type || []).map(x => String(x).toLowerCase());
+    const match = st.some(x => tags.includes(x)), pH = pOf(tnum(w.hit));
+    let hits, moved;
+    if (isTpl(w)){ const aff = Math.min(3, t.u.models), mod = parseInt((String(w.roa).match(/[+-]\s*\d+/) || ['0'])[0].replace(/\s/g, ''), 10) || 0;
+      hits = Math.max(0, aff + mod) * pH; moved = match ? Math.min(aff, hits) : 0; }
+    else { const dice = (w.one ? 1 : a.u.models) * (parseInt(w.roa, 10) || 0); hits = dice * pH; const pr = kwN(w, 'PRECISION'); if (pr) hits += Math.min(pr, dice - hits);
+      moved = w.s_dice && match ? Math.min(expD(w.s_dice), hits) : 0; }
+    const fails = (hits - moved) * (1 - pOf(tnum(t.d.stats.armour)));
+    let dm = expD(w.dmg) || 1;
+    (w.keywords || []).forEach(k => { const m = String(k).toUpperCase().match(/PIERCE\s*\[?\s*([A-Z]+)\s*\]?\s*\(?(\d+)\)?/); if (m && tags.includes(m[1].toLowerCase())) dm = +m[2]; });
+    return (moved + fails) * dm;
+  }
+  function volley(a, t, ph){
+    if (ph === 'COMBAT' && (a.fly || t.fly)) return null;
+    const ws = a.ws.filter(w => w.phase === ph && hitsTarget(w, t)); if (!ws.length) return null;
+    const side = ws.filter(w => kwHas(w, 'SIDEARM')), main = ws.filter(w => !kwHas(w, 'SIDEARM'));
+    const dmg = Math.max(0, ...main.map(w => wDmg(w, a, t))) + side.reduce((s, w) => s + wDmg(w, a, t), 0);
+    if (!(dmg > 0)) return null;
+    let left = dmg, k = 0; const hp = t.d.stats.hp || 1, first = hp + (t.d.stats.shield || 0);
+    while (k < t.u.models){ const need = k === 0 ? first : hp; if (left >= need){ left -= need; k++; } else break; }
+    return {dmg, kills:k, supLost: supplyFor(t.d, t.u.models) - supplyFor(t.d, t.u.models - k)};
+  }
+  function bestVs(a, foes){ let r = null;
+    foes.forEach(t => ['ASSAULT', 'COMBAT'].forEach(ph => { const v = volley(a, t, ph); if (v && (!r || v.supLost > r.v.supLost || (v.supLost === r.v.supLost && (v.kills > r.v.kills || (v.kills === r.v.kills && v.dmg > r.v.dmg))))) r = {t, ph, v}; }));
+    return r; }
   /* ---------- analyse d'une unité ---------- */
   function profile(u){
     const d = u.def, ws = weaponsOf(d, u.upgrades), tags = d.combat_tags || [];
@@ -1858,6 +1892,19 @@ var PLAN = (function(){
     if (st.length) H('Statuts et modes', st.map(([t, L]) => `<p class="pl-ph">${E(t)}</p><ul class="${ul}">${L.map(x => `<li>${x}</li>`).join('')}</ul>`).join(''));
 
     }
+
+    /* face à une liste adverse précise */
+    if (ctx.opp && (ctx.opp.units || []).length){
+      const O = ctx.opp.units.map(profile), how = ph => ph === 'COMBAT' ? 'en charge' : 'au tir';
+      const tg = P.filter(p => !p.u.summoned).map(p => ({p, b: bestVs(p, O)})).filter(x => x.b);
+      H(`Face à : ${ctx.opp.label || 'liste adverse'}`, `<p class="pl-ph">Cibles prioritaires</p>${tg.length ? `<ul class="${ul}">${tg.map(x => `<li><b>${E(x.p.u.name)}</b> → <b>${E(x.b.t.u.name)}</b> ${how(x.b.ph)} : ${x.b.v.kills ? `≈ ${x.b.v.kills} fig. sur ${x.b.t.u.models}` : `≈ ${Math.round(x.b.v.dmg * 10) / 10} dégâts, pas assez pour retirer une figurine`}${x.b.v.supLost ? `, <b>−${x.b.v.supLost} supply (≈ +${x.b.v.supLost} PV)</b>` : ''}.</li>`).join('')}</ul>` : '<p>Aucune de tes unités n’a d’arme efficace contre cette liste.</p>'}
+        ${(() => { const th = O.map(o => ({o, b: bestVs(o, P.filter(p => !p.u.summoned))})).filter(x => x.b).sort((a, b) => b.b.v.supLost - a.b.v.supLost || b.b.v.kills - a.b.v.kills || b.b.v.dmg - a.b.v.dmg);
+          const fl = O.filter(o => o.fly), aa = P.filter(p => p.aa);
+          return `<p class="pl-ph">Menaces</p><ul class="${ul}">${th.slice(0, 4).map(x => `<li><b>${E(x.o.u.name)}</b> est dangereux pour tes <b>${E(x.b.t.u.name)}</b> ${how(x.b.ph)} : ≈ ${x.b.v.kills} fig${x.b.v.supLost ? `., −${x.b.v.supLost} supply` : ''}. Neutralise-le tôt ou garde-le hors de portée.</li>`).join('')}
+            ${fl.length ? `<li>Volants adverses : ${E(fl.map(o => o.u.name).join(', '))}. ${aa.length ? 'Tes unités anti-aériennes : ' + E(aa.map(p => p.u.name).join(', ')) + '.' : '<b>Aucune de tes armes ne les touche</b> : cache-toi derrière le décor.'}</li>` : ''}</ul>`; })()}
+        <p class="pl-note">Estimation moyenne pour une unité complète (à portée, visible, sans couvert ni capacités du défenseur). Gabarits : 3 figurines touchées.</p>`);
+    }
+
     /* points faibles */
     const weak = [];
     if (!P.some(p => p.aa)) weak.push('Aucune arme ne touche les volants : face à une armée aérienne, tu subiras sans riposter. Couvre-toi avec le décor.');
@@ -2576,6 +2623,50 @@ function extrasBlock(holder, a){
   return null;
 }
 
+/* ================= v9 : liens collés, sauvegarde de partie, retour vers le builder ================= */
+const SITE_URL = 'https://heimatt-git.github.io/sctmg/';
+function handEncode(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+/* texte collé : lien de partage (#list= / #me= / #opp=) ou export JSON */
+function pastedList(v){ v = String(v || '').trim(); const m = v.match(/#(?:list|me|opp)=([A-Za-z0-9_-]+)/); if (m){ try { return handDecode(m[1]); } catch(e){ return ''; } } return v; }
+/* ---- sauvegarde / reprise d'une partie ---- */
+function saveGameFile(){
+  const txt = JSON.stringify({type:'sctmg-game', v:1, saved:new Date().toISOString(), S}, null, 1);
+  const name = `partie-${(S.race || '').toLowerCase()}-r${S.round}.json`;
+  const canDl = /github\.io$|^localhost$/.test(location.hostname) || location.protocol === 'file:';
+  if (!canDl){ openSheet(`<h3 class="fiche-t">Sauvegarder la partie</h3><p class="small">Ici, le téléchargement n’est pas possible. Copie ce texte dans un fichier .json, ou utilise l’aide de jeu du site pour télécharger directement.</p><textarea class="paste" style="height:200px" readonly>${esc(txt)}</textarea>`); return; }
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], {type:'application/json'})); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); toast('Partie enregistrée : ' + name); }
+  catch(e){ openSheet(`<h3 class="fiche-t">Sauvegarder la partie</h3><p class="small">Le téléchargement est bloqué ici. Copie ce texte dans un fichier .json :</p><textarea class="paste" style="height:200px">${esc(txt)}</textarea>`); }
+}
+function loadGameText(txt){
+  let d; try { d = JSON.parse(txt); } catch(e){ toast('Ce fichier n’est pas une sauvegarde de partie valide.'); return; }
+  if (!d || d.type !== 'sctmg-game' || !d.S || !DB.races[d.S.race]){ toast('Ce fichier n’est pas une sauvegarde de partie de l’aide de jeu.'); return; }
+  S = d.S; U.sel = null; U.flow = {}; saveU(); save(); render(); toast(`Partie reprise : round ${S.round}, ${S.vp.me} – ${S.vp.opp}.`);
+}
+/* ---- retour sur la liste (bilan → builder) ---- */
+function listAdvice(){
+  const out = [];
+  const actsOf = u => S.log.filter(e => e.k === 'act' && e.t.startsWith(unitName(u) + ' : '));
+  S.units.filter(u => !u.summoned).forEach(u => {
+    const n = unitName(u), acts = actsOf(u), real = acts.filter(e => !/ : Hold\b/.test(e.t));
+    if (u.loc === 'res' && S.round > 1) out.push(`${n} n’est jamais entrée en jeu : son supply (${curSup(u)}) est peut-être trop élevé pour cette mission, ou une unité moins chère entrerait plus tôt.`);
+    else if (u.loc === 'dead' && u.deadR && u.deadR <= Math.max(2, Math.ceil(lastRound() / 2))) out.push(`${n} a été détruite dès le round ${u.deadR} : pense à un upgrade défensif, à plus de figurines, ou à la faire entrer plus tard.`);
+    else if (acts.length >= 3 && real.length === 0) out.push(`${n} n’a fait que des Hold : elle a peu servi. Une unité d’un autre rôle ou moins chère rapporterait peut-être plus.`);
+  });
+  const usedNames = new Set((S.spent || []).map(e => e.name));
+  S.units.forEach(u => abilitiesOf(u).filter(a => a.src === 'Amélioration' && a.type && a.type !== 'PASSIVE' && costVal(a) > 0 && !usedNames.has(nm(a.key, a))).forEach(a => out.push(`L’upgrade ${nm(a.key, a)} (${unitName(u)}) n’a jamais été utilisé : vérifie s’il vaut ses minéraux.`)));
+  if (S.stats.unusedRes >= 3) out.push(`${S.stats.unusedRes} ${RES()} sont restés inutilisés : une Tactical Card en moins (moins de gas) ou des upgrades payants en plus équilibreraient mieux la liste.`);
+  return [...new Set(out)].slice(0, 6);
+}
+function adviceHTMLList(){
+  const adv = listAdvice(); if (!S.list || S.list._sample) return '';
+  const code = handEncode(JSON.stringify(Object.assign({}, S.list, {name:(S.list.name || 'Liste') + ' (après partie)'})));
+  const fb = adv.length ? '&fb=' + handEncode(JSON.stringify(adv)) : '';
+  return `<div class="panel"><h2>Ajuster ta liste</h2><p class="sub">Pistes tirées de cette partie, à confirmer selon la mission et l’adversaire.</p>
+    ${adv.length ? `<ul class="small" style="padding-left:18px">${adv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : '<p class="muted small">Rien de particulier à signaler pour l’instant.</p>'}
+    <a class="btn pri" href="${SITE_URL}builder/#list=${code}${fb}" target="_blank" rel="noopener">Ouvrir ma liste dans le builder</a>
+    <p class="small muted" style="margin-top:6px">La liste est ajoutée à tes listes du builder, avec ces pistes en rappel.</p></div>`;
+}
+
 /* ================= attaque ================= */
 const AT = {who:'me', mode:'ranged', au:null, aw:null, ao:null, oRace:'ZERG', oUnit:null, tSrc:'army', to:null, tRace:'ZERG', tUnit:null, tm:null, f:{}, r:{}};
 function dbWeapons(race, key){ const d = allUnitsOf(race)[key]; const out = Object.entries(d.weapons||{}).map(([k, w]) => Object.assign({key:k, name:nm(k)}, w));
@@ -2909,8 +3000,8 @@ function renderLog(){
       <h3 style="margin:14px 0 6px;font-size:15px">PV à la fin de chaque round</h3>
       ${rounds.length ? `<div class="vpchart">${rounds.map(r => `<div class="vr"><span class="mono small">R${r}</span><div class="bars">${bar(S.vpRound[r].me, 'me')}<span class="mono small">${S.vpRound[r].me}</span></div><div class="bars">${bar(S.vpRound[r].opp, 'opp')}<span class="mono small">${S.vpRound[r].opp}</span></div></div>`).join('')}</div>
         <p class="small muted"><span class="dot me"></span> toi · <span class="dot opp"></span> adversaire</p>` : '<p class="muted small">Apparaît après le premier round.</p>'}</div>
-    <div class="panel"><h2>Journal</h2><p class="sub">Enregistré automatiquement : activations, capacités, passes, attaques appliquées, score.</p>
-      <div class="journal">${Object.keys(byR).sort((a, x) => x - a).map(r => `<div class="jr"><span class="lbl">Round ${r}</span><ul>${byR[r].slice().reverse().map(e => `<li><span class="pill">${PH[e.p] ? PH[e.p].s : ''}</span> ${esc(e.t)}</li>`).join('')}</ul></div>`).join('') || '<p class="muted">Rien pour l’instant.</p>'}</div></div></div>`;
+    <div class="stack">${adviceHTMLList()}<div class="panel"><h2>Journal</h2><p class="sub">Enregistré automatiquement : activations, capacités, passes, attaques appliquées, score.</p>
+      <div class="journal">${Object.keys(byR).sort((a, x) => x - a).map(r => `<div class="jr"><span class="lbl">Round ${r}</span><ul>${byR[r].slice().reverse().map(e => `<li><span class="pill">${PH[e.p] ? PH[e.p].s : ''}</span> ${esc(e.t)}</li>`).join('')}</ul></div>`).join('') || '<p class="muted">Rien pour l’instant.</p>'}</div></div></div></div>`;
 }
 
 function resTableHTML(){
@@ -3712,8 +3803,9 @@ document.addEventListener('click', e => {
   if (t.id === 'newGame' || t.id === 'ngYes'){ const ou = S.opp.list; const setup = S.setup; fresh(S.list, ou, setup); if (!ou) S.opp.units = []; U.tab = 'phase'; save(); render(); toast('Nouvelle partie : ' + mission().name + ' sur ' + deploy().name + '.'); return; }
   if (t.id === 'newGameSetup'){ $('#ngConfirm').hidden = false; return; }
   if (t.id === 'ngNo'){ $('#ngConfirm').hidden = true; return; }
-  if (t.id === 'goPasteMe'){ loadMine($('#pasteMe').value); return; }
-  if (t.id === 'goPasteOpp'){ loadOpp($('#pasteOpp').value); return; }
+  if (t.id === 'goPasteMe'){ loadMine(pastedList($('#pasteMe').value)); return; }
+  if (t.id === 'goPasteOpp'){ loadOpp(pastedList($('#pasteOpp').value)); return; }
+  if (t.id === 'saveGame'){ saveGameFile(); return; }
   if (t.id === 'addOpp'){ const race = $('#addRace').value, key = $('#addUnit').value, n = +$('#addN').value;
     if (S.opp.race !== race){ S.opp.units = []; S.opp.race = race; }
     const id = 'o' + Date.now().toString(36); S.opp.units.push({id, side:'o', race, key, start:n, alive:n, upgrades:[], loc:'res', engaged:false, dmg:0, act:{}, penalty:false});
@@ -3735,6 +3827,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target, id = t.id;
+  if (id === 'fileGame' && t.files[0]){ const r = new FileReader(); r.onload = () => loadGameText(r.result); r.readAsText(t.files[0]); t.value = ''; return; }
   if ((id === 'fileMe' || id === 'fileOpp') && t.files[0]){ const r = new FileReader(); r.onload = () => (id === 'fileMe' ? loadMine : loadOpp)(r.result); r.readAsText(t.files[0]); return; }
   if (id === 'selMission'){ const old = mission().level; S.setup.mission = +t.value; if (mission().level !== old) S.setup.deploy = DEPL.findIndex(x => x.level === mission().level); S.markers = mkMarkers(); save(); render(); return; }
   if (id === 'selDeploy'){ S.setup.deploy = +t.value; S.markers = mkMarkers(); save(); render(); return; }
@@ -3822,4 +3915,4 @@ window.addEventListener('hashchange', checkHand);
 setTimeout(checkHand, 0);
 
 </script>
-<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('../sw.js',{scope:'../'}).catch(()=>{}));</script></body></html>
+<style>.upbar{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:9999;display:flex;gap:10px;align-items:center;background:#141c25;color:#fff;border:1px solid #f0a43c;border-radius:10px;padding:8px 10px 8px 14px;font:500 14px/1.3 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 24px)}.upbar button{white-space:nowrap;font:600 14px system-ui,sans-serif;border:0;border-radius:6px;padding:7px 12px;cursor:pointer}.upbar .go{background:#f0a43c;color:#141c25}.upbar .x{background:transparent;color:#fff;padding:7px 8px}</style><script>(function(){if(!('serviceWorker' in navigator))return;const had=!!navigator.serviceWorker.controller;let shown=false;function bar(){if(shown||document.getElementById('upbar'))return;shown=true;const d=document.createElement('div');d.className='upbar';d.id='upbar';d.setAttribute('role','status');d.innerHTML='<span>Nouvelle version disponible</span><button class="go" type="button">Mettre à jour</button><button class="x" type="button" aria-label="Plus tard">✕</button>';d.querySelector('.go').onclick=()=>location.reload();d.querySelector('.x').onclick=()=>d.remove();document.body.appendChild(d);}navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had)bar();});addEventListener('load',()=>navigator.serviceWorker.register('../sw.js',{scope:'../'}).then(reg=>{const chk=()=>reg.update().catch(()=>{});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')chk();});setInterval(chk,30*60*1000);}).catch(()=>{}));})();</script></body></html>
