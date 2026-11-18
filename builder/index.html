@@ -395,8 +395,10 @@ button.group-h[aria-expanded="false"]>span:first-child::before{content:"▸ "}
     <div class="radio" role="radiogroup" aria-label="Contenu">
       <label><input type="radio" name="fmode" id="fmode-sum" value="sum" checked><span><b>Résumé</b>Pour partager : faction, budget, cartes, unités et upgrades.</span></label>
       <label><input type="radio" name="fmode" id="fmode-det" value="detail"><span><b>Aide de jeu</b>Le résumé plus les stats, armes et capacités de chaque unité et carte.</span></label>
+      <label><input type="radio" name="fmode" id="fmode-cards" value="cards"><span><b>Cartes de référence</b>Une carte 63 × 88 mm par unité, avec tes upgrades. 9 par page A4, à découper.</span></label>
     </div>
-    <label class="up" style="margin-top:4px"><input type="checkbox" id="fopt-plan">Ajouter le plan de jeu (pages en plus)</label>
+    <label class="up" style="margin-top:4px" id="fopt-plan-l"><input type="checkbox" id="fopt-plan">Ajouter le plan de jeu (pages en plus)</label>
+    <span class="tags" id="fov-cinfo" hidden></span>
     <div class="fopts" id="fov-opts" hidden>
       <label class="up"><input type="checkbox" id="fopt-cards" checked>Capacités des cartes en format compact (2 colonnes)</label>
       <label class="up"><input type="checkbox" id="fopt-small" checked>Texte plus petit (moins de pages)</label>
@@ -590,6 +592,7 @@ function renderList(){
     <span class="spacer"></span>
     ${actionsHTML(`<button class="btn primary" data-act="fiche">Fiche PDF / image</button>
     <button class="btn primary" data-act="share">Jouer / partager</button>
+    <button class="btn" data-act="cards">Cartes de référence</button>
     <button class="btn" data-act="recap">Copier le récap</button>
     <button class="btn" data-act="export-list">Exporter la liste</button>
     <button class="btn" data-act="import">Importer</button>
@@ -1109,6 +1112,7 @@ document.addEventListener('click',ev=>{
       // fallthrough
     case 'clear-now':state.lists[state.race]={units:[],tactical:[],creep:null};openSheets.clear();break;
     case 'fiche':openFiche();return;
+    case 'cards':openCards();return;
     case 'recap':openExport('Récapitulatif de la liste','Texte à coller dans un message ou un document.',recapText(),null);return;
     case 'export-list':openExport('Exporter la liste',"Gardez ce fichier pour recharger la liste plus tard avec « Importer ». Si le téléchargement ne démarre pas, copiez le texte dans un fichier .json.",JSON.stringify(listFile(),null,2),`liste-${state.race.toLowerCase()}.json`);return;
     case 'export-col':openExport('Exporter ma collection',"Ce fichier est votre sauvegarde de référence : le navigateur garde une copie automatique, mais elle peut être effacée. Si le téléchargement ne démarre pas, copiez le texte dans un fichier .json.",JSON.stringify(colFile(),null,2),'collection-sctmg.json');return;
@@ -1232,7 +1236,7 @@ const FICHE_ACC={ZERG:'#7E3697',TERRAN:'#A94F17',PROTOSS:'#8C6A0C'};
 /* rendu sans bibliothèque externe : DOM → SVG foreignObject → canvas ; PDF minimal écrit à la main (images JPEG) */
 async function domToCanvas(el){const host=ficheHost();host.innerHTML='';host.appendChild(el);const w=el.offsetWidth,h=el.offsetHeight;
   const xml=new XMLSerializer().serializeToString(el);host.innerHTML='';
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml"><style>${FICHE_CSS}</style>${xml}</div></foreignObject></svg>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml"><style>${FICHE_CSS}${el.classList.contains('cardsheet')?CARD_CSS:''}</style>${xml}</div></foreignObject></svg>`;
   const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);await img.decode();
   const s=3,cv=document.createElement('canvas');cv.width=w*s;cv.height=h*s;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.scale(s,s);cx.drawImage(img,0,0);return cv;}
 function b64bytes(d){const b=atob(d.split(',')[1]);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
@@ -1380,7 +1384,7 @@ function splitBlock(b,page){const w=document.createElement('div');w.className='b
   const cont=`<div class="ub"><div class="uh"><h3>${esc(title.replace(/\s+/g,' ').trim())} <span>(suite)</span></h3></div><ul class="ab">${rest.map(x=>x.startsWith('<p')?x.replace(/^<p/,'<li').replace(/<\/p>$/,'</li>'):x).join('')}</ul></div>`;
   return [first,cont];}
 async function ficheCanvas(blocks,acc,small){return domToCanvas(fichePage(blocks,acc,small));}
-async function exportFiche(kind,mode,opts){opts=opts||{};
+async function exportFiche(kind,mode,opts){opts=opts||{};if(mode==='cards')return exportCards(kind);
   const {blocks,acc,race}=ficheBlocks(mode,opts);const sm=!!opts.small;const base=`liste-${race.toLowerCase()}-${mode==='detail'?'aide-de-jeu':'resume'}`;
   if(kind==='png'){const cv=await ficheCanvas(blocks,acc,sm);const blob=await new Promise(r=>cv.toBlob(r,'image/png'));return saveBlob(base+'.png',blob);}
   const pages=fichePaginate(blocks,acc,sm);const cvs=[];
@@ -1390,6 +1394,8 @@ async function exportFiche(kind,mode,opts){opts=opts||{};
 function openFiche(){const o=document.getElementById('fov');o.hidden=false;renderFichePreview();document.getElementById('fov-pdf').focus();}
 function ficheOpts(){return {compactCards:document.getElementById('fopt-cards').checked,small:document.getElementById('fopt-small').checked,plan:document.getElementById('fopt-plan').checked};}
 function renderFichePreview(){const mode=document.querySelector('input[name="fmode"]:checked').value;const o=ficheOpts();document.getElementById('fov-opts').hidden=mode!=='detail';
+  document.getElementById('fopt-plan-l').hidden=mode==='cards';document.getElementById('fov-cinfo').hidden=mode!=='cards';
+  if(mode==='cards'){renderCardsPreview();document.getElementById('fov-msg').textContent='';document.getElementById('fov-msg').className='msg';return;}
   const {blocks,acc}=ficheBlocks(mode,o);const pv=document.getElementById('fov-prev');pv.innerHTML='';ficheHost();const pg=fichePage(blocks,acc,mode==='detail'&&o.small);pv.appendChild(pg);
   if(mode==='detail'){const n=fichePaginate(blocks,acc,o.small).length;document.getElementById('fov-pages').textContent=`${n} page${n>1?'s':''} A4`;}
   document.getElementById('fov-msg').textContent='';document.getElementById('fov-msg').className='msg';}
@@ -2057,6 +2063,89 @@ ensureSlots();
 /* ---------- v9 : pistes d'ajustement venues de l'aide de jeu ---------- */
 function fbBanner(){const f=state.fb;if(!f||!curSlot()||f.slot!==curSlot().id||!(f.lines||[]).length)return '';
   return `<section class="fbbanner" aria-label="Pistes après ta partie"><div class="h"><span class="lbl">Pistes après ta dernière partie</span><button class="btn sm" data-act="fb-hide">Masquer</button></div><ul>${f.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></section>`;}
+
+
+/* ---------- v10 : cartes de référence à imprimer (63 × 88 mm, 9 par page A4) ---------- */
+const CARD_CSS=`
+.cardsheet{width:680px;height:962px;background:#fff;box-sizing:border-box;padding:42px 0 0;display:flex;flex-direction:column;align-items:center;font-family:Helvetica,Arial,sans-serif;color:#141c25}
+.cardsheet .cgrid{display:grid;grid-template-columns:repeat(3,204.00px);grid-auto-rows:284.95px;gap:3.89px}
+.cardsheet .cfoot{margin-top:8.10px;font-size:6.85px;color:#8a96a3;letter-spacing:.05em;text-transform:uppercase}
+.cardsheet *{box-sizing:border-box}
+.rcard{line-height:1.2;letter-spacing:normal;text-align:left;width:204.00px;height:284.95px;box-sizing:border-box;background:#fff;border:0.97px solid #9aa6b2;border-radius:9.71px;overflow:hidden;display:flex;flex-direction:column;font-family:Helvetica,Arial,sans-serif;color:#141c25}
+.rcard .rh{background:var(--rc);color:#fff;padding:7.12px 8.42px 5.83px;display:flex;justify-content:space-between;gap:6.48px;align-items:flex-start}
+.rcard .rn{font-weight:700;font-size:12.00px;line-height:1.05}
+.rcard .rsub{font-size:6.40px;opacity:.92;margin-top:1.94px}
+.rcard .rrt{text-align:right;display:flex;flex-direction:column;gap:1.94px;align-items:flex-end}
+.rcard .rrole{font-weight:700;font-size:6.17px;letter-spacing:.06em;text-transform:uppercase;border:0.81px solid rgba(255,255,255,.75);border-radius:3.24px;padding:0.65px 3.89px}
+.rcard .rsup{font-size:6.63px;white-space:nowrap}
+.rcard .rs{display:flex;border-bottom:0.81px solid #d6dde5}
+.rcard .rs div{flex:1;text-align:center;padding:3.24px 0 2.59px;border-right:0.81px solid #e3e8ee}.rcard .rs div:last-child{border-right:0}
+.rcard .rs b{display:block;font-weight:700;font-size:9.71px;line-height:1}.rcard .rs span{font-size:5.48px;text-transform:uppercase;letter-spacing:.05em;color:#586574}
+.rcard table.rw{width:100%;border-collapse:collapse;font-size:6.28px;line-height:1.2}
+.rcard table.rw th{font-size:5.26px;text-transform:uppercase;color:#586574;text-align:left;padding:1.94px 1.62px;border-bottom:0.81px solid #d6dde5;font-weight:600}
+.rcard table.rw th{letter-spacing:.03em;background:none}
+.rcard table.rw td{text-align:left;padding:1.94px 1.62px;border-bottom:0.81px solid #eef1f4;white-space:nowrap}
+.rcard table.rw td:first-child{white-space:normal;padding-left:6.48px}.rcard table.rw th:first-child{padding-left:6.48px}
+.rcard table.rw td.rsg{white-space:normal}
+.rcard table.rw tr.rkw td{color:#586574;font-style:italic;white-space:normal;padding-top:0;padding-left:6.48px;border-bottom:0.81px solid #e3e8ee}
+.rcard .ras{flex:1;padding:3.24px 6.48px;display:flex;flex-direction:column;gap:3.24px;overflow:hidden;min-height:0}
+.rcard .ra .rah{display:flex;gap:3.89px;align-items:baseline;flex-wrap:wrap}
+.rcard .ra b{font-weight:700;font-size:7.31px;color:var(--rc)}
+.rcard .ra .rah span{font-size:5.71px;color:#586574}
+.rcard .ra .rah span.rup{font-size:5.26px;text-transform:uppercase;letter-spacing:.05em;background:#eef1f4;border-radius:2.59px;padding:0 2.59px;color:#141c25}
+.rcard .ra p{margin:0.97px 0 0;font-size:6.40px;line-height:1.25}
+.rcard.dense .ra p{font-size:5.71px;line-height:1.2}.rcard.dense .ra b{font-size:6.74px}.rcard.dense .ras{gap:1.94px}
+.rcard .rf{display:flex;justify-content:space-between;font-size:5.26px;color:#8a96a3;padding:2.59px 6.48px;border-top:0.81px solid #eef1f4;text-transform:uppercase;letter-spacing:.05em}
+`;
+const PHFR={ASSAULT:'Assaut',COMBAT:'Combat',MOVEMENT:'Mouvement',ANY:'Toute phase'};
+const TYFR={PASSIVE:'Passive',ACTIVE:'Active',REACTION:'Réaction'};
+const TGFR={Ground:'Sol',All:'Tous',Flying:'Air'};
+/* rendu isolé (Shadow DOM) : aperçu et mesure identiques au PDF, sans les styles de la page */
+function shadowBox(extra){const h=document.createElement('div');h.style.cssText='all:initial;display:block';const r=h.attachShadow({mode:'open'});r.innerHTML=`<style>${FICHE_CSS}${CARD_CSS}${extra||''}</style>`;return [h,r];}
+const PREV_CSS='.cardsheet{zoom:.75;margin:0 auto 10px;box-shadow:0 1px 4px rgb(0 0 0 / .2)}@media (max-width:600px){.cardsheet{zoom:.5}}';
+function cardAb(k,a,isUp){const meta=[TYFR[a.type]||cap(a.type||''),PHFR[a.phase]||cap(a.phase||'')];if(a.restriction)meta.push(a.restriction);if(a.cost)meta.push(costTxt(a.cost));
+  let opt='';if(a.options)opt=a.options.map(o=>`<br>• ${esc(costTxt(o.cost))} : ${esc(frB(o.effect)||o.effect||'')}`).join('');
+  return `<div class="ra"><div class="rah"><b>${esc(abName(k,a))}</b>${isUp?'<span class="rup">upgrade</span>':''}<span>${esc(meta.filter(Boolean).join(' · '))}</span></div><p>${esc(frB(a.text)||a.text||'')}${opt}</p></div>`;}
+/* une "spec" de carte : en-tête, stats, armes, liste de capacités (HTML), pied */
+function cardSpecs(){const c=compute(),{R,L,F,race}=c;const acc=FICHE_ACC[race];const out=[];
+  const statsOf=u=>fStats(u).map(([l,v])=>[({Vitesse:'Speed',Size:'Taille',Shield:'Bouclier'})[l]||l,v]);
+  const wHTML=(u,e)=>{const ws=fWeapons(u,e);if(!ws.length)return '';
+    return `<table class="rw"><thead><tr><th>Arme</th><th></th><th>Port.</th><th>Cible</th><th>RoA</th><th>Hit</th><th>Surge</th><th>Dmg</th></tr></thead><tbody>${ws.map(([n,w,note])=>{const kw=(w.keywords||[]).join(', ');const sg=fSurge(w)==='–'?'–':`${fSurge(w)}${w.s_dice?' '+w.s_dice:''}`;
+      return `<tr><td><b>${esc(n)}</b></td><td>${(w.phase||'ASSAULT')==='COMBAT'?'CàC':'Tir'}</td><td>${esc(fRng(w))}</td><td>${esc(TGFR[w.target]||w.target||'')}</td><td>${esc(w.roa)}</td><td>${esc(w.hit)}</td><td class="rsg">${esc(sg)}</td><td>${esc(w.dmg)}</td></tr>${kw||note?`<tr class="rkw"><td colspan="8">${esc([note,kw].filter(Boolean).join(' · '))}</td></tr>`:''}`;}).join('')}</tbody></table>`;};
+  c.rows.forEach(r=>{const u=r.u,e=r.e;
+    const ab=Object.entries(u.abilities||{}).filter(([k])=>k!=='STRUCTURE').map(([k,a])=>cardAb(k,a));
+    const up=e.up.map(k=>[k,u.upgrades[k]]).filter(([k,x])=>x&&!x.weapon_replacement&&!x.weapon_added).map(([k,a])=>cardAb(k,a,true));
+    out.push({acc,name:nm(e.key,u),tags:(u.combat_tags||[]).join(', '),role:u.combat_role||'',right:`${r.c.models} fig. · supply ${r.c.supply_value}`,stats:statsOf(u),weapons:wHTML(u,e),abs:ab.concat(up),foot:[SLOTFR[u.army_slot]||'',`${r.cost} minéraux`]});});
+  activeSummons(race,c.fk,L).forEach(x=>{const u=x.s;
+    out.push({acc,name:nm(x.k,u),tags:(u.combat_tags||[]).join(', '),role:u.combat_role||'',right:'Invocation',stats:statsOf(u),weapons:wHTML(u,{up:[]}),abs:Object.entries(u.abilities||{}).filter(([k])=>k!=='STRUCTURE').map(([k,a])=>cardAb(k,a)),foot:['Invocation',srcTxt(race,x)]});});
+  return out;}
+function cardHTML(s,abs,cont,dense){
+  return `<div class="rcard${dense?' dense':''}" style="--rc:${s.acc}"><div class="rh"><div><div class="rn">${esc(s.name)}${cont?' <span style="font-weight:400;font-size:.7em">(suite)</span>':''}</div><div class="rsub">${esc(s.tags)}</div></div><div class="rrt">${s.role?`<span class="rrole">${esc(s.role)}</span>`:''}<span class="rsup">${esc(s.right)}</span></div></div>
+  ${cont?'':`<div class="rs">${s.stats.map(([l,v])=>`<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>${s.weapons}`}
+  <div class="ras">${abs.join('')}</div><div class="rf"><span>${esc(s.foot[0])}</span><span>${esc(s.foot[1]||'')}</span></div></div>`;}
+/* mesure réelle : texte plus serré si besoin, sinon les capacités en trop passent sur une carte « (suite) » */
+function cardList(){const [host,root]=shadowBox();host.style.cssText='all:initial;display:block;position:fixed;left:-10000px;top:0';document.body.appendChild(host);const box=document.createElement('div');box.className='cardsheet';root.appendChild(box);
+  const over=h=>{box.innerHTML=h;const a=box.querySelector('.ras');return a.scrollHeight>a.clientHeight+1;};
+  const res=[];
+  cardSpecs().forEach(s=>{let abs=s.abs.slice(),cont=false,guard=0;
+    while(guard++<8){if(!over(cardHTML(s,abs,cont,false))){res.push(cardHTML(s,abs,cont,false));break;}
+      if(!over(cardHTML(s,abs,cont,true))){res.push(cardHTML(s,abs,cont,true));break;}
+      let n=abs.length;const lo=cont?1:0;while(n>lo&&over(cardHTML(s,abs.slice(0,n),cont,true)))n--;
+      res.push(cardHTML(s,abs.slice(0,n),cont,true));if(n>=abs.length)break;abs=abs.slice(n);cont=true;}});
+  host.remove();return res;}
+function cardPages(){const cards=cardList();const pages=[];for(let i=0;i<cards.length;i+=9)pages.push(cards.slice(i,i+9));return pages;}
+function cardSheet(pg,i,n){const d=document.createElement('div');d.className='cardsheet';d.style.width='680px';d.style.height='962px';
+  d.innerHTML=`<div class="cgrid">${pg.join('')}</div><div class="cfoot">StarCraft TMG · cartes de référence · ${esc(RLABEL[state.race])}${n>1?` · page ${i+1}/${n}`:''} · à découper</div>`;return d;}
+function renderCardsPreview(){const pv=document.getElementById('fov-prev');pv.innerHTML='';const pages=cardPages();const [ph,pr]=shadowBox(PREV_CSS);pv.appendChild(ph);
+  if(!pages.length){pv.innerHTML='<p style="padding:20px;text-align:center">Ajoute des unités à ta liste pour obtenir leurs cartes.</p>';}
+  pages.forEach((pg,i)=>pr.appendChild(cardSheet(pg,i,pages.length)));
+  const nc=pages.reduce((s,p)=>s+p.length,0);document.getElementById('fov-cinfo').textContent=nc?`${nc} carte${nc>1?'s':''} · ${pages.length} page${pages.length>1?'s':''} A4. Imprime à 100 % (taille réelle) pour obtenir 63 × 88 mm.`:'';}
+async function exportCards(kind){const pages=cardPages();if(!pages.length)throw {code:'empty'};const base=`cartes-${state.race.toLowerCase()}`;
+  const cvs=[];for(let i=0;i<pages.length;i++){cvs.push(await domToCanvas(cardSheet(pages[i],i,pages.length)));}
+  if(kind==='png'){const W=cvs[0].width,H=cvs.reduce((s,c)=>s+c.height,0);const all=document.createElement('canvas');all.width=W;all.height=H;const cx=all.getContext('2d');let y=0;cvs.forEach(c=>{cx.drawImage(c,0,y);y+=c.height;});
+    const blob=await new Promise(r=>all.toBlob(r,'image/png'));return saveBlob(base+'.png',blob);}
+  return saveBlob(base+'.pdf',buildPdf(cvs));}
+function openCards(){document.getElementById('fmode-cards').checked=true;openFiche();}
 
 render();
 })();
