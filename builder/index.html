@@ -2156,7 +2156,8 @@ function openCards(){document.getElementById('fmode-cards').checked=true;openFic
 /* ---------- v11 : vrai PDF texte via l'impression du navigateur ---------- */
 const PRINT_CSS=`#printZone{display:none}
 @media print{
-  html,body{background:#fff!important;padding:0!important;margin:0!important}
+  :root,html,body{background:#fff!important;background-image:none!important;color-scheme:light!important;padding:0!important;margin:0!important}
+  body::before,body::after,html::before,html::after{display:none!important;content:none!important}
   body>*:not(#printZone){display:none!important}
   #printZone{display:block!important;color:#1b2127;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #printZone .fiche{width:auto!important;padding:0!important;box-shadow:none!important;overflow:visible!important;zoom:1.15}
@@ -2181,6 +2182,43 @@ function printFiche(){const mode=document.querySelector('input[name="fmode"]:che
   else{const o=ficheOpts();const {blocks,acc}=ficheBlocks(mode,mode==='detail'?o:{plan:o.plan});ficheHost();
     pg.textContent='@media print{@page{size:A4 portrait;margin:12mm 12mm 14mm}}';
     const d=fichePage(blocks,acc,mode==='detail'&&o.small);[...d.children].forEach(b=>{if(/<table/.test(b.innerHTML)&&b.querySelectorAll('tr').length>14)b.classList.add('big');});z.appendChild(d);}
+  const done=()=>{const zz=document.getElementById('printZone');if(zz)zz.remove();window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);
+  setTimeout(()=>{try{window.print();}catch(e){done();throw e;}},50);
+}
+
+
+/* ---------- v12 : fiche isolée des styles de la page (thème sombre, skins) ---------- */
+const FICHE_PRINT_IN=`.fiche{width:auto!important;padding:0!important;box-shadow:none!important;overflow:visible!important;zoom:1.15;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.fiche.small{zoom:1.1}
+.blk{break-inside:avoid;page-break-inside:avoid}.blk.big{break-inside:auto;page-break-inside:auto}
+h2,h3,.pl-ph{break-after:avoid;page-break-after:avoid}
+h2.sec{break-before:page;page-break-before:always;margin-top:0}
+tr,li,.ub,.cc{break-inside:avoid;page-break-inside:avoid}thead{display:table-header-group}`;
+const FICHE_PREV_IN=`.fiche{zoom:.75;margin:0 auto;box-shadow:0 1px 4px rgb(0 0 0 / .2)}@media (max-width:600px){.fiche{zoom:.5}}`;
+function isoBox(css,fixed){const h=document.createElement('div');h.style.cssText='all:initial;display:block'+(fixed?';position:fixed;left:-10000px;top:0;z-index:-1':'');
+  const r=h.attachShadow({mode:'open'});const st=document.createElement('style');st.textContent='*{box-sizing:border-box}'+FICHE_CSS+(css||'');r.appendChild(st);
+  const box=document.createElement('div');r.appendChild(box);return [h,box];}
+/* hôte de mesure : même rendu que l'image du PDF (FICHE_CSS seul) */
+let FH=null;
+function ficheHost(){if(!FH||!FH[0].isConnected){FH=isoBox('',true);document.body.appendChild(FH[0]);}return FH[1];}
+function renderFichePreview(){const mode=document.querySelector('input[name="fmode"]:checked').value;const o=ficheOpts();document.getElementById('fov-opts').hidden=mode!=='detail';
+  document.getElementById('fopt-plan-l').hidden=mode==='cards';document.getElementById('fov-cinfo').hidden=mode!=='cards';
+  const msg=document.getElementById('fov-msg');msg.textContent='';msg.className='msg';
+  if(mode==='cards'){renderCardsPreview();return;}
+  const {blocks,acc}=ficheBlocks(mode,o);const pv=document.getElementById('fov-prev');pv.innerHTML='';
+  const [h,box]=isoBox(FICHE_PREV_IN,false);box.appendChild(fichePage(blocks,acc,mode==='detail'&&o.small));pv.appendChild(h);
+  if(mode==='detail'){const n=fichePaginate(blocks,acc,o.small).length;document.getElementById('fov-pages').textContent=`${n} page${n>1?'s':''} A4`;}}
+function printFiche(){const mode=document.querySelector('input[name="fmode"]:checked').value;const [z,pg]=printReady();
+  if(mode==='cards'){const pages=cardPages();if(!pages.length)throw {code:'empty'};
+    pg.textContent='@media print{@page{size:A4 portrait;margin:0}}';
+    const h=document.createElement('div');const r=h.attachShadow({mode:'open'});
+    r.innerHTML=`<style>${CARD_CSS}.cardsheet{zoom:1.1672;height:auto!important;min-height:0;padding-top:30px;break-after:page;page-break-after:always}.cardsheet:last-child{break-after:auto;page-break-after:auto}.rcard{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>`;
+    pages.forEach((p,i)=>{const s=cardSheet(p,i,pages.length);s.style.height='';r.appendChild(s);});z.appendChild(h);}
+  else{const o=ficheOpts();const {blocks,acc}=ficheBlocks(mode,mode==='detail'?o:{plan:o.plan});
+    pg.textContent='@media print{@page{size:A4 portrait;margin:12mm 12mm 14mm}}';
+    const d=fichePage(blocks,acc,mode==='detail'&&o.small);[...d.children].forEach(b=>{if(b.querySelector('.plan-sec')||(/<table/.test(b.innerHTML)&&b.querySelectorAll('tr').length>14))b.classList.add('big');});
+    const [h,box]=isoBox(FICHE_PRINT_IN,false);box.appendChild(d);z.appendChild(h);}
   const done=()=>{const zz=document.getElementById('printZone');if(zz)zz.remove();window.removeEventListener('afterprint',done);};
   window.addEventListener('afterprint',done);
   setTimeout(()=>{try{window.print();}catch(e){done();throw e;}},50);
