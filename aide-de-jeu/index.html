@@ -1108,11 +1108,11 @@ function renderGame(){
     <div class="row" style="margin-top:10px"><button class="btn" id="saveGame">Sauvegarder la partie</button><label class="btn" style="cursor:pointer">Reprendre une partie<input type="file" id="fileGame" accept=".json,application/json" hidden></label><span class="small muted">Pour la continuer sur un autre appareil ou un autre jour.</span></div>
     <div id="ngConfirm" hidden class="note warn" style="margin-top:8px">Le round, les PV, le journal et l’état des unités repartent à zéro. <button class="btn" id="ngYes">Oui, commencer</button> <button class="btn ghost" id="ngNo">Non</button></div></div>
   <div class="panel"><h2>${esc(d.name)}</h2><p class="sub">Tu es <b>${COLFR[myCol()]}</b>. Bandes colorées : Entry Edges et Zone of Influence (6"). Marqueurs 1 et 3 rouges, 2 et 4 bleus, 5 neutre. Pointillés : marqueur désactivé.</p>${mapSVG()}</div></div>
-  <div class="cols"><div class="panel"><h2>Ma liste</h2><p class="sub">${myL._sample ? '<b>Exemple affiché.</b> ' : ''}${esc(RACEFR[S.race])} · ${S.units.length} unités · ${S.cards.length} cartes. Charge l’export JSON du builder.</p><div class="row" style="margin-bottom:10px">${planBtn('pri')}<span class="small muted">Rôles, ordre d’entrée, capacités, cibles et menaces face à l’armée adverse.</span></div>
+  <div class="cols"><div class="panel"><h2>Ma liste</h2><p class="sub">${myL._sample ? '<b>Exemple affiché.</b> ' : ''}${esc(RACEFR[S.race])} · ${S.units.length} unité${S.units.length > 1 ? 's' : ''} · ${S.cards.length} carte${S.cards.length > 1 ? 's' : ''}. Charge l’export JSON du builder.</p><div class="row" style="margin-bottom:10px">${planBtn('pri')}<span class="small muted">Rôles, ordre d’entrée, capacités, cibles et menaces face à l’armée adverse.</span></div>
       <div class="row"><input type="file" id="fileMe" accept=".json,application/json"></div>
       <textarea class="paste" id="pasteMe" placeholder='Ou colle ici ton lien de partage du builder, ou le contenu du fichier exporté'></textarea>
       <div class="row" style="margin-top:6px"><button class="btn" id="goPasteMe">Charger le texte collé</button></div></div>
-    <div class="panel"><h2>Liste adverse</h2><p class="sub">${opL && opL._sample ? '<b>Exemple affiché.</b> ' : ''}${S.opp.units.length ? esc(RACEFR[S.opp.race]) + ' · ' + S.opp.units.length + ' unités.' : 'Aucune unité.'} Importe son export du builder, ou ajoute ses unités une par une.</p>
+    <div class="panel"><h2>Liste adverse</h2><p class="sub">${opL && opL._sample ? '<b>Exemple affiché.</b> ' : ''}${S.opp.units.length ? esc(RACEFR[S.opp.race]) + ' · ' + S.opp.units.length + ' unité' + (S.opp.units.length > 1 ? 's' : '') + '.' : 'Aucune unité.'} Importe son export du builder, ou ajoute ses unités une par une.</p>
       <div class="row"><input type="file" id="fileOpp" accept=".json,application/json"></div>
       <textarea class="paste" id="pasteOpp" placeholder="Ou colle ici son lien de partage (envoyé depuis son builder) ou son export JSON"></textarea>
       <div class="row" style="margin-top:6px"><button class="btn" id="goPasteOpp">Charger le texte collé</button></div>
@@ -4052,8 +4052,8 @@ function readList(txt){
   if (j.type !== 'sctmg-list' || !DB.races[j.race]){ toast('Ce fichier n’est pas une liste exportée du builder (type « sctmg-list » attendu).'); return null; }
   return j;
 }
-function loadMine(txt){ const j = readList(txt); if (!j) return; const opp = S.opp.list, setup = S.setup, ou = S.opp.units; fresh(j, opp, setup); S.opp.units = ou; save(); render(); toast('Ta liste est chargée : ' + S.units.length + ' unités, ' + S.cards.length + ' cartes.'); }
-function loadOpp(txt){ const j = readList(txt); if (!j) return; S.opp = {list:j, race:j.race, units:mkUnits(j, 'o')}; save(); render(); toast('Liste adverse chargée : ' + S.opp.units.length + ' unités.'); }
+function loadMine(txt){ const j = readList(txt); if (!j) return; const opp = S.opp.list, setup = S.setup, ou = S.opp.units; fresh(j, opp, setup); S.opp.units = ou; save(); render(); toast('Ta liste est chargée : ' + S.units.length + ' unité' + (S.units.length > 1 ? 's' : '') + ', ' + S.cards.length + ' carte' + (S.cards.length > 1 ? 's' : '') + '.'); }
+function loadOpp(txt){ const j = readList(txt); if (!j) return; S.opp = {list:j, race:j.race, units:mkUnits(j, 'o')}; save(); render(); toast('Liste adverse chargée : ' + S.opp.units.length + ' unité' + (S.opp.units.length > 1 ? 's' : '') + '.'); }
 
 /* ================= événements ================= */
 document.addEventListener('click', e => {
