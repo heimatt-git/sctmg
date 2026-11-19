@@ -406,12 +406,14 @@ button.group-h[aria-expanded="false"]>span:first-child::before{content:"▸ "}
     </div>
     <div class="fprev" id="fov-prev" aria-label="Aperçu"></div>
     <div class="row">
-      <button class="btn primary" id="fov-pdf">Télécharger en PDF</button>
-      <button class="btn" id="fov-png">Télécharger en image PNG</button>
+      <button class="btn primary" id="fov-print">Imprimer / PDF</button>
+      <button class="btn" id="fov-pdf">PDF en images</button>
+      <button class="btn" id="fov-png">Image PNG</button>
       <span class="spacer"></span>
       <button class="btn" id="fov-close">Fermer</button>
     </div>
     <p class="msg" id="fov-msg"></p>
+    <p class="tags" id="fov-phelp">« Imprimer / PDF » donne un vrai PDF avec du texte net : dans la fenêtre d’impression, choisis « Enregistrer au format PDF » (sur Android : imprimante « Enregistrer au format PDF », puis le bouton PDF). « PDF en images » reste là si l’impression est bloquée.</p>
   </div>
 </div>
 <div class="overlay" id="tov" hidden>
@@ -1391,7 +1393,10 @@ async function exportFiche(kind,mode,opts){opts=opts||{};if(mode==='cards')retur
   for(const pg of pages){const el=fichePage(pg,acc,sm);el.style.height=PAGE_H+'px';cvs.push(await domToCanvas(el));}
   return saveBlob(base+'.pdf',buildPdf(cvs));
 }
-function openFiche(){const o=document.getElementById('fov');o.hidden=false;renderFichePreview();document.getElementById('fov-pdf').focus();}
+function openFiche(){const o=document.getElementById('fov');o.hidden=false;renderFichePreview();document.getElementById('fov-print').focus();}
+document.getElementById('fov-print').onclick=()=>{const m=document.getElementById('fov-msg');m.className='msg';
+  if(!/github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname)&&location.protocol!=='file:')m.textContent='Si rien ne s’ouvre, l’impression est bloquée ici : utilise le builder du site, ou « PDF en images ».';else m.textContent='';
+  try{printFiche();}catch(e){m.className='msg err';m.textContent=e&&e.code==='empty'?'Ajoute des unités à ta liste d’abord.':'L’impression n’a pas pu démarrer ici. Utilise « PDF en images ».';}};
 function ficheOpts(){return {compactCards:document.getElementById('fopt-cards').checked,small:document.getElementById('fopt-small').checked,plan:document.getElementById('fopt-plan').checked};}
 function renderFichePreview(){const mode=document.querySelector('input[name="fmode"]:checked').value;const o=ficheOpts();document.getElementById('fov-opts').hidden=mode!=='detail';
   document.getElementById('fopt-plan-l').hidden=mode==='cards';document.getElementById('fov-cinfo').hidden=mode!=='cards';
@@ -2146,6 +2151,40 @@ async function exportCards(kind){const pages=cardPages();if(!pages.length)throw 
     const blob=await new Promise(r=>all.toBlob(r,'image/png'));return saveBlob(base+'.png',blob);}
   return saveBlob(base+'.pdf',buildPdf(cvs));}
 function openCards(){document.getElementById('fmode-cards').checked=true;openFiche();}
+
+
+/* ---------- v11 : vrai PDF texte via l'impression du navigateur ---------- */
+const PRINT_CSS=`#printZone{display:none}
+@media print{
+  html,body{background:#fff!important;padding:0!important;margin:0!important}
+  body>*:not(#printZone){display:none!important}
+  #printZone{display:block!important;color:#1b2127;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printZone .fiche{width:auto!important;padding:0!important;box-shadow:none!important;overflow:visible!important;zoom:1.15}
+  #printZone .fiche.small{zoom:1.1}
+  #printZone .blk{break-inside:avoid;page-break-inside:avoid}
+  #printZone .blk.big{break-inside:auto;page-break-inside:auto}
+  #printZone h2,#printZone h3,#printZone .pl-ph{break-after:avoid;page-break-after:avoid}
+  #printZone h2.sec{break-before:page;page-break-before:always;margin-top:0}
+  #printZone tr,#printZone li,#printZone .ub,#printZone .cc{break-inside:avoid;page-break-inside:avoid}
+  #printZone thead{display:table-header-group}
+  #printZone .ff{margin-top:12px}
+}`;
+function printReady(){let st=document.getElementById('print-css');if(!st){st=document.createElement('style');st.id='print-css';st.textContent=PRINT_CSS;document.head.appendChild(st);}
+  let pg=document.getElementById('page-css');if(!pg){pg=document.createElement('style');pg.id='page-css';document.head.appendChild(pg);}
+  let z=document.getElementById('printZone');if(z)z.remove();z=document.createElement('div');z.id='printZone';document.body.appendChild(z);return [z,pg];}
+function printFiche(){const mode=document.querySelector('input[name="fmode"]:checked').value;const [z,pg]=printReady();
+  if(mode==='cards'){const pages=cardPages();if(!pages.length)throw {code:'empty'};
+    pg.textContent='@media print{@page{size:A4 portrait;margin:0}}';
+    const h=document.createElement('div');const r=h.attachShadow({mode:'open'});
+    r.innerHTML=`<style>${CARD_CSS}.cardsheet{zoom:1.1672;height:auto!important;min-height:0;padding-top:30px;break-after:page;page-break-after:always}.cardsheet:last-child{break-after:auto;page-break-after:auto}.rcard{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>`;
+    pages.forEach((p,i)=>{const s=cardSheet(p,i,pages.length);s.style.height='';r.appendChild(s);});z.appendChild(h);}
+  else{const o=ficheOpts();const {blocks,acc}=ficheBlocks(mode,mode==='detail'?o:{plan:o.plan});ficheHost();
+    pg.textContent='@media print{@page{size:A4 portrait;margin:12mm 12mm 14mm}}';
+    const d=fichePage(blocks,acc,mode==='detail'&&o.small);[...d.children].forEach(b=>{if(/<table/.test(b.innerHTML)&&b.querySelectorAll('tr').length>14)b.classList.add('big');});z.appendChild(d);}
+  const done=()=>{const zz=document.getElementById('printZone');if(zz)zz.remove();window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);
+  setTimeout(()=>{try{window.print();}catch(e){done();throw e;}},50);
+}
 
 render();
 })();
