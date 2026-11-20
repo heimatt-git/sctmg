@@ -743,7 +743,7 @@ function wVs(w,t,xp,xae,xc){
   moved=Math.min(hits,moved+kwN(w.keywords,'CRITICAL HIT')+(xc||0));
   const fail=1-pOk(tn(t.stats.armour));const dmg=kwPierce(w.keywords,t.combat_tags)??(+w.dmg||0);
   let e=(moved+(hits-moved)*fail)*dmg;
-  if(t._ev){const ae=kwN(w.keywords,'ANTI-EVADE')+(xae||0);const pe=pOk(Math.min(7,t._ev.tn+ae));e*=1-pe*t._ev.cov;}
+  if(t._ev){const ae=kwN(w.keywords,'ANTI-EVADE')+(xae||0);const pe=pOk(Math.max(2,Math.min(6,t._ev.tn+ae)));e*=1-pe*t._ev.cov;}
   if(hasKw(w,'INSTANT'))e*=1+0.08*(t._r||0);
   const cf=kwN(w.keywords,'CONCENTRATED FIRE');if(cf)e=Math.min(e,cf*(t.stats.hp||1));
   return e;
