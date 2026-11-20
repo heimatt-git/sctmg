@@ -1040,7 +1040,7 @@ function refund(id){
   (e.red || []).forEach(rk => { const [h, k] = rk.split('|'); delete S.used[h + ':' + k]; });
   const k = e.holder + ':' + e.key; if (S.used[k]){ S.used[k].n--; if (S.used[k].n <= 0) delete S.used[k]; }
   if (e.bur){ const bu = findU(e.bur.uid); if (bu) Object.assign(bu, e.bur.prev); }
-  if (e.tok) delTok(e.tok); if (e.sum) undoSummon(e);
+  if (e.tok) delTok(e.tok); if (e.sum) undoSummon(e); if (e.worm && S.worm) delete S.worm.me;
   S.spent.splice(i, 1); logA('Annulé : ' + e.name + (e.who ? ' (' + e.who + ')' : ''), 'ab'); save();
 }
 function ledgerHTML(){
@@ -1437,7 +1437,7 @@ function renderFlow(u){
     <div class="row">
       ${l.attack ? `<button class="btn acc" data-goatk="${l.attack}">Résoudre l’attaque pas à pas</button>` : ''}
       ${l.act && !l.charge && !l.ccEnd && !l.sabotage ? `<button class="btn pri" data-act="${l.act}"${l.x ? ` data-x="${esc(l.x)}"` : ''}>Valider l’action</button>` : ''}
-      ${(l.btns || []).map(([lb, ac, x]) => `<button class="btn pri" data-act="${ac}" data-x="${esc(x)}">${esc(lb)}</button>`).join('')}
+      ${(l.btns || []).concat(wormBackBtns(u, l.act)).map(([lb, ac, x]) => `<button class="btn pri" data-act="${ac}" data-x="${esc(x)}">${esc(lb)}</button>`).join('')}
       ${l.charge ? `<button class="btn pri" data-act="charge" data-x="ok">Charge réussie</button><button class="btn" data-act="charge" data-x="ko">Charge ratée</button>` : ''}
       ${l.ccEnd ? `<button class="btn pri" data-act="cc" data-x="eng">Terminé, toujours engagée</button><button class="btn" data-act="cc" data-x="free">Terminé, plus engagée</button>` : ''}
       ${l.undo ? `<button class="btn ghost" data-unact="1">Annuler son activation</button>` : ''}
@@ -2112,6 +2112,7 @@ function simpleActions(u){
     }
     A.push({label:'Move', act:'move', note:`Modèle de tête jusqu’à ${sp}"${fly ? ' en ligne droite (vol)' : ''}, pas à 1" d’un ennemi Ground, puis le reste en cohésion.`, cls:'pri', pl:'mouvement'});
     A.push({label:'Hold', act:'hold', note:'Ne bouge pas (garde STATIONARY).'});
+    if (wormBackBtns(u, 'move').length) A.push({label:'Move jusqu’au Worm puis réserve', act:'wormback', x:'move', note:'Le modèle de tête finit son Move au contact socle à socle de l’Omega Worm : tu peux retirer l’unité et la remettre en réserve (Omega Network). Elle pourra ressortir plus tard.'});
     return A;
   }
   if (ph === 'ASSAULT'){
@@ -2131,6 +2132,7 @@ function simpleActions(u){
       if (!fly && cc) A.push({charge:true, note:`Speed ${sp}" + 1D6 : de ${sp + 1}" à ${sp + 6}". Uniquement des unités Ground, pas besoin de ligne de vue.`});
     }
     A.push({label:'Run', act:'run', note:`Move normal jusqu’à ${sp}".`, pl:'mouvement'});
+    if (wormBackBtns(u, 'run').length) A.push({label:'Run jusqu’au Worm puis réserve', act:'wormback', x:'run', note:'Le modèle de tête finit son Run au contact socle à socle de l’Omega Worm : tu peux remettre l’unité en réserve (Omega Network).'});
     A.push({label:'Hold', act:'hold', note:'Ne fait rien.'});
     return A;
   }
@@ -2590,8 +2592,8 @@ function tokLine(t){
   return `<b>${TOKNAME[t.kind]}</b> de ${who} : à la fin de chaque phase, gabarit BT centré sur le pion. Chaque unité touchée lance 3 dés + 1 par figurine touchée ; chaque ${th}+ : NON-LETHAL DAMAGE (1) en phase de Mouvement, 1 dégât en phase d’Assaut.`;
 }
 function tokensPanel(){
-  const ts = tokens(); if (!ts.length) return '';
-  return `<div class="panel tokp"><h2>Pions sur la table</h2><ul class="toklist">${ts.map(t => `<li><span>${tokLine(t)}</span><button class="btn ghost small" data-tokdel="${t.id}">Retirer</button></li>`).join('')}</ul></div>`;
+  const ts = tokens(), wl = wormPanelHTML(); if (!ts.length && !wl) return '';
+  return `<div class="panel tokp"><h2>Pions sur la table</h2><ul class="toklist">${wl}${ts.map(t => `<li><span>${tokLine(t)}</span><button class="btn ghost small" data-tokdel="${t.id}">Retirer</button></li>`).join('')}</ul></div>`;
 }
 const stormsNow = () => [1, 2].includes(S.phase) ? tokens().filter(t => /^storm/.test(t.kind)) : [];
 function endPhaseHTML(){
@@ -2630,6 +2632,7 @@ function extrasCleanup(){
 }
 /* hook paiement */
 function extrasFromAbility(holder, a, entry){
+  if (a.card && upK(a.key) === 'OMEGA_NETWORK'){ wormSet('me', true); entry.worm = true; return 'Omega Worm posé : son socle sert d’Entry Edge (2 de supply par round). Les options apparaissent au déploiement.'; }
   if (a.card && DEP_IND[a.key]) return depIndAdd(holder, a, entry);
   const u = findU(holder); if (!u) return null;
   if (TOK[a.key]){ entry.tok = addTok(u.id, TOK[a.key]); return null; }
@@ -2637,6 +2640,7 @@ function extrasFromAbility(holder, a, entry){
   return null;
 }
 function extrasBlock(holder, a){
+  if (a.card && upK(a.key) === 'OMEGA_NETWORK' && wormOn('me')) return 'Omega Network : ton Omega Worm est déjà sur la table.';
   const u = findU(holder);
   if (u && SHIELD_AB[a.key] && !isShielded(u)) return nm(a.key, a) + ' : l’unité n’est plus Shielded.';
   if (u && (TOK[a.key] || SUM[a.key]) && u.loc !== 'table') return nm(a.key, a) + ' : l’unité doit être sur la table.';
@@ -2682,6 +2686,7 @@ function depOpts(u){
     if ((m.kind === 'friend' || m.kind === 'prism') && !friends.length) o.off = 'Aucune autre unité amie sur la table.';
     if (m.kind === 'prism') o.targets = friends;
     out.push(o); });
+  wormOpts(u).forEach(o => out.push(o));
   const zag = friends.find(x => abilitiesOf(x).some(a => upK(a.key) === 'INFESTED_DROP'));
   if (zag){ const used = zagUsed(side), cs = curSup(u);
     out.push({id:'zag', label:'Infested Drop (Zagara)', kind:'zag', src:'Infested Drop', off:used + cs > 1 ? `Supply cumulé limité à 1 par round (déjà ${used}, cette unité ${cs}).` : null,
@@ -2727,6 +2732,7 @@ function doDeploy(u, x){
       c.ready = false; S.used[c.id + ':' + o.ak] = {n:1, r:S.round};
       S.spent = S.spent || []; S.spent.push({id:Date.now().toString(36) + 'd', r:S.round, p:S.phase, holder:c.id, key:o.ak, name:DEP_CARD[o.ak].label, who:unitName(u), cards:[c.id], amount:0, red:[]}); } }
   if (parts[0] === 'prism'){ const t = findU(parts[1]); if (t){ t.loc = 'res'; t.engaged = false; statusOffTable(t); logA(unitName(t) + ' remise en réserve (Phase Prism)', 'act'); } }
+  if (parts[0] === 'worm' || parts[0] === 'ambushw') wormAdd(wormSide(u), curSup(u));
   if (parts[0] === 'zag'){ const side = u.side === 'o' ? 'opp' : 'me'; S.zag = S.zag || {}; S.zag[side] = {r:S.round, n:zagUsed(side) + curSup(u)}; }
   u.depR = S.round;
   if (u.side === 'o'){ u.loc = 'table'; u.engaged = false; const lb = depLabel(u, x);
@@ -2760,10 +2766,12 @@ function depTree(u, A, L, baseOpts){
 /* tour adverse : noter comment une unité adverse entre en jeu */
 function oppDeployHTML(){
   if (PH[S.phase].id !== 'MOVEMENT') return '';
-  const res = S.opp.units.filter(x => x.loc === 'res'); if (!res.length) return '';
+  const res = S.opp.units.filter(x => x.loc === 'res');
+  const wb = oppCardHas('OMEGA_NETWORK') ? `<div class="row small" style="margin:6px 0">${wormOn('opp') ? `<span>Omega Worm adverse sur la table.</span><button class="btn ghost small" data-wormset="opp|0">Détruit / retiré</button>` : `<button class="btn small" data-wormset="opp|1">Il pose son Omega Worm</button>`}</div>` : '';
+  if (!res.length && !wb) return '';
   const av = avail(S.opp.units);
   return `<details class="capsub" id="oppDep" ${(U.lossOpen || {}).oppDep ? 'open' : ''}><summary>L’adversaire déploie une unité</summary>
-    <p class="small muted" style="margin:6px 0">Supply adverse disponible : ${fmtSup(av)}. Choisis l’unité et la façon dont elle entre.</p>
+    ${wb}<p class="small muted" style="margin:6px 0">Supply adverse disponible : ${fmtSup(av)}. Choisis l’unité et la façon dont elle entre.</p>
     ${res.map(x => { const cs = curSup(x), opts = depOpts(x).filter(o => !o.off);
       return `<div class="lossrow"><span class="ln"><b>${esc(unitName(x))}</b> <span class="small muted">supply ${cs}${av !== Infinity && cs > av ? ' · trop de supply' : ''}</span></span><span class="lb">
         <button class="btn" data-odep="${x.id}|std">Par son Entry Edge</button>
@@ -2789,6 +2797,43 @@ function dropDeploy(tid, uid){
   save(); render();
   const ph = oppCardHas('PHOTON_OVERCHARGE');
   toast(unitName(u) + ' est sur la table.' + (ph ? ' L’adversaire peut utiliser Photon Overcharge : HITS 3 (1).' : ''));
+}
+
+/* ================= Omega Worm (Kerrigan's Swarm · Omega Network) ================= */
+/* S.worm = {me:{r}, opp:{r}} : Worm sur la table ; S.wormUse = {me:{r,n}, opp:{r,n}} : supply entré par lui ce round */
+const wormSide = u => u.side === 'o' ? 'opp' : 'me';
+const wormOn = side => !!((S.worm || {})[side]);
+const wormUsed = side => ((S.wormUse || {})[side] || {}).r === S.round ? S.wormUse[side].n : 0;
+function wormAdd(side, cs){ S.wormUse = S.wormUse || {}; S.wormUse[side] = {r:S.round, n:wormUsed(side) + cs}; }
+function wormSet(side, on){ S.worm = S.worm || {}; if (on) S.worm[side] = {r:S.round}; else delete S.worm[side];
+  logA((side === 'opp' ? 'Adversaire : ' : '') + 'Omega Worm ' + (on ? 'posé' : 'retiré ou détruit'), 'act'); }
+/* options d'entrée par le Worm, ajoutées à depOpts */
+function wormOpts(u){
+  const side = wormSide(u); if (!wormOn(side)) return [];
+  const used = wormUsed(side), cs = curSup(u), off = used + cs > 2 ? `Limite de l’Omega Worm : 2 de supply par round (déjà ${used}, cette unité ${cs}).` : null;
+  const out = [{id:'worm', label:'Par l’Omega Worm', kind:'worm', off, src:'Omega Network',
+    steps:['Le socle de l’Omega Worm compte comme une Entry Edge : déploie l’unité depuis ce socle, avec les règles normales de Deploy.', `Ce round, les unités entrées par le Worm ne peuvent pas dépasser 2 de supply au total (déjà utilisé : ${used}).`]}];
+  if (abilitiesOf(u).some(a => upK(a.key) === 'BURROW_AMBUSH'))
+    out.push({id:'ambushw', label:'Burrow Ambush depuis l’Omega Worm', kind:'place', ends:true, off, src:'Burrow Ambush',
+      steps:['Résous l’effet PLACE (18) à partir du socle de l’Omega Worm, qui compte comme une Entry Edge (FAQ).', 'Aucune figurine ne peut être placée à 10" ou moins d’une figurine ennemie.', `Compte dans la limite de 2 de supply par round du Worm (déjà utilisé : ${used}).`, 'L’activation de l’unité se termine.']});
+  return out;
+}
+/* Move / Run / Disengage terminé au contact du Worm : retour en réserve possible */
+const WB_LBL = {move:'Move', run:'Run', dis0:'Disengage', dis1:'Disengage'};
+function wormBack(u, kind){
+  if (!u) return; kind = WB_LBL[kind] ? kind : 'move';
+  applyAct(u, kind);
+  u.loc = 'res'; u.engaged = false; statusOffTable(u);
+  logA(unitName(u) + ' retourne en réserve par l’Omega Worm', 'act'); save(); render();
+}
+const wormBackBtns = (u, kind) => (u && u.side !== 'o' && u.loc === 'table' && wormOn('me') && WB_LBL[kind]) ? [[WB_LBL[kind] + ' jusqu’au Worm puis réserve', 'wormback', kind]] : [];
+function wormLine(side){
+  const who = side === 'opp' ? 'de l’adversaire' : 'à toi', used = wormUsed(side);
+  return `<b>Omega Worm</b> ${who} : son socle compte comme une Entry Edge (2 de supply par round, déjà ${used} ce round). Creep à 6", Detection à 6" (les ennemis proches perdent HIDDEN). Une unité qui finit un Move, un Run ou un Disengage à son contact peut retourner en réserve.`;
+}
+function wormPanelHTML(){
+  const s = ['me', 'opp'].filter(wormOn); if (!s.length) return '';
+  return s.map(x => `<li><span>${wormLine(x)}</span><button class="btn ghost small" data-wormset="${x}|0">Détruit / retiré</button></li>`).join('');
 }
 
 /* ================= v9 : liens collés, sauvegarde de partie, retour vers le builder ================= */
@@ -4105,6 +4150,8 @@ document.addEventListener('click', e => {
     if (d.seteng && u.engaged !== (+d.ans === 0)){ u.engaged = +d.ans === 0; save(); } saveU(); render(); return; }
   if (d.back != null){ const p = U.flow[U.sel] || []; p.length = +d.back; saveU(); render(); return; }
   if (d.act === 'deploy'){ doDeploy(S.units.find(x => x.id === U.sel), d.x); return; }
+  if (d.act === 'wormback'){ wormBack(S.units.find(x => x.id === U.sel), d.x); return; }
+  if (d.wormset){ const [sd, on] = d.wormset.split('|'); wormSet(sd, on === '1'); save(); render(); return; }
   if (d.act){ applyAct(S.units.find(x => x.id === U.sel), d.act, d.x); return; }
   if (d.odep){ const [id, x] = d.odep.split('|'); const u = findU(id); if (u) doDeploy(u, x); return; }
   if (d.dropdep){ const [tid, uid] = d.dropdep.split('|'); dropDeploy(tid, uid); return; }
