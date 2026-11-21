@@ -1669,7 +1669,8 @@ var PLAN = (function(){
   const costN = a => a && a.cost ? Object.values(a.cost)[0] || 0 : 0;
   const isTpl = w => /\b(BT|FT)\b/.test(String(w.roa) + ' ' + String(w.s_dice));
   const kwHas = (w, k) => (w.keywords || []).some(x => String(x).toUpperCase().startsWith(k));
-  const short = (t, n) => { t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length <= n) return t; const cut = t.slice(0, n); const i = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf(' ')); return cut.slice(0, i > n * 0.6 ? i : n).replace(/[ ,;:.]+$/, '') + '…'; };
+  /* texte complet, jamais coupé (demande utilisateur) : n est ignoré */
+  const short = (t, n) => String(t || '').replace(/\s+/g, ' ').trim();
 
 
   /* ---------- estimation simple des dégâts (plan contre une liste adverse) ---------- */
@@ -1854,7 +1855,19 @@ var PLAN = (function(){
       st.push(['BURROWED', L]);
     }
     const amb = P.filter(p => abK(p, 'Burrow_Ambush'));
-    if (amb.length) st.push(['Burrow Ambush', [`${stNames(amb)} : en entrant depuis la réserve, peu${amb.length > 1 ? 'vent' : 't'} se placer à 18" de ton Entry Edge (PLACE), jamais à 10" d’un ennemi ; l’activation se termine ensuite. Idéal pour prendre un marqueur éloigné dès l’arrivée.`]]);
+    /* Omega Worm / Pylon : Entry Edges posées par une carte de faction */
+    if (cardAb('OMEGA_NETWORK')) st.push(['Omega Worm (Omega Network)', [
+      'Pose-le avec la carte Kerrigan’s Swarm pendant l’activation d’une de tes unités <b>déjà sur la table</b> (une carte demande toujours une unité active sur la table, FAQ), n’importe où au sol à plus de 10" de toute figurine ennemie.',
+      '<b>Le round où tu le poses, il est inactif</b> : ni Entry Edge, ni Creep, ni Detection (« ce round, l’Omega Worm ne peut pas utiliser ses capacités spéciales »). Pose-le au round 1 pour qu’il serve dès le round 2.',
+      'Ensuite, son socle est une Entry Edge amie : des unités pour 2 de supply au total par round peuvent entrer par lui. Burrow Ambush peut partir de lui (FAQ), et Photon Overcharge ne s’applique pas à ces entrées. Il ne crée pas de Zone of Influence (FAQ).',
+      'Il est source de Creep à 6" (ON CREEP) et retire HIDDEN aux ennemis à 6" (Detection). Une unité qui finit un Move, un Run ou un Disengage à son contact peut retourner en réserve.',
+      'Structure de 10 PV (armure 5+, pas d’Evade) : abrite-le derrière un décor, l’adversaire peut le détruire par le tir ou la mêlée. Il ne compte pas dans le supply.']]);
+    if (cardAb('PYLON_WARP_IN')) st.push(['Pylon (Pylon Warp In)', [
+      'Pose-le avec la carte Khalai pendant l’activation d’une de tes unités <b>déjà sur la table</b> (FAQ), n’importe où au sol à plus de 10" de toute figurine ennemie.',
+      '<b>Le round où tu le poses, il est inactif</b> : ses capacités ne marchent qu’à partir du round suivant.',
+      'Ensuite, Warp Conduit : une fois par round, une unité Ground entre depuis son socle, qui compte comme une Entry Edge amie. Son activation se termine dès la pose (FAQ). Photon Overcharge ne s’applique pas à ces entrées.',
+      'Khalai Ingenuity : une fois par round, −1 PE pour une unité amie à 4" ou moins. Structure à 8 PV et Bouclier 2 (armure 5+) : protège-le.']]);
+    if (amb.length) st.push(['Burrow Ambush', [`${stNames(amb)} : en entrant depuis la réserve, peu${amb.length > 1 ? 'vent' : 't'} se placer à 18" de ton Entry Edge (PLACE)${cardAb('OMEGA_NETWORK') ? ' ou de ton Omega Worm actif (FAQ)' : ''}, jamais à 10" d’un ennemi ; l’activation se termine ensuite. Idéal pour prendre un marqueur éloigné dès l’arrivée.`]]);
     /* SIEGE MODE */
     const sg = P.filter(p => abK(p, 'Mode_Transformation'));
     if (sg.length){
