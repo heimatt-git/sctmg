@@ -569,6 +569,19 @@ details.losses{margin-top:10px}
 
 /* ---- onglet Sur la table ---- */
 .tpanel{padding:12px}
+.tbar{padding:8px}
+.tturn{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:6px}
+.tturn button{font:inherit;font-weight:600;border:0;background:none;color:var(--muted);min-height:40px;cursor:pointer}
+.tturn.me button.on{background:var(--race);color:#fff}
+.tturn.opp button.on{background:var(--warn);color:#111}
+.tturn button:disabled{opacity:.6;cursor:default}
+.trow2{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center}
+.trow2 .btn{min-height:40px;padding:4px 10px}
+.trow2 .tph{grid-column:1/3;font-family:var(--f-display)}
+.tsc{display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.tsc .lbl{font-size:10px}.tsc b{font-size:17px}
+.tscrow{display:grid;grid-template-columns:1fr 56px 48px 56px;align-items:center;gap:8px;margin:10px 0;font-size:18px}
+.tscrow .btn{min-height:50px;font-size:22px}.tscrow b{text-align:center;font-size:24px}
 .tbar1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .tph{font-family:var(--f-display);font-size:20px}
 .tpass{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
@@ -4206,13 +4219,12 @@ function tReactions(){
 function renderTable(){
   if (S.over) return renderOver();
   const ph = PH[S.phase], res = RES(), act = actPhase();
-  const myTurn = act && !oppTurnNow() && !S.passed.me;
+    const opp = act && oppTurnNow(), both = S.passed.me && S.passed.opp;
   let h = `<div class="panel tpanel tbar">
-    <div class="tbar1"><span class="tph"><b>R${S.round}</b> · ${esc(ph.t)}</span>${act ? `<span class="pill ${myTurn ? 'ok' : 'warn'}">${S.passed.me && S.passed.opp ? 'les deux ont passé' : myTurn ? 'à toi' : 'à l’adversaire'}</span>` : ''}</div>
-    ${act ? turnBar() + `<div class="tpass"><button class="btn" data-pass="me" ${S.passed.me ? 'disabled' : ''}>${S.passed.me ? 'Tu as passé' : 'Je passe'}</button><button class="btn" data-pass="opp" ${S.passed.opp ? 'disabled' : ''}>${S.passed.opp ? 'Il a passé' : 'Il passe'}</button></div>` : ''}
-    <div class="tscore"><span class="lbl">Score</span><span>Moi <button class="btn ghost small" data-tvp="me|-1" aria-label="moins">−</button><b class="mono">${S.vp.me}</b><button class="btn ghost small" data-tvp="me|1" aria-label="plus">+</button></span>
-      <span>Adv. <button class="btn ghost small" data-tvp="opp|-1" aria-label="moins">−</button><b class="mono">${S.vp.opp}</b><button class="btn ghost small" data-tvp="opp|1" aria-label="plus">+</button></span></div></div>`;
-  h += `<div class="panel tpanel"><div class="tgh">${esc(res)} prêts : <b class="mono">${readyRes()}</b> / ${totalRes()} <span class="muted small">· touche une carte pour l’épuiser, ⓘ pour son effet</span></div>
+    ${act ? `<div class="tturn ${opp ? 'opp' : 'me'}"><button data-turn="me" class="${!opp && !both ? 'on' : ''}" ${S.passed.me ? 'disabled' : ''}>${S.passed.me ? 'Moi : passé' : 'Mon tour'}</button><button data-turn="opp" class="${opp ? 'on' : ''}" ${S.passed.opp ? 'disabled' : ''}>${S.passed.opp ? 'Adv. : passé' : 'Tour adverse'}</button></div>` : ''}
+    <div class="trow2">${act ? `<button class="btn" data-pass="me" ${S.passed.me ? 'disabled' : ''}>Je passe</button><button class="btn" data-pass="opp" ${S.passed.opp ? 'disabled' : ''}>Il passe</button>` : `<span class="tph"><b>R${S.round}</b> · ${esc(ph.t)}</span>`}
+      <button class="btn tsc" data-tscore="1" aria-label="Modifier le score"><span class="lbl">Score</span><b class="mono">${S.vp.me}–${S.vp.opp}</b></button></div></div>`;
+  h += `<div class="panel tpanel"><div class="tgh">${esc(res)} prêts : <b class="mono">${readyRes()}</b> / ${totalRes()} <span class="muted small">· toucher = épuiser</span></div>
     <div class="tcards">${S.cards.map(c => { const d = cardDef(c); return `<div class="tcard ${c.ready ? '' : 'ex'}"><button class="tcb" data-tcard="${c.id}"><b>${esc(nm(c.key, d))}</b><span>${d.resource_generated ? '+' + d.resource_generated + ' ' + esc(res) + ' · ' : ''}${c.ready ? 'prête' : 'épuisée'}</span></button><button class="tci" data-tcinfo="${c.id}" aria-label="Effet de la carte">ⓘ</button></div>`; }).join('')}</div></div>`;
   if (!act){
     h += S.phase === 0 ? `<div class="note"><span class="lbl">Début du round</span>Supply disponible : <b>${fmtSup(avail(S.units))}</b>. Premier joueur : <b>${S.fpm === 'me' ? 'toi' : 'adversaire'}</b>. Touche « Phase suivante » pour commencer.</div>`
@@ -4224,6 +4236,10 @@ function renderTable(){
   return h;
 }
 
+function tScoreHTML(){
+  const row = (w, l) => `<div class="tscrow"><span>${l}</span><button class="btn" data-tvp="${w}|-1" aria-label="moins">−</button><b class="mono">${S.vp[w]}</b><button class="btn" data-tvp="${w}|1" aria-label="plus">+</button></div>`;
+  return `<div class="tsheet"><h3>Score</h3>${row('me', 'Moi')}${row('opp', 'Adversaire')}</div>`;
+}
 /* ---- fiche d'activation (fenêtre du bas) ---- */
 function tStateHTML(u){
   const d = udef(u), cap = tCap(u), left = Math.max(0, cap - u.dmg);
@@ -4303,6 +4319,7 @@ function tableHook(){
     pop.scrollTop = y; const b2 = pop.querySelector('.popbody'); if (b2) b2.scrollTop = y2;
     return;
   }
+  if (pop && top && top.tscore){ top.html = tScoreHTML(); renderPop(); return; }
   if (!pop && T.reopen){ const r = T.reopen; T.reopen = null; if (U.tab === 'table' && JSON.stringify(S.used) !== r.used) tOpen(r.id); }
 }
 function tWound(u, n){
@@ -4315,11 +4332,12 @@ function tWound(u, n){
 document.addEventListener('click', e => {
   const tc = e.target.closest('[data-tclamp]');
   if (tc && !e.target.closest('button')){ tc.classList.toggle('open'); return; }
-  const t = e.target.closest('[data-topen],[data-tact],[data-tuse],[data-twound],[data-tfig],[data-tst],[data-tfiche],[data-tunact],[data-tcard],[data-tcinfo],[data-tvp],[data-toppdep]');
+  const t = e.target.closest('[data-topen],[data-tact],[data-tuse],[data-twound],[data-tfig],[data-tst],[data-tfiche],[data-tunact],[data-tcard],[data-tcinfo],[data-tvp],[data-toppdep],[data-tscore]');
   if (!t) return;
   e.stopPropagation(); e.preventDefault();
   const d = t.dataset;
   if (d.topen){ tOpen(d.topen); return; }
+  if (d.tscore){ openSheet(tScoreHTML()); POP.stack[0].tscore = 1; return; }
   if (d.tvp){ const [w, n] = d.tvp.split('|'); S.vp[w] = Math.max(0, S.vp[w] + +n); save(); render(); return; }
   if (d.tcard){ const c = S.cards.find(x => x.id === d.tcard); if (c){ c.ready = !c.ready; save(); render(); toast(nm(c.key, cardDef(c)) + (c.ready ? ' : prête.' : ' : épuisée.')); } return; }
   if (d.tcinfo){ const c = S.cards.find(x => x.id === d.tcinfo); if (c){ openSheet(cardInfoHTML(c)); linkifyDOM(pop); } return; }
