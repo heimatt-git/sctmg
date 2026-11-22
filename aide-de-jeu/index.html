@@ -566,6 +566,66 @@ details.losses{margin-top:10px}
 .kwsdlg{background:var(--surface);color:var(--ink);border:1px solid var(--ink);border-radius:var(--r);width:min(760px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:14px 16px}
 .kwsprev{max-height:58vh;overflow:auto;background:#dfe4e9;border:1px solid var(--line);padding:10px;margin-top:8px}
 @media (max-width:700px){.kwsov{padding:0;align-items:flex-end}.kwsdlg{max-height:94vh;border-radius:14px 14px 0 0}}
+
+/* ---- onglet Sur la table ---- */
+.tpanel{padding:12px}
+.tbar1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.tph{font-family:var(--f-display);font-size:20px}
+.tpass{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.tpass .btn{min-height:46px;font-size:16px}
+.tscore{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+.tscore .btn{min-width:38px;min-height:38px;font-size:18px}
+.tscore b{font-size:18px;margin:0 4px}
+.tgh{font-family:var(--f-display);font-weight:600;margin:10px 0 6px}
+.tcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tcard{display:flex;border:1.5px solid var(--race);border-radius:var(--r);background:var(--race-soft);overflow:hidden}
+.tcard.ex{border-color:var(--line);background:var(--sunk);opacity:.6}
+.tcard .tcb{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:0;background:none;font:inherit;color:inherit;text-align:left;padding:8px 10px;cursor:pointer;min-width:0}
+.tcard .tcb b{font-family:var(--f-display);font-weight:600;line-height:1.2}
+.tcard .tcb span{font-size:13px}
+.tcard .tci{border:0;border-left:1px solid var(--line);background:none;color:var(--accent);font-size:20px;padding:0 12px;cursor:pointer}
+.tchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.tchip{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;font:inherit;color:inherit;cursor:pointer;border:1.5px solid var(--line);background:var(--sunk);border-radius:var(--r);padding:10px 12px;min-height:64px;min-width:0}
+.tchip.todo{border-color:var(--race);background:var(--race-soft);box-shadow:0 0 0 1px var(--race) inset}
+.tchip.done{opacity:.55}
+.tchip.res{border-style:dashed}
+.tchip.dead{opacity:.45;text-decoration:line-through}
+.tchip.opp{border-color:var(--opp, var(--line))}
+.tchip .tn{font-family:var(--f-display);font-weight:600;line-height:1.2}
+.tchip .tm{font-size:13px;color:var(--muted)}
+.tchip .tw{color:var(--bad)}
+.tchip .tt{display:flex;flex-wrap:wrap;gap:4px}
+.tchip .tt i{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.03em;padding:1px 6px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
+.tpassbig{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1.5px solid var(--ok);border-radius:var(--r);background:var(--ok-soft);margin-bottom:6px}
+.tdead summary{cursor:pointer;margin-top:10px;color:var(--muted)}
+.tsheet h3{margin:0;font-family:var(--f-display)}
+.tsh1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tstats{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.tstats span{display:flex;flex-direction:column;align-items:center;min-width:52px;padding:4px 6px;border:1px solid var(--line);border-radius:var(--r);background:var(--sunk);font-family:var(--f-mono);font-weight:700}
+.tstats i{font-style:normal;font-family:var(--f-body);font-weight:600;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.tsec{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.tsh{font-family:var(--f-display);font-weight:600;margin-bottom:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.tab-ab{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;margin:6px 0;background:var(--sunk)}
+.tab-ab.ok{border-color:var(--ok)}
+.tab-ab.used,.tab-ab.poor{opacity:.6}
+.tab-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.tab-h .tab-c{font-family:var(--f-mono);font-size:13px;color:var(--warn)}
+.tab-h .tuse,.tab-h .pill{margin-left:auto}
+.tab-tx{font-size:14px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.tab-tx.open{display:block;-webkit-line-clamp:unset}
+.tacts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tacts .btn{min-height:48px;font-size:16px;white-space:normal}
+.tnotes{margin-top:8px}.tnotes summary{cursor:pointer;color:var(--muted);font-size:14px}.tnotes ul{padding-left:18px;font-size:14px;margin:6px 0}
+.tcardab summary{cursor:pointer;color:var(--muted);font-size:14px;margin-top:6px}
+.tdone{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--ok)}
+.tpv{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin:4px 0}
+.tpips{display:flex;gap:4px}.tpips i{width:16px;height:16px;border-radius:50%;border:2px solid var(--bad);display:inline-block}.tpips i.on{background:var(--bad)}
+.tbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 8px}
+.tbtns .btn{min-height:48px;font-size:16px}
+.tsts{display:flex;flex-wrap:wrap;gap:8px}
+.tst{font:inherit;font-weight:600;cursor:pointer;min-height:44px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--sunk);color:inherit}
+.tst.on{border-color:var(--race);background:var(--race-soft);color:var(--race)}
+@media (max-width:700px){#bnav button{font-size:10px}#bnav button span:last-child{line-height:1.1;text-align:center}}
 </style><style>.homelnk{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:6px;border:1px solid var(--line,#d0d8e1);color:inherit;text-decoration:none;font-size:16px;line-height:1;flex:none;align-self:center}.homelnk:hover{border-color:currentColor}</style></head><body>
 
 <div class="hud">
@@ -4085,10 +4145,206 @@ window.PLX = {ids: SHEETS.map(s => s.id), name: id => LBL[id] || (SHEETS.find(s 
 
 })();
 
+/* ================= onglet « Sur la table » : un écran pour jouer, une fiche d'activation par unité ================= */
+const T = {open:null, reopen:null};
+const tPh = () => PH[S.phase].id;
+const tElig = u => { const ph = tPh(); return u.loc !== 'dead' && (ph === 'MOVEMENT' || (ph === 'ASSAULT' ? u.loc === 'table' : ph === 'COMBAT' ? u.loc === 'table' && u.engaged && !isFlying(udef(u)) : false)); };
+const tCostLbl = (a, card) => { const ct = costTxt(a), n = costVal(a);
+  if (card){ const c = S.cards.find(x => x.id === card); return `(carte ${esc(c ? nm(c.key, cardDef(c)) : '')}${n ? ', ' + esc(ct) : ''})`; }
+  return n ? `(${esc(ct)})` : '(gratuit)'; };
+function tAbState(holder, a, card){
+  const us = S.used[holder + ':' + a.key], rep = /REPEATABLE/.test(a.text || '');
+  if (us && !rep) return 'used';
+  if (card){ const c = S.cards.find(x => x.id === holder); if (c && !c.ready) return 'used'; }
+  return costVal(a) > readyRes() ? 'poor' : 'ok';
+}
+function tAbRow(holder, a, card, passive){
+  ABREG[holder + '|' + a.key] = [holder, a];
+  const st = passive ? 'pas' : tAbState(holder, a, card);
+  const btn = passive ? '' : st === 'ok' ? `<button class="btn ${costVal(a) || card ? 'costbtn' : ''} tuse" data-tuse="${esc(holder)}|${esc(a.key)}">${costVal(a) ? '⚡ Payer' : 'Utiliser'}</button>`
+    : st === 'used' ? '<span class="pill ok">✓ utilisée</span>' : `<span class="pill warn">pas assez de ${esc(RES())}</span>`;
+  return `<div class="tab-ab ${st}"><div class="tab-h"><b>${esc(nm(a.key, a))}</b> <span class="tab-c">${passive ? (a.type === 'REACTION' ? '(réaction)' : '(passive)') : tCostLbl(a, card)}</span>${btn}</div>
+    <div class="tab-tx" data-tclamp="1">${linkify(fr(a.text) || a.text || '')}</div></div>`;
+}
+const tTags = u => [u.engaged ? 'ENGAGÉE' : '', isBur(u) ? 'BURROWED' : '', isSiege(u) ? 'SIEGE' : '', isHidden(u) && !isBur(u) ? 'HIDDEN' : '', isStat(u) ? 'STATIONARY' : '', u.penalty ? 'PÉNALITÉ' : '', isShielded(u) && shieldOf(u) ? 'SHIELDED' : ''].filter(Boolean);
+const tCap = u => { const d = udef(u); return d.stats.hp + (u.alive === u.start && shieldOf(u) && !u.shLost ? shieldOf(u) : 0); };
+function tChip(u){
+  const done = actPhase() && tElig(u) && u.act[S.phase], todo = actPhase() && tElig(u) && !u.act[S.phase];
+  const tags = tTags(u);
+  return `<button class="tchip ${u.side === 'o' ? 'opp' : ''} ${todo ? 'todo' : ''} ${done ? 'done' : ''} ${u.loc === 'res' ? 'res' : ''} ${u.loc === 'dead' ? 'dead' : ''}" data-topen="${u.id}">
+    <span class="tn">${done ? '✓ ' : ''}${esc(unitName(u))}</span>
+    <span class="tm">${u.loc === 'res' ? 'Réserve · ' : ''}${u.alive}/${u.start} fig. · supply ${curSup(u)}${u.dmg ? ` · <b class="tw">${u.dmg} dégât${u.dmg > 1 ? 's' : ''}</b>` : ''}</span>
+    ${tags.length ? `<span class="tt">${tags.map(t => `<i>${t}</i>`).join('')}</span>` : ''}</button>`;
+}
+function tGroup(title, arr, open){
+  if (!arr.length) return '';
+  return `<div class="tgh">${esc(title)} <span class="muted">(${arr.length})</span></div><div class="tchips">${arr.map(tChip).join('')}</div>`;
+}
+function tSide(arr, mine){
+  const dead = arr.filter(u => u.loc === 'dead'), live = arr.filter(u => u.loc !== 'dead');
+  let h = '';
+  if (mine && actPhase()){
+    const todo = live.filter(u => tElig(u) && !u.act[S.phase]), done = live.filter(u => tElig(u) && u.act[S.phase]);
+    const rest = live.filter(u => !tElig(u));
+    h += tGroup('À activer', todo) + tGroup('Déjà activées', done) + tGroup('Sur la table', rest.filter(u => u.loc === 'table')) + tGroup('En réserve', rest.filter(u => u.loc === 'res'));
+    if (!todo.length && !S.passed.me) h = `<div class="tpassbig"><span>Toutes tes unités ont joué.</span><button class="btn pri" data-pass="me">Je passe</button></div>` + h;
+  } else {
+    h += tGroup('Sur la table', live.filter(u => u.loc === 'table')) + tGroup('En réserve', live.filter(u => u.loc === 'res'));
+  }
+  if (dead.length) h += `<details class="tdead"><summary>Détruites (${dead.length})</summary><div class="tchips">${dead.map(tChip).join('')}</div></details>`;
+  return h || '<p class="muted small">Aucune unité.</p>';
+}
+function tReactions(){
+  const ph = tPh(), rows = [];
+  S.units.filter(x => x.loc === 'table').forEach(x => abilitiesOf(x).filter(a => a.type === 'REACTION' && (a.phase === ph || a.phase === 'ANY')).forEach(a => rows.push([x.id, Object.assign({}, a, {display_name:nm(a.key, a) + ' · ' + unitName(x)}), null])));
+  S.cards.forEach(c => cardAbilities(c).filter(a => a.type === 'REACTION' && (a.phase === ph || a.phase === 'ANY')).forEach(a => rows.push([c.id, a, c.id])));
+  const ok = rows.filter(r => tAbState(r[0], r[1], r[2]) === 'ok');
+  if (!rows.length) return '';
+  return `<div class="panel tpanel"><h2>Tes réactions <span class="pill ${ok.length ? 'ok' : ''}">${ok.length} possible${ok.length > 1 ? 's' : ''}</span></h2>
+    <p class="small muted">Une seule par activation adverse, au moment du déclencheur.</p>${ok.map(r => tAbRow(r[0], r[1], r[2])).join('') || '<p class="muted small">Aucune réaction possible maintenant.</p>'}</div>`;
+}
+function renderTable(){
+  if (S.over) return renderOver();
+  const ph = PH[S.phase], res = RES(), act = actPhase();
+  const myTurn = act && !oppTurnNow() && !S.passed.me;
+  let h = `<div class="panel tpanel tbar">
+    <div class="tbar1"><span class="tph"><b>R${S.round}</b> · ${esc(ph.t)}</span>${act ? `<span class="pill ${myTurn ? 'ok' : 'warn'}">${S.passed.me && S.passed.opp ? 'les deux ont passé' : myTurn ? 'à toi' : 'à l’adversaire'}</span>` : ''}</div>
+    ${act ? turnBar() + `<div class="tpass"><button class="btn" data-pass="me" ${S.passed.me ? 'disabled' : ''}>${S.passed.me ? 'Tu as passé' : 'Je passe'}</button><button class="btn" data-pass="opp" ${S.passed.opp ? 'disabled' : ''}>${S.passed.opp ? 'Il a passé' : 'Il passe'}</button></div>` : ''}
+    <div class="tscore"><span class="lbl">Score</span><span>Moi <button class="btn ghost small" data-tvp="me|-1" aria-label="moins">−</button><b class="mono">${S.vp.me}</b><button class="btn ghost small" data-tvp="me|1" aria-label="plus">+</button></span>
+      <span>Adv. <button class="btn ghost small" data-tvp="opp|-1" aria-label="moins">−</button><b class="mono">${S.vp.opp}</b><button class="btn ghost small" data-tvp="opp|1" aria-label="plus">+</button></span></div></div>`;
+  h += `<div class="panel tpanel"><div class="tgh">${esc(res)} prêts : <b class="mono">${readyRes()}</b> / ${totalRes()} <span class="muted small">· touche une carte pour l’épuiser, ⓘ pour son effet</span></div>
+    <div class="tcards">${S.cards.map(c => { const d = cardDef(c); return `<div class="tcard ${c.ready ? '' : 'ex'}"><button class="tcb" data-tcard="${c.id}"><b>${esc(nm(c.key, d))}</b><span>${d.resource_generated ? '+' + d.resource_generated + ' ' + esc(res) + ' · ' : ''}${c.ready ? 'prête' : 'épuisée'}</span></button><button class="tci" data-tcinfo="${c.id}" aria-label="Effet de la carte">ⓘ</button></div>`; }).join('')}</div></div>`;
+  if (!act){
+    h += S.phase === 0 ? `<div class="note"><span class="lbl">Début du round</span>Supply disponible : <b>${fmtSup(avail(S.units))}</b>. Premier joueur : <b>${S.fpm === 'me' ? 'toi' : 'adversaire'}</b>. Touche « Phase suivante » pour commencer.</div>`
+      : `<div class="note"><span class="lbl">Score et nettoyage</span>Compte les marqueurs dans l’onglet Phase, puis passe au round suivant. <button class="btn small" data-tab="phase">Ouvrir le décompte</button></div>`;
+  }
+  if (act && oppTurnNow()) h += tReactions();
+  h += `<div class="panel tpanel"><h2>Mes unités</h2><p class="small muted">Touche une unité : ce qu’elle peut faire maintenant, ses PV et ses statuts.</p>${tSide(S.units, true)}</div>`;
+  h += `<div class="panel tpanel"><h2>Adversaire</h2>${S.opp.units.length ? tSide(S.opp.units, false) : '<p class="muted small">Aucune unité adverse : ajoute sa liste dans l’onglet Partie.</p>'}</div>`;
+  return h;
+}
+
+/* ---- fiche d'activation (fenêtre du bas) ---- */
+function tStateHTML(u){
+  const d = udef(u), cap = tCap(u), left = Math.max(0, cap - u.dmg);
+  const pips = Array.from({length:cap}, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('');
+  const sts = [];
+  if (u.loc === 'table'){
+    if (!isFlying(d)) sts.push(['eng', 'Engagée', u.engaged]);
+    if (canBurrow(u)) sts.push(['burrowed', 'Burrowed', !!u.burrowed]);
+    if (canSiege(u)) sts.push(['siege', 'Siege Mode', !!u.siege]);
+    if (!u.burrowed && (canHide(u) || u.hidden)) sts.push(['hidden', 'Hidden', !!u.hidden]);
+    sts.push(['stat', 'Stationary', !!u.stat]);
+    if (shieldOf(u)) sts.push(['shield', 'Shielded', isShielded(u)]);
+  }
+  return `<div class="tsec"><div class="tsh">PV et pertes</div>
+    ${u.loc === 'dead' ? '<p class="muted small">Unité détruite.</p>' : `<div class="tpv"><span class="tpvl">Figurine en cours : <b class="mono">${left}</b> / ${cap} PV${u.alive === u.start && shieldOf(u) && !u.shLost ? ` <span class="small muted">(dont ${shieldOf(u)} de bouclier)</span>` : ''}</span><span class="tpips">${pips}</span></div>
+    <div class="tbtns"><button class="btn pri" data-twound="${u.id}|1">−1 PV</button><button class="btn" data-twound="${u.id}|-1">+1 PV</button></div>`}
+    <div class="tpv"><span class="tpvl">Figurines : <b class="mono">${u.alive}</b> / ${u.start} · supply ${curSup(u)}</span></div>
+    <div class="tbtns"><button class="btn" data-tfig="${u.id}|-1" ${u.alive ? '' : 'disabled'}>−1 figurine</button><button class="btn ghost" data-tfig="${u.id}|1" ${u.alive < u.start ? '' : 'disabled'}>+1 figurine</button></div>
+    <p class="small muted" style="margin:4px 0 0">−1 PV retire la figurine toute seule quand ses PV tombent à 0.</p></div>
+    ${sts.length ? `<div class="tsec"><div class="tsh">Statuts <span class="small muted">(touche pour activer ou retirer)</span></div><div class="tsts">${sts.map(([k, l, on]) => `<button class="tst ${on ? 'on' : ''}" data-tst="${u.id}|${k}" aria-pressed="${on}">${on ? '✓ ' : ''}${l}</button>`).join('')}</div></div>` : ''}`;
+}
+function tActionsHTML(u){
+  const A = simpleActions(u), notes = [];
+  const btns = A.map(a => {
+    if (a.info){ notes.push(a.info); return ''; }
+    if (a.burcc) return `<button class="btn pri" data-tact="cc" data-x="eng">Combat, toujours engagée</button><button class="btn" data-tact="cc" data-x="free">Combat, plus engagée</button>`;
+    if (a.charge){ notes.push('Charge : ' + a.note); return `<button class="btn pri" data-tact="charge" data-x="ok">Charge réussie</button><button class="btn" data-tact="charge" data-x="ko">Charge ratée</button>`; }
+    if (a.ccEnd){ notes.push('Combat : ' + a.note); return `<button class="btn pri" data-tact="cc" data-x="eng">Combat fait, toujours engagée</button><button class="btn" data-tact="cc" data-x="free">Combat fait, plus engagée</button>`; }
+    if (a.sabotage) return liveMarkers().map(m => `<button class="btn" data-tact="sabotage" data-x="${m.id}:-1">Sabotage marqueur ${m.id} −1</button><button class="btn" data-tact="sabotage" data-x="${m.id}:1">Sabotage marqueur ${m.id} +1</button>`).join('');
+    if (a.note) notes.push(a.label + ' : ' + a.note);
+    return `<button class="btn ${a.cls || ''}" data-tact="${a.act}"${a.x ? ` data-x="${esc(a.x)}"` : ''}>${esc(a.label)}</button>`;
+  }).join('');
+  return `<div class="tacts">${btns}</div>${notes.length ? `<details class="tnotes"><summary>Rappel des règles</summary><ul>${notes.map(n => `<li>${linkify(n)}</li>`).join('')}</ul></details>` : ''}`;
+}
+function tsheetHTML(u){
+  const d = udef(u), ph = tPh(), mine = u.side !== 'o', act = actPhase();
+  const tags = tTags(u);
+  let h = `<div class="tsheet"><div class="tsh1"><h3>${esc(unitName(u))}</h3><button class="btn small" data-tfiche="${u.id}">Fiche</button></div>
+    <div class="small muted">${u.loc === 'res' ? 'En réserve' : u.loc === 'dead' ? 'Détruite' : 'Sur la table'} · ${act ? esc(PH[S.phase].t) : esc(PH[S.phase].t)}${mine ? '' : ' · armée adverse'}${tags.length ? ' · ' + tags.join(' · ') : ''}</div>
+    <div class="tstats">${[['Speed', (d.stats.speed_last_model ? d.stats.speed + '/' + d.stats.speed_last_model : d.stats.speed) + '"'], ['Armure', d.stats.armour], ['Evade', d.stats.evade], ['PV', d.stats.hp + (d.stats.shield ? '+' + d.stats.shield : '')], ['Taille', effSize(u)]].map(([l, v]) => `<span><i>${l}</i>${esc(v)}</span>`).join('')}</div>`;
+  if (mine && u.loc !== 'dead'){
+    if (act && tElig(u) && !u.act[S.phase]){
+      const ab = abilitiesOf(u), pre = ab.filter(a => a.type === 'ACTIVE' && (a.phase === ph || a.phase === 'ANY'));
+      const cards = []; S.cards.forEach(c => cardAbilities(c).filter(a => a.type === 'ACTIVE' && (a.phase === ph || a.phase === 'ANY')).forEach(a => { if (tAbState(c.id, a, c.id) !== 'used') cards.push([c.id, a]); }));
+      const pas = ab.filter(a => (a.type === 'PASSIVE' && a.phase === ph) || (a.type === 'REACTION' && (a.phase === ph || a.phase === 'ANY')));
+      const okN = pre.filter(a => tAbState(u.id, a) === 'ok').length, okC = cards.filter(([c, a]) => tAbState(c, a, c) === 'ok').length;
+      h += `<div class="tsec"><div class="tsh">① Avant d’agir <span class="pill ${okN ? 'ok' : ''}">${okN} utilisable${okN > 1 ? 's' : ''}</span> <span class="small muted">${readyRes()} ${esc(RES())} prêts</span></div>
+        ${pre.map(a => tAbRow(u.id, a, null)).join('') || '<p class="muted small">Aucune capacité de l’unité dans cette phase.</p>'}
+        ${cards.length ? `<details class="tcardab"><summary>Cartes : ${okC} capacité${okC > 1 ? 's' : ''} utilisable${okC > 1 ? 's' : ''} avec n’importe quelle unité</summary>${cards.map(([c, a]) => tAbRow(c, a, c)).join('')}</details>` : ''}</div>
+        <div class="tsec"><div class="tsh">② Action</div>${tActionsHTML(u)}</div>
+        ${pas.length ? `<div class="tsec"><div class="tsh">③ Pendant et après</div>${pas.map(a => tAbRow(u.id, a, null, true)).join('')}</div>` : ''}`;
+    } else if (act && tElig(u)){
+      h += `<div class="tsec tdone"><span>✓ Déjà activée cette phase.</span><button class="btn ghost small" data-tunact="${u.id}">Annuler son activation</button></div>`;
+    } else if (act){
+      h += `<p class="small muted tsec">${u.loc === 'res' ? 'En réserve : rien à faire dans cette phase.' : ph === 'COMBAT' ? 'Non engagée (ou volante) : pas de combat.' : 'Rien à faire dans cette phase.'}</p>`;
+    }
+  }
+  if (!mine && u.loc === 'res' && ph === 'MOVEMENT') h += `<div class="tsec"><button class="btn pri" data-toppdep="${u.id}">Il entre en jeu</button></div>`;
+  h += tStateHTML(u);
+  const always = abilitiesOf(u).filter(a => a.type === 'PASSIVE' && a.phase === 'ANY');
+  if (always.length) h += `<details class="tsec tcardab"><summary>Toujours actif (${always.length})</summary>${always.map(a => tAbRow(u.id, a, null, true)).join('')}</details>`;
+  return h + '</div>';
+}
+function tOpen(id){
+  const u = findU(id); if (!u) return;
+  if (u.side !== 'o') U.sel = u.id;
+  T.open = id; openSheet(tsheetHTML(u)); POP.stack[0].tsheet = id; if (pop) pop.classList.add('wide', 'tpop');
+  linkifyDOM(pop);
+}
+/* appelé à la fin de render() : rafraîchit la fiche ouverte, ou la rouvre après un paiement */
+function tableHook(){
+  const top = POP.stack[POP.stack.length - 1];
+  if (pop && top && top.tsheet){
+    const u = findU(top.tsheet); if (!u){ closePop(); return; }
+    const body = pop.querySelector('.popbody'), y = pop.scrollTop, y2 = body ? body.scrollTop : 0;
+    top.html = tsheetHTML(u); renderPop(); pop.classList.add('wide', 'tpop'); linkifyDOM(pop);
+    pop.scrollTop = y; const b2 = pop.querySelector('.popbody'); if (b2) b2.scrollTop = y2;
+    return;
+  }
+  if (!pop && T.reopen){ const r = T.reopen; T.reopen = null; if (U.tab === 'table' && JSON.stringify(S.used) !== r.used) tOpen(r.id); }
+}
+function tWound(u, n){
+  if (n > 0){
+    u.dmg = (u.dmg || 0) + 1;
+    if (u.dmg >= tCap(u)){ const lost = setAlive(u, u.alive - 1); u.dmg = 0; if (lost > 0) logA(`${unitName(u)} : supply −${lost}`, 'loss');
+      toast(u.loc === 'dead' ? unitName(u) + ' détruite.' : unitName(u) + ' perd une figurine : ' + u.alive + '/' + u.start + '.' + (lost > 0 ? ' Supply −' + lost + '.' : '')); }
+  } else u.dmg = Math.max(0, (u.dmg || 0) - 1);
+}
+document.addEventListener('click', e => {
+  const tc = e.target.closest('[data-tclamp]');
+  if (tc && !e.target.closest('button')){ tc.classList.toggle('open'); return; }
+  const t = e.target.closest('[data-topen],[data-tact],[data-tuse],[data-twound],[data-tfig],[data-tst],[data-tfiche],[data-tunact],[data-tcard],[data-tcinfo],[data-tvp],[data-toppdep]');
+  if (!t) return;
+  e.stopPropagation(); e.preventDefault();
+  const d = t.dataset;
+  if (d.topen){ tOpen(d.topen); return; }
+  if (d.tvp){ const [w, n] = d.tvp.split('|'); S.vp[w] = Math.max(0, S.vp[w] + +n); save(); render(); return; }
+  if (d.tcard){ const c = S.cards.find(x => x.id === d.tcard); if (c){ c.ready = !c.ready; save(); render(); toast(nm(c.key, cardDef(c)) + (c.ready ? ' : prête.' : ' : épuisée.')); } return; }
+  if (d.tcinfo){ const c = S.cards.find(x => x.id === d.tcinfo); if (c){ openSheet(cardInfoHTML(c)); linkifyDOM(pop); } return; }
+  if (d.tfiche){ const u = findU(d.tfiche); POP.stack.push({html:unitFicheHTML(u)}); renderPop(); if (pop) pop.classList.add('wide'); linkifyDOM(pop); return; }
+  if (d.tact){ const u = findU(T.open); if (!u) return; U.sel = u.id;
+    if (d.tact === 'deploy') doDeploy(u, d.x); else if (d.tact === 'wormback') wormBack(u, d.x); else applyAct(u, d.tact, d.x);
+    const top = POP.stack[POP.stack.length - 1]; if (pop && top && top.tsheet) closePop();
+    T.open = null; return; }
+  if (d.tuse){ const [h, k] = d.tuse.split('|'); const r = ABREG[h + '|' + k]; if (!r) return;
+    const top = POP.stack[POP.stack.length - 1]; T.reopen = pop && top && top.tsheet ? {id:top.tsheet, used:JSON.stringify(S.used)} : null;
+    startUse(r[0], r[1]); return; }
+  if (d.twound){ const [id, n] = d.twound.split('|'); const u = findU(id); if (!u || u.loc === 'dead') return; tWound(u, +n); save(); render(); return; }
+  if (d.tfig){ const [id, n] = d.tfig.split('|'); const u = findU(id); if (!u) return; const lost = setAlive(u, u.alive + +n); if (+n < 0) u.dmg = 0; if (lost > 0) logA(`${unitName(u)} : supply −${lost}`, 'loss'); save(); render(); return; }
+  if (d.tst){ const [id, k] = d.tst.split('|'); const u = findU(id); if (!u) return;
+    if (k === 'eng') u.engaged = !u.engaged; else if (k === 'burrowed') setBur(u, !u.burrowed, 'manuel'); else if (k === 'siege') setSiege(u, !u.siege, 'manuel');
+    else if (k === 'hidden') setHidden(u, !u.hidden, null, 'manuel'); else if (k === 'shield') u.shLost = isShielded(u); else u.stat = !u.stat;
+    U.flow = {}; save(); render(); return; }
+  if (d.tunact){ const u = findU(d.tunact); if (u){ u.act[S.phase] = false; save(); render(); } return; }
+  if (d.toppdep){ const u = findU(d.toppdep); if (u){ doDeploy(u, 'std'); const top = POP.stack[POP.stack.length - 1]; if (pop && top && top.tsheet) tOpen(u.id); } return; }
+}, true);
+
 /* ================= interface commune ================= */
 let toastT;
 function toast(m){ let t = $('.toast'); if (!t){ t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role','status'); document.body.appendChild(t); } t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3400); }
-const TABS = [['game','Partie','◎'],['phase','Phase','▶'],['army','Armées','▦'],['attack','Attaque','✶'],['rules','Règles','§'],['log','Bilan','≡']];
+const TABS = [['game','Partie','◎'],['table','Sur la table','⬢'],['phase','Phase','▶'],['army','Armées','▦'],['attack','Attaque','✶'],['rules','Règles','§'],['log','Bilan','≡']];
 
 function renderHud(){
   const c = RACECOL[S.race] || RACECOL.TERRAN, root = document.documentElement, th = root.getAttribute('data-theme');
@@ -4127,9 +4383,10 @@ function render(){
   if (U.big) document.documentElement.dataset.big = '1'; else delete document.documentElement.dataset.big;
   if (SIMPLE() && SIMPLE_HIDDEN_TABS.includes(U.tab)) U.tab = 'phase';
   const v = $('#view'), t = U.tab;
-  v.innerHTML = t === 'game' ? renderGame() : t === 'phase' ? renderPhase() : t === 'army' ? renderArmies() : t === 'attack' ? renderAttack() : t === 'rules' ? renderRules() : renderLog();
+  v.innerHTML = t === 'game' ? renderGame() : t === 'table' ? renderTable() : t === 'phase' ? renderPhase() : t === 'army' ? renderArmies() : t === 'attack' ? renderAttack() : t === 'rules' ? renderRules() : renderLog();
   if (t === 'attack') renderPipe();
   linkifyDOM(v);
+  tableHook();
 }
 
 /* ================= déroulé ================= */
