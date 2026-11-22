@@ -308,13 +308,22 @@ table.cmp tr.best td{background:var(--ok-soft)}
 .paycards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .paycard{display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;border:1.5px solid var(--line);background:var(--sunk);border-radius:var(--r);padding:8px 10px;font:inherit;color:inherit;min-width:0}
 button.paycard{cursor:pointer}
+.paycard{padding:0;gap:0;overflow:hidden}
+.paycard .pc-info,.paycard .pc-sel{display:flex;width:100%;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.paycard .pc-info{align-items:flex-start;justify-content:space-between;gap:6px;padding:8px 10px 2px}
+.paycard .pc-info b{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.paycard .pc-i{color:var(--accent);font-size:1.1em;line-height:1}
+.paycard .pc-sel{flex-direction:column;align-items:flex-start;gap:2px;padding:2px 10px 8px;flex:1}
+.paycard .pc-sel:disabled{cursor:default}
+.paycard.ex .pc-info{opacity:1}.paycard.ex .pc-sel{opacity:.55}.paycard.ex{opacity:1}
+.paycard .pc-warn{color:var(--warn)}
 .paycard.on{border-color:var(--accent);background:var(--warn-soft)}
-.paycard.ex,.paycard:disabled{opacity:.55}
+.paycard:disabled{opacity:.55}
 .paycard b{font-family:var(--f-display);font-weight:600}
 .redrow{display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:13px}
 ul.spent{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 ul.spent li{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:4px;font-size:14px}
-@media (max-width:700px){.pop.sheet .btn{min-height:42px}.paycard{padding:10px 12px}}
+@media (max-width:700px){.pop.sheet .btn{min-height:42px}.paycard .pc-info{padding:10px 12px 2px}.paycard .pc-sel{padding:2px 12px 10px}}
 
 @media (prefers-reduced-motion:no-preference){.fn.cur,.leafcard{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}}
 
@@ -1004,11 +1013,25 @@ function payHTML(){
     ${n ? `<div class="row"><span class="lbl">Coût</span><span class="cost">${n} ${esc(res)}</span>${PAY.red.length ? `<span class="pill ok">réduit à ${eff}</span>` : ''}<span class="small muted">sélectionné : <b class="mono">${sum}</b> / ${eff}</span></div>` : ''}
     ${eff ? `<p class="small" style="margin:8px 0 4px">Touche les cartes que tu retournes sur la table :</p>
     <div class="paycards">${pick.map(c => { const d = cardDef(c), on = PAY.sel.includes(c.id), why = !c.ready ? spentFor(c.id) : '';
-      return `<button class="paycard ${on ? 'on' : ''}" data-paysel="${c.id}" ${c.ready ? '' : 'disabled'}><b>${esc(nm(c.key, d))}</b><span class="res">+${d.resource_generated} ${esc(res)}</span><span class="small">${c.ready ? (on ? 'à épuiser' : 'prête') : 'épuisée' + (why ? ' · ' + esc(why) : '')}</span></button>`; }).join('') || '<p class="muted">Aucune carte ne fournit cette ressource.</p>'}</div>` : ''}
+      const act = c.ready ? cardActives(c) : [];
+      return `<div class="paycard ${on ? 'on' : ''} ${c.ready ? '' : 'ex'}"><button type="button" class="pc-info" data-cardinfo="${c.id}" title="Voir l’effet de la carte"><b>${esc(nm(c.key, d))}</b><span class="pc-i" aria-hidden="true">ⓘ</span></button>
+        <button type="button" class="pc-sel" data-paysel="${c.id}" ${c.ready ? '' : 'disabled'}><span class="res">+${d.resource_generated} ${esc(res)}</span><span class="small">${c.ready ? (on ? 'à épuiser' : 'prête') : 'épuisée' + (why ? ' · ' + esc(why) : '')}</span>${act.length ? `<span class="small pc-warn">Capacité encore utilisable : ${act.map(a => esc(nm(a.key, a))).join(', ')}</span>` : ''}</button></div>`; }).join('') || '<p class="muted">Aucune carte ne fournit cette ressource.</p>'}</div>
+    <p class="small muted" style="margin:6px 0 0">Touche le nom d’une carte (ⓘ) pour lire son effet avant de l’épuiser.</p>` : ''}
     ${red.length && n ? `<div style="margin-top:10px"><span class="lbl">Réductions possibles (une fois par round)</span>${red.map(r => `<label class="chk redrow"><input type="checkbox" data-payred="${esc(r.h + '|' + r.key)}" ${PAY.red.includes(r.h + '|' + r.key) ? 'checked' : ''}> <span><b>${esc(r.name)}</b> (${esc(r.src)}) : ${esc(fr(r.text) || r.text)}</span></label>`).join('')}<p class="small muted">Coche seulement si la condition de la réduction est remplie.</p></div>` : ''}
     ${sum > eff && eff ? '<p class="small" style="color:var(--warn)">L’excédent est perdu : rien ne se garde pour une autre capacité.</p>' : ''}
     <div class="row" style="margin-top:12px"><button class="btn pri" id="payGo" ${ok ? '' : 'disabled'}>${eff ? `Payer ${eff} ${esc(res)} et utiliser` : 'Utiliser'}</button><button class="btn ghost" id="popClose2">Annuler</button></div>
     ${!ok && pick.filter(c => c.ready).reduce((s, c) => s + (cardDef(c).resource_generated||0), 0) < eff ? `<p class="small" style="color:var(--bad)">Pas assez de ${esc(res)} prêts pour payer.</p>` : ''}</div>`;
+}
+/* capacités actives de la carte encore utilisables ce round (épuiser la carte les rend indisponibles) */
+const PH_IDX = {MOVEMENT:1, ASSAULT:2, COMBAT:3};
+function cardActives(c){ return cardAbilities(c).filter(a => a.type !== 'PASSIVE' && !(S.used[c.id + ':' + a.key] && !/REPEATABLE/.test(a.text || ''))
+  && !(PH_IDX[a.phase] && PH_IDX[a.phase] < S.phase)); }
+function cardInfoHTML(c){
+  const d = cardDef(c), res = RES(), abs = cardAbilities(c), why = !c.ready ? spentFor(c.id) : '', act = c.ready ? cardActives(c) : [];
+  return `<div class="cardinfo"><h3>${esc(nm(c.key, d))}</h3>
+    <div class="row"><span class="pill">${c.kind === 'faction' ? 'Faction' : c.kind === 'creep' ? 'Creep' : 'Tactique'}</span>${d.resource_generated ? `<span class="cost">+${d.resource_generated} ${esc(res)}</span>` : ''}<span class="pill ${c.ready ? 'ok' : 'warn'}">${c.ready ? 'Prête' : 'Épuisée' + (why ? ' pour ' + esc(why) : '')}</span></div>
+    ${act.length ? `<p class="note warn" style="margin:8px 0"><span class="lbl">Attention</span>Si tu épuises cette carte pour payer, tu ne pourras plus utiliser ${act.map(a => '<b>' + esc(nm(a.key, a)) + '</b>').join(', ')} avant le nettoyage.</p>` : ''}
+    ${abs.length ? `<div class="ablist">${abs.map(a => abHTML(c.id, a, {noUse:true})).join('')}</div>` : '<p class="muted small">Aucune capacité : cette carte sert seulement à payer.</p>'}</div>`;
 }
 function spentFor(cid){ const e = (S.spent || []).find(x => x.cards.includes(cid)); return e ? e.name + (e.who ? ' (' + e.who + ')' : '') : ''; }
 function recordUse(holder, a, cards, amount, red){
@@ -4172,6 +4195,7 @@ document.addEventListener('click', e => {
   if (t.id === 'handGo'){ handApply(); return; }
   if (t.id === 'nextForce'){ closePop(); nextStep(); return; }
   if (t.id === 'popBack'){ POP.stack.pop(); renderPop(); return; }
+  if (d.cardinfo){ const c = S.cards.find(x => x.id === d.cardinfo); if (c){ POP.stack.push({html:cardInfoHTML(c)}); renderPop(); } return; }
   if (d.paysel){ const i = PAY.sel.indexOf(d.paysel); if (i >= 0) PAY.sel.splice(i, 1); else PAY.sel.push(d.paysel); POP.stack = [{html:payHTML()}]; renderPop(); return; }
   if (t.id === 'payGo'){ confirmPay(); return; }
   if (d.refund){ refund(d.refund); POP.stack = [{html:ledgerHTML()}]; renderPop(); render(); return; }
