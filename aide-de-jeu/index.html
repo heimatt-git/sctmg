@@ -1659,8 +1659,14 @@ function renderActivation(){
 function renderScore(){
   const m = mission(), sm = m.scoring_model, last = S.round >= lastRound();
   const fx = [];
-  S.units.filter(u => u.loc === 'table').forEach(u => abilitiesOf(u).forEach(a => { if (/end of (the|each) round/i.test(a.text||'')) fx.push(regAb(u.id, Object.assign({}, a, {src:unitName(u)}))); }));
-  S.cards.forEach(c => cardAbilities(c).forEach(a => { if (/end of (the|each) round/i.test(a.text||'')) fx.push(regAb(c.id, a)); }));
+  /* seulement ce qui se déclenche à la fin du round (pas les effets « jusqu'à la fin du round ») ;
+     une capacité active n'apparaît que si elle a été utilisée ce round, en simple rappel (rien à payer) */
+  const eorTxt = a => /(^|[.;]\s*)(at|remove this unit at) the end of (the|each) round/i.test(a.text || '') || /remove this unit at the end of (the|each) round/i.test(a.text || '');
+  const usedNow = (h, a) => (S.used[h + ':' + a.key] && S.used[h + ':' + a.key].r === S.round) || (S.spent || []).some(e => e.r === S.round && e.holder === h && e.key === a.key);
+  const eorAdd = (h, a) => { if (!eorTxt(a)) return; if (a.type !== 'PASSIVE' && !usedNow(h, a)) return;
+    fx.push(`<div class="eor">${abHTML(h, a, {noUse:true})}</div>`); };
+  S.units.filter(u => u.loc === 'table').forEach(u => abilitiesOf(u).forEach(a => eorAdd(u.id, Object.assign({}, a, {src:unitName(u)}))));
+  S.cards.forEach(c => cardAbilities(c).forEach(a => eorAdd(c.id, a)));
   const mine = S.units.filter(u => u.loc === 'table' && !isFlying(udef(u)));
   const theirs = S.opp.units.filter(u => u.loc === 'table' && !isFlying(udef(u)));
   const sumOf = (ids, arr, adj) => ids.reduce((a, id) => { const u = arr.find(x => x.id === id); return a + (u && u.loc === 'table' && !isBur(u) ? curSup(u) : 0); }, 0) + (adj || 0);
@@ -1710,7 +1716,7 @@ function renderScore(){
       <li><span>Condition spéciale : ${m.special_win_lead ? `un joueur mène de ${m.special_win_lead} PV ou plus` : 'à confirmer (carte incomplète)'}.${specialWin() ? ' <b>Atteinte !</b>' : ''}</span></li>
       <li><span>Un joueur n’a plus aucune figurine sur la table ni d’unité en réserve : le survivant gagne +10 PV.</span></li>
       <li><span>Dernier round (${lastRound()}) terminé : score final.${last ? ' <b>C’est le dernier round</b> : les unités restées en réserve comptent comme détruites (incluses dans le calcul ci-dessus).' : ''}</span></li></ol>
-    <h2 style="margin-top:12px">4 · Effets de fin de round</h2><p class="sub">Le premier joueur résout les siens en premier.</p>${tokens().filter(t => t.kind === 'shade' || t.kind === 'tunnel').map(t => `<div class="note">${tokLine(t)}</div>`).join('')}<div class="ablist">${fx.join('') || '<p class="muted">Aucune capacité de fin de round dans ta liste.</p>'}</div></div>
+    <h2 style="margin-top:12px">4 · Effets de fin de round</h2><p class="sub">Le premier joueur résout les siens en premier.</p>${tokens().filter(t => t.kind === 'shade' || t.kind === 'tunnel').map(t => `<div class="note">${tokLine(t)}</div>`).join('')}<div class="ablist">${fx.join('') || '<p class="muted">Rien à résoudre à la fin de ce round.</p>'}</div></div>
   <div class="panel"><h2>5 · Nettoyage</h2>
     ${unused && !S.cleaned ? `<div class="note warn"><span class="lbl">Ressources non dépensées</span>Il te reste ${unused} ${esc(RES())} : elles seront perdues au nettoyage. Une capacité de fin de round à utiliser ? <button class="btn ghost small" data-ledger="1">Voir le détail</button></div>` : ''}
     <p class="sub">Retire tous les jetons et marqueurs sauf : STAY IN PLAY, marqueurs de dégâts, marqueurs de mission et indicateurs de faction. Toutes les cartes épuisées redeviennent prêtes.</p>
