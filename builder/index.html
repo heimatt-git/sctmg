@@ -1078,7 +1078,7 @@ function loadGen(i){const x=genRes&&genRes.lists[i];if(!x)return;const race=genR
   state.race=race;state.view='list';openSheets.clear();render();window.scrollTo(0,0);}
 
 /* ---------- main render ---------- */
-function render(){renderHeader();if(state.view!=='list')lastC=null;document.getElementById('main').innerHTML=state.view==='list'?renderList():state.view==='gen'?renderGen():renderCollection();save();updateBudget();applyHd();applyCat();}
+function render(){slotFmtApply();renderHeader();if(state.view!=='list')lastC=null;document.getElementById('main').innerHTML=state.view==='list'?renderList():state.view==='gen'?renderGen():renderCollection();save();updateBudget();applyHd();applyCat();}
 
 /* ---------- mutations ---------- */
 const curList=()=>state.lists[state.race];
@@ -2251,6 +2251,24 @@ const STRUCT_NOTE={
  PYLON_WARP_IN:{u:'Pylon',t:'<b>Pylon : quand il fonctionne.</b> Pose-le pendant l’activation d’une de tes unités déjà sur la table (FAQ), à plus de 10" des ennemis. <b>Le round de la pose, il est inactif.</b> Dès le round suivant : Warp Conduit, une unité Ground par round entre depuis son socle (Entry Edge amie), et son activation se termine dès la pose (FAQ).'}};
 function cardNotes(abs){return Object.keys(abs||{}).filter(k=>STRUCT_NOTE[k]).map(k=>`<p class="cardnote">${STRUCT_NOTE[k].t}</p>`).join('');}
 function sumNote(key){const e=Object.values(STRUCT_NOTE).find(x=>x.u===key);return e?`<p class="cardnote">${e.t}</p>`:'';}
+
+
+/* ---------- v15 : le format (échelle et plafond) est mémorisé avec chaque liste ---------- */
+function fmtGuess(s){const r=state.race,keepL=state.lists[r],keepF=state.faction[r];let m=0;
+  try{state.lists[r]=s.data;if(s.faction)state.faction[r]=s.faction;m=compute().min||0;}catch(e){m=0;}finally{state.lists[r]=keepL;state.faction[r]=keepF;}
+  if(!m)return {scale:state.scale,custom:state.custom};
+  const ES=DB.army_building_rules.engagement_scales;
+  const fit=Object.keys(ES).filter(k=>typeof ES[k].mineral_limit==='number'&&ES[k].mineral_limit>=m).sort((a,b)=>ES[a].mineral_limit-ES[b].mineral_limit)[0];
+  if(fit)return {scale:fit,custom:state.custom};
+  const go=Object.keys(ES).find(k=>typeof ES[k].mineral_limit!=='number');return {scale:go||state.scale,custom:Math.max(2001,Math.ceil(m/50)*50)};}
+let fmtInit=false;
+function slotFmtApply(){if(!state.slots)return;const s=curSlot();if(!s)return;
+  if(!fmtInit){fmtInit=true;if(!s.fmt)s.fmt={scale:state.scale,custom:state.custom};}
+  if(!s.fmt)s.fmt=fmtGuess(s);
+  if(DB.army_building_rules.engagement_scales[s.fmt.scale])state.scale=s.fmt.scale;if(s.fmt.custom)state.custom=s.fmt.custom;}
+document.addEventListener('change',ev=>{const t=ev.target,a=t.dataset&&t.dataset.act;if(a!=='scale'&&a!=='custom')return;if(!state.slots)return;const s=curSlot();if(!s)return;
+  s.fmt=s.fmt||{scale:state.scale,custom:state.custom};if(a==='scale')s.fmt.scale=t.value;else s.fmt.custom=Math.max(2001,Math.round(+t.value)||2001);},true);
+function addSlot(r,data,name,fk){syncSlots();const id=++state.slotSeq;state.slots[r].push({id,name:uniqName(r,name),data,faction:fk||state.faction[r],fmt:{scale:state.scale,custom:state.custom}});state.cur[r]=id;state.lists[r]=data;if(fk)state.faction[r]=fk;openSheets.clear();}
 
 render();
 })();
