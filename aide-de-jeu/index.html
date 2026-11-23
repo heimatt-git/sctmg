@@ -569,6 +569,8 @@ details.losses{margin-top:10px}
 
 /* ---- onglet Sur la table ---- */
 .tpanel{padding:12px}
+.actopen{border:2px solid var(--ok)!important}
+.actopen h2{color:var(--ok)}
 .tbar{padding:8px}
 .tturn{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:6px}
 .tturn button{font:inherit;font-weight:600;border:0;background:none;color:var(--muted);min-height:40px;cursor:pointer}
@@ -1448,7 +1450,10 @@ function tree(u){
   L('root', {title:'—', steps:[]}); return N;
 }
 
-function applyAct(u, kind, extra){
+function applyAct(u, kind, extra, opt){
+  opt = opt || {};
+  if (S.actOpen && S.actOpen.uid !== u.id) S.actOpen = null;   // une autre activation en cours est close sans passer la main
+  const snap = lastSaved;
   u.act[S.phase] = true;
   const n = unitName(u), wasBur = !!u.burrowed;
   const LBL = {deploy:'Deploy', move:'Move', hold:'Hold', dis0:'Disengage (sans pénalité)', dis1:'Disengage (pénalité)', ranged:'Ranged Attack', run:'Run', charge:'Charge', cc:'Close Combat', ccno:'Activée sans attaque', gather:'Gather', sabotage:'Sabotage'};
@@ -1461,19 +1466,36 @@ function applyAct(u, kind, extra){
   if (kind === 'charge'){ if (extra === 'ok'){ u.engaged = true; S.stats.chargeOk++; } else S.stats.chargeKo++; }
   if (kind === 'cc' && extra === 'free') u.engaged = false;
   statusAfterAct(u, kind, wasBur);
-  if (!S.passed.opp) S.oppTurn = true;
   if (kind === 'gather'){ S.vp.me++; }
   if (kind === 'sabotage'){ const mk = S.markers.find(x => x.id === +extra.split(':')[0]); if (mk) mk.sab = Math.max(1, Math.min(3, mk.sab + +extra.split(':')[1])); }
-  logA(n + ' : ' + LBL[kind] + (kind === 'charge' ? (extra === 'ok' ? ' réussie' : ' ratée') : '') + (kind === 'gather' ? ' (+1 PV)' : ''), 'act');
-  U.flow = {}; save();
+  const txt = LBL[kind] + (kind === 'charge' ? (extra === 'ok' ? ' réussie' : ' ratée') : '') + (kind === 'gather' ? ' (+1 PV)' : '');
+  logA(n + ' : ' + txt, 'act');
+  U.flow = {};
+  /* règle 2.7.1 : une capacité active peut suivre l'action. S'il en reste une utilisable, l'activation reste ouverte. */
+  if (!opt.noPost && u.loc === 'table' && postList(u).length){
+    S.actOpen = {uid:u.id, ph:S.phase, kind, x:extra == null ? null : extra, txt, snap, used0:JSON.stringify(S.used)};
+    save(); U.sel = u.id; saveU(); render();
+    requestAnimationFrame(() => { const el = document.getElementById('actOpen'); if (el && !el.closest('.pop')) el.scrollIntoView({behavior:'smooth', block:'start'}); });
+    toast(n + ' : ' + txt + ' enregistré. Capacités possibles après l’action, puis « Fin de l’activation ».');
+    return;
+  }
+  S.actOpen = null; save();
+  endAct(u, kind, extra, txt);
+}
+/* fin de l'activation : la main passe à l'adversaire */
+function endAct(u, kind, extra, txt){
+  const n = unitName(u);
+  S.actOpen = null;
+  if (!S.passed.opp) S.oppTurn = true;
+  save();
   const ch = childOf(u);
   if (SIMPLE()){ const nx = ch || simpleList().find(x => !x.act[S.phase] && x.id !== u.id); U.sel = nx ? nx.id : null; saveU(); render();
     requestAnimationFrame(() => { const el = document.querySelector(oppTurnNow() ? '.turnbar' : nx ? '#blkAct' : '#blkPick'); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); });
-    toastUndo(n + ' : ' + LBL[kind] + (kind === 'charge' ? (extra === 'ok' ? ' réussie' : ' ratée') : '') + ' enregistré.' + (!S.passed.opp ? ' Tour adverse.' : '') + (nx ? ' Suivante : ' + unitName(nx) + '.' : ' Toutes tes unités ont joué.'));
+    toastUndo(n + ' : ' + txt + ' enregistré.' + (!S.passed.opp ? ' Tour adverse.' : '') + (nx ? ' Suivante : ' + unitName(nx) + '.' : ' Toutes tes unités ont joué.'));
     return; }
   render();
   if (kind === 'charge' && extra === 'ok'){ const ab = abilitiesOf(u).filter(a => /successful Charge/i.test(a.text || '')); toast(ab.length ? 'Charge réussie : pense à ' + ab.map(a => nm(a.key, a)).join(', ') + ' !' : 'Charge réussie : ' + n + ' est engagée.'); }
-  else toast(n + ' : activation enregistrée.' + (ch ? ' Active maintenant ' + unitName(ch) + ' (invoquée).' : ''));
+  else toast(n + ' : activation terminée.' + (!S.passed.opp ? ' Tour adverse.' : '') + (ch ? ' Active maintenant ' + unitName(ch) + ' (invoquée).' : ''));
 }
 
 /* ---- comparateur de cibles ---- */
@@ -2947,7 +2969,7 @@ function wormOpts(u){
 const WB_LBL = {move:'Move', run:'Run', dis0:'Disengage', dis1:'Disengage'};
 function wormBack(u, kind){
   if (!u) return; kind = WB_LBL[kind] ? kind : 'move';
-  applyAct(u, kind);
+  applyAct(u, kind, null, {noPost:true});
   u.loc = 'res'; u.engaged = false; statusOffTable(u);
   logA(unitName(u) + ' retourne en réserve par l’Omega Worm', 'act'); save(); render();
 }
@@ -4236,6 +4258,7 @@ function renderTable(){
     h += S.phase === 0 ? `<div class="note"><span class="lbl">Début du round</span>Supply disponible : <b>${fmtSup(avail(S.units))}</b>. Premier joueur : <b>${S.fpm === 'me' ? 'toi' : 'adversaire'}</b>. Touche « Phase suivante » pour commencer.</div>`
       : `<div class="note"><span class="lbl">Score et nettoyage</span>Compte les marqueurs dans l’onglet Phase, puis passe au round suivant. <button class="btn small" data-tab="phase">Ouvrir le décompte</button></div>`;
   }
+  if (S.actOpen) h += actOpenHTML();
   if (act && oppTurnNow()) h += tReactions();
   h += `<div class="panel tpanel"><h2>Mes unités</h2><p class="small muted">Touche une unité : ce qu’elle peut faire maintenant, ses PV et ses statuts.</p>${tSide(S.units, true)}</div>`;
   h += `<div class="panel tpanel"><h2>Adversaire</h2>${S.opp.units.length ? tSide(S.opp.units, false) : '<p class="muted small">Aucune unité adverse : ajoute sa liste dans l’onglet Partie.</p>'}</div>`;
@@ -4245,6 +4268,38 @@ function renderTable(){
 function tScoreHTML(){
   const row = (w, l) => `<div class="tscrow"><span>${l}</span><button class="btn" data-tvp="${w}|-1" aria-label="moins">−</button><b class="mono">${S.vp[w]}</b><button class="btn" data-tvp="${w}|1" aria-label="plus">+</button></div>`;
   return `<div class="tsheet"><h3>Score</h3>${row('me', 'Moi')}${row('opp', 'Adversaire')}</div>`;
+}
+
+/* ---- après l'action (règle 2.7.1) : capacités actives utilisables juste après, puis fin de l'activation ---- */
+function postList(u){
+  if (!u || u.loc !== 'table') return [];
+  const ph = tPh(), out = [];
+  abilitiesOf(u).filter(a => a.type === 'ACTIVE' && (a.phase === ph || a.phase === 'ANY')).forEach(a => {
+    if (tAbState(u.id, a) !== 'ok') return; ABREG[u.id + '|' + a.key] = [u.id, a];
+    if ((typeof burrowBlock === 'function' && burrowBlock(u.id, a)) || (typeof extrasBlock === 'function' && extrasBlock(u.id, a))) return;
+    out.push([u.id, a, null]); });
+  if (u.side !== 'o') S.cards.forEach(c => cardAbilities(c).filter(a => a.type === 'ACTIVE' && (a.phase === ph || a.phase === 'ANY') && /\bactive unit\b/i.test(a.text || '')).forEach(a => {
+    if (tAbState(c.id, a, c.id) !== 'ok') return; ABREG[c.id + '|' + a.key] = [c.id, a];
+    if (typeof extrasBlock === 'function' && extrasBlock(c.id, a)) return;
+    out.push([c.id, a, c.id]); }));
+  return out;
+}
+function actOpenHTML(){
+  const o = S.actOpen; if (!o) return ''; const u = findU(o.uid); if (!u) return '';
+  const L = postList(u), own = L.filter(r => !r[2]), cards = L.filter(r => r[2]);
+  return `<div class="panel tpanel actopen" id="actOpen"><h2>Après l’action : ${esc(unitName(u))}</h2>
+    <p class="small"><b>${esc(o.txt || '')}</b> enregistré. Tu peux encore utiliser une capacité <b>juste après l’action</b> (règle 2.7.1), puis termine l’activation.</p>
+    ${own.map(r => tAbRow(r[0], r[1], r[2])).join('')}
+    ${cards.length ? `<details class="tcardab" ${own.length ? '' : 'open'}><summary>Cartes utilisables sur l’unité active (${cards.length})</summary>${cards.map(r => tAbRow(r[0], r[1], r[2])).join('')}</details>` : ''}
+    <div class="tbtns" style="margin-top:10px"><button class="btn pri" data-tactend="1">Fin de l’activation</button><button class="btn ghost" data-tactundo="1">Annuler l’action</button></div></div>`;
+}
+function actFinish(auto){
+  const o = S.actOpen; if (!o) return; const u = findU(o.uid);
+  if (!u){ S.actOpen = null; save(); render(); return; }
+  T.reopen = null;
+  const top = POP.stack[POP.stack.length - 1]; if (pop && top && top.tsheet) closePop();
+  endAct(u, o.kind, o.x, o.txt);
+  if (auto) setTimeout(() => toast(unitName(u) + ' : activation terminée, plus de capacité utilisable après l’action.' + (S.oppTurn ? ' Tour adverse.' : '')), 60);
 }
 /* ---- fiche d'activation (fenêtre du bas) ---- */
 function tStateHTML(u){
@@ -4287,7 +4342,8 @@ function tsheetHTML(u){
     <div class="small muted">${u.loc === 'res' ? 'En réserve' : u.loc === 'dead' ? 'Détruite' : 'Sur la table'} · ${act ? esc(PH[S.phase].t) : esc(PH[S.phase].t)}${mine ? '' : ' · armée adverse'}${tags.length ? ' · ' + tags.join(' · ') : ''}</div>
     <div class="tstats">${[['Speed', (d.stats.speed_last_model ? d.stats.speed + '/' + d.stats.speed_last_model : d.stats.speed) + '"'], ['Armure', d.stats.armour], ['Evade', d.stats.evade], ['PV', d.stats.hp + (d.stats.shield ? '+' + d.stats.shield : '')], ['Taille', effSize(u)]].map(([l, v]) => `<span><i>${l}</i>${esc(v)}</span>`).join('')}</div>`;
   if (mine && u.loc !== 'dead'){
-    if (act && tElig(u) && !u.act[S.phase]){
+    if (S.actOpen && S.actOpen.uid === u.id){ h += actOpenHTML(); }
+    else if (act && tElig(u) && !u.act[S.phase]){
       const ab = abilitiesOf(u), pre = ab.filter(a => a.type === 'ACTIVE' && (a.phase === ph || a.phase === 'ANY'));
       const cards = []; S.cards.forEach(c => cardAbilities(c).filter(a => a.type === 'ACTIVE' && (a.phase === ph || a.phase === 'ANY')).forEach(a => { if (tAbState(c.id, a, c.id) !== 'used') cards.push([c.id, a]); }));
       const pas = ab.filter(a => (a.type === 'PASSIVE' && a.phase === ph) || (a.type === 'REACTION' && (a.phase === ph || a.phase === 'ANY')));
@@ -4317,6 +4373,11 @@ function tOpen(id){
 }
 /* appelé à la fin de render() : rafraîchit la fiche ouverte, ou la rouvre après un paiement */
 function tableHook(){
+  if (S.actOpen){
+    const o = S.actOpen, u = findU(o.uid);
+    if (!u || o.ph !== S.phase || S.passed.me || u.loc !== 'table'){ S.actOpen = null; save(); }
+    else if (JSON.stringify(S.used) !== o.used0 && !postList(u).length && !(pop && POP.stack.some(x => x.html && !x.tsheet && !x.tscore))){ actFinish(true); return; }
+  }
   const top = POP.stack[POP.stack.length - 1];
   if (pop && top && top.tsheet){
     const u = findU(top.tsheet); if (!u){ closePop(); return; }
@@ -4338,11 +4399,14 @@ function tWound(u, n){
 document.addEventListener('click', e => {
   const tc = e.target.closest('[data-tclamp]');
   if (tc && !e.target.closest('button')){ tc.classList.toggle('open'); return; }
-  const t = e.target.closest('[data-topen],[data-tact],[data-tuse],[data-twound],[data-tfig],[data-tst],[data-tfiche],[data-tunact],[data-tcard],[data-tcinfo],[data-tvp],[data-toppdep],[data-tscore]');
+  const t = e.target.closest('[data-topen],[data-tact],[data-tuse],[data-twound],[data-tfig],[data-tst],[data-tfiche],[data-tunact],[data-tcard],[data-tcinfo],[data-tvp],[data-toppdep],[data-tscore],[data-tactend],[data-tactundo]');
   if (!t) return;
   e.stopPropagation(); e.preventDefault();
   const d = t.dataset;
   if (d.topen){ tOpen(d.topen); return; }
+  if (d.tactend){ actFinish(false); return; }
+  if (d.tactundo){ const o = S.actOpen; if (!o) return; const top = POP.stack[POP.stack.length - 1]; const keep = pop && top && top.tsheet ? top.tsheet : null;
+    S = JSON.parse(o.snap); S.actOpen = null; save(); render(); toast('Action annulée : l’unité peut rejouer.'); if (keep && U.tab === 'table') tOpen(keep); return; }
   if (d.tscore){ openSheet(tScoreHTML()); POP.stack[0].tscore = 1; return; }
   if (d.tvp){ const [w, n] = d.tvp.split('|'); S.vp[w] = Math.max(0, S.vp[w] + +n); save(); render(); return; }
   if (d.tcard){ const c = S.cards.find(x => x.id === d.tcard); if (c){ c.ready = !c.ready; save(); render(); toast(nm(c.key, cardDef(c)) + (c.ready ? ' : prête.' : ' : épuisée.')); } return; }
@@ -4350,8 +4414,8 @@ document.addEventListener('click', e => {
   if (d.tfiche){ const u = findU(d.tfiche); POP.stack.push({html:unitFicheHTML(u)}); renderPop(); if (pop) pop.classList.add('wide'); linkifyDOM(pop); return; }
   if (d.tact){ const u = findU(T.open); if (!u) return; U.sel = u.id;
     if (d.tact === 'deploy') doDeploy(u, d.x); else if (d.tact === 'wormback') wormBack(u, d.x); else applyAct(u, d.tact, d.x);
-    const top = POP.stack[POP.stack.length - 1]; if (pop && top && top.tsheet) closePop();
-    T.open = null; return; }
+    const top = POP.stack[POP.stack.length - 1]; if (pop && top && top.tsheet && !S.actOpen) closePop();
+    if (!S.actOpen) T.open = null; return; }
   if (d.tuse){ const [h, k] = d.tuse.split('|'); const r = ABREG[h + '|' + k]; if (!r) return;
     const top = POP.stack[POP.stack.length - 1]; T.reopen = pop && top && top.tsheet ? {id:top.tsheet, used:JSON.stringify(S.used)} : null;
     startUse(r[0], r[1]); return; }
@@ -4408,6 +4472,7 @@ function render(){
   if (SIMPLE() && SIMPLE_HIDDEN_TABS.includes(U.tab)) U.tab = 'phase';
   const v = $('#view'), t = U.tab;
   v.innerHTML = t === 'game' ? renderGame() : t === 'table' ? renderTable() : t === 'phase' ? renderPhase() : t === 'army' ? renderArmies() : t === 'attack' ? renderAttack() : t === 'rules' ? renderRules() : renderLog();
+  if (t === 'phase' && S.actOpen) v.insertAdjacentHTML('afterbegin', actOpenHTML());
   if (t === 'attack') renderPipe();
   linkifyDOM(v);
   tableHook();
