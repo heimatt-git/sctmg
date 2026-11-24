@@ -2270,6 +2270,28 @@ document.addEventListener('change',ev=>{const t=ev.target,a=t.dataset&&t.dataset
   s.fmt=s.fmt||{scale:state.scale,custom:state.custom};if(a==='scale')s.fmt.scale=t.value;else s.fmt.custom=Math.max(2001,Math.round(+t.value)||2001);},true);
 function addSlot(r,data,name,fk){syncSlots();const id=++state.slotSeq;state.slots[r].push({id,name:uniqName(r,name),data,faction:fk||state.faction[r],fmt:{scale:state.scale,custom:state.custom}});state.cur[r]=id;state.lists[r]=data;if(fk)state.faction[r]=fk;openSheets.clear();}
 
+
+/* ---------- v16 : l'écran reste sur l'élément touché (téléphone : la liste est au-dessus du catalogue) ---------- */
+const KEEP_ACTS=new Set(['add-unit','add-tac','rm-tac','rm-unit','sheet','fav','col-step','up','comp','creep']);
+function keepSel(e){if(!e||!e.dataset||!e.dataset.act)return null;let s='[data-act="'+e.dataset.act+'"]';
+  ['v','uid','t','d'].forEach(k=>{if(e.dataset[k]!=null)s+='[data-'+k+'="'+String(e.dataset[k]).replace(/"/g,'\\"')+'"]';});
+  try{return document.querySelectorAll(s).length===1?s:null;}catch(x){return null;}}
+function keepAnchor(el){
+  const all=[...document.querySelectorAll('#main [data-act]')],i=all.indexOf(el),out=[];
+  const push=e=>{const s=keepSel(e);if(s){const r=e.getBoundingClientRect();if(r.height||r.width)out.push([s,r.top]);}};
+  push(el);for(let j=i+1;j<all.length&&out.length<6;j++)push(all[j]);for(let j=i-1;j>=0&&out.length<10;j--)push(all[j]);
+  if(!out.length)return;const y0=scrollY;
+  requestAnimationFrame(()=>{if(scrollY!==y0)return;for(const [s,top] of out){const n=document.querySelector(s);if(!n)continue;const d=n.getBoundingClientRect().top-top;if(Math.abs(d)>1)scrollBy(0,d);return;}});}
+function bToast(m){let t=document.getElementById('bToast');if(!t){t=document.createElement('div');t.id='bToast';t.setAttribute('role','status');
+  t.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;max-width:92vw;padding:10px 16px;border-radius:10px;background:#1b2127;color:#fff;font:600 15px/1.3 system-ui,sans-serif;box-shadow:0 4px 16px rgb(0 0 0/.3);pointer-events:none;transition:opacity .2s';document.body.appendChild(t);}
+  t.textContent=m;t.style.opacity='1';clearTimeout(bToast.t);bToast.t=setTimeout(()=>{t.style.opacity='0';},2200);}
+document.addEventListener('click',ev=>{const b=ev.target.closest&&ev.target.closest('#main [data-act]');if(!b||b.disabled||!KEEP_ACTS.has(b.dataset.act)||b.tagName==='INPUT'||b.tagName==='SELECT')return;
+  keepAnchor(b);
+  if(b.dataset.act==='add-unit'){const R=DB.races[state.race],u=R&&R.units[b.dataset.v];if(u){const c=(u.composition_options||[])[0];setTimeout(()=>bToast(nm(b.dataset.v,u)+' ajouté'+(c&&c.mineral_cost!=null?' ('+c.mineral_cost+' minéraux)':'')),0);}}
+  else if(b.dataset.act==='add-tac'){const R=DB.races[state.race],c=R&&R.tactical_cards[b.dataset.v];if(c)setTimeout(()=>bToast(nm(b.dataset.v,c)+' ajoutée'+(c.gas_cost!=null?' ('+c.gas_cost+' gas)':'')),0);}
+},true);
+document.addEventListener('change',ev=>{const t=ev.target;if(!t||!t.dataset||!KEEP_ACTS.has(t.dataset.act)||!t.closest('#main'))return;keepAnchor(t);},true);
+
 render();
 })();
 </script>
