@@ -2639,6 +2639,7 @@ function burNote(u){
     const L = ['Taille 3. Pas de Move, Disengage, Run, Charge ni Close Ranks : utilise d’abord Mode Transformation pour en sortir.',
       'Seules les armes « SIEGE MODE Status » sont utilisables (Shock Cannon).'];
     if (hasAb(u, 'AFTERSHOCK_ROUNDS')) L.push('Aftershock Rounds : dégâts = taille de la cible (minimum 1).');
+    if (csActive(u) && PH[S.phase].id === 'ASSAULT') L.unshift('<b>' + CS_TXT + '</b>');
     if (hasAb(u, 'POINT_BLANK')) L.push('Point Blank : ne vise pas une unité avec laquelle il est engagé.');
     if (hasAb(u, 'HEAVY_PLATING')) L.push('Heavy Plating (TOUGH 1) ne s’applique pas en Siege Mode.');
     if (hasAb(u, 'Shaped_Blast')) L.push('Shaped Blast (1 fois par partie) : PINPOINT et LOCKED IN (4).');
@@ -2651,6 +2652,8 @@ function burNote(u){
   return h;
 }
 /* ---------- actions en SIEGE MODE ---------- */
+const CS_TXT = 'Coordinated Strike actif ce round : avec le Shock Cannon, tu peux ignorer la portée de l’arme et viser une unité ennemie à 8" ou moins d’une figurine de l’unité amie choisie, et visible par elle (cette figurine compte comme la figurine qui tire).';
+const csActive = u => !!u && isSiege(u) && ((S.used[u.id + ':Coordinated_Strike'] && S.used[u.id + ':Coordinated_Strike'].r === S.round) || (S.spent || []).some(e => e.r === S.round && e.holder === u.id && e.key === 'Coordinated_Strike'));
 function simpleActionsSiege(u){
   const ph = PH[S.phase].id, A = [], indo = hasAb(u, 'INDOMITABLE'), rw = rangedWeapons(u);
   if (ph === 'MOVEMENT'){
@@ -2660,6 +2663,7 @@ function simpleActionsSiege(u){
   }
   if (ph === 'ASSAULT'){
     const ma = missionAction();
+    if (csActive(u)) A.push({info:CS_TXT});
     if (rw.length) A.push({label:'Ranged Attack', act:'ranged', note:rw.map(w => `${w.name} ${w.rng}"`).join(' · ') + '. ' + (u.engaged ? (indo ? 'Engagé : Indomitable lui permet de viser une unité non engagée (elle a droit à un Evade). Point Blank : jamais une unité avec laquelle il est engagé.' : 'Point Blank : il ne peut pas viser les unités avec lesquelles il est engagé.') : 'Point Blank : pas une unité avec laquelle il est engagé.'), cls:'pri', pl:'ldv'});
     if (!u.engaged && ma === 'gather') A.push({label:'Gather (+1 PV)', act:'gather', note:'Mission : non engagée, à 3" d’un marqueur contrôlé neutre ou de couleur adverse.'});
     if (!u.engaged && ma === 'sabotage') A.push({sabotage:true});
@@ -2683,7 +2687,7 @@ function siegeTree(u, N, A, L){
   if (ph === 'ASSAULT'){
     A('root', 'Tirer avec le Shock Cannon ?', u.engaged ? (indo ? 'Engagé : Indomitable lui permet de viser une unité non engagée (qui a droit à un Evade). Point Blank : jamais une unité avec laquelle il est engagé.' : 'Point Blank : il ne peut pas viser les unités avec lesquelles il est engagé.') : 'Point Blank : pas sur une unité avec laquelle il est engagé. Pas de Charge ni de Run en Siege Mode.',
       [['Oui','ranged'],['Non','shold']], undefined, {cmp:'ASSAULT'});
-    L('ranged', {title:'Ranged Attack (SIEGE MODE)', act:'ranged', steps:['Cible : au moins une figurine visible à portée, unité Ground.','Gabarit (BT) centré sur une figurine de la cible ; dés = figurines affectées + modificateur de RoA.','Aftershock Rounds : dégâts = taille de la cible (minimum 1).'], attack:'ranged', cmp:'ASSAULT'});
+    L('ranged', {title:'Ranged Attack (SIEGE MODE)', act:'ranged', steps:(csActive(u) ? [CS_TXT] : []).concat(['Cible : au moins une figurine visible à portée, unité Ground.','Gabarit (BT) centré sur une figurine de la cible ; dés = figurines affectées + modificateur de RoA.','Aftershock Rounds : dégâts = taille de la cible (minimum 1).']), attack:'ranged', cmp:'ASSAULT'});
     L('shold', {title:'Hold', act:'hold', steps:['L’unité ne fait rien. Retourne son marqueur côté Assaut.']});
     return N;
   }
@@ -4351,6 +4355,7 @@ function tsheetHTML(u){
       h += `<div class="tsec"><div class="tsh">① Avant d’agir <span class="pill ${okN ? 'ok' : ''}">${okN} utilisable${okN > 1 ? 's' : ''}</span> <span class="small muted">${readyRes()} ${esc(RES())} prêts</span></div>
         ${pre.map(a => tAbRow(u.id, a, null)).join('') || '<p class="muted small">Aucune capacité de l’unité dans cette phase.</p>'}
         ${cards.length ? `<details class="tcardab"><summary>Cartes : ${okC} capacité${okC > 1 ? 's' : ''} utilisable${okC > 1 ? 's' : ''} avec n’importe quelle unité</summary>${cards.map(([c, a]) => tAbRow(c, a, c)).join('')}</details>` : ''}</div>
+        ${ph === 'ASSAULT' && csActive(u) ? `<div class="note warn" style="margin-top:10px"><span class="lbl">Rappel</span>${esc(CS_TXT)}</div>` : ''}
         <div class="tsec"><div class="tsh">② Action</div>${tActionsHTML(u)}</div>
         ${pas.length ? `<div class="tsec"><div class="tsh">③ Pendant et après</div>${pas.map(a => tAbRow(u.id, a, null, true)).join('')}</div>` : ''}`;
     } else if (act && tElig(u)){
