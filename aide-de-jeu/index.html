@@ -1278,13 +1278,41 @@ function computeScore(){
   const manual = sm === 'claim';
   return {add, lines, manual};
 }
+
+/* ---- contrôle des marqueurs : supply compté (Commander +1) et règle des unités à 0 de supply ---- */
+const ctrlSup = u => curSup(u) + (hasAb(u, 'COMMANDER') ? 1 : 0);
+function mkTally(mk){
+  const one = (ids, arr, adj) => { let s = 0, n = 0; ids.forEach(id => { const u = arr.find(x => x.id === id); if (u && u.loc === 'table' && !isBur(u)){ s += ctrlSup(u); n++; } }); return {s:s + (adj || 0), pres:n > 0 || (adj || 0) > 0}; };
+  const A = one(mk.me, S.units, mk.meAdj), B = one(mk.opp, S.opp.units, mk.oppAdj);
+  return {a:A.s, b:B.s, pa:A.pres, pb:B.pres};
+}
+/* qui prend le marqueur : 'me', 'opp' ou null. Une unité à 0 de supply contrôle seulement si aucun ennemi ne conteste. */
+function mkWinner(t){
+  if (t.a > t.b) return 'me'; if (t.b > t.a) return 'opp';
+  if (t.pa && !t.pb) return 'me'; if (t.pb && !t.pa) return 'opp';
+  return null;
+}
+function mkResTxt(t){ const w = mkWinner(t), zero = t.a === t.b;
+  return w === 'me' ? ['ok', 'tu prends' + (zero ? ' (supply 0, aucun ennemi ne conteste)' : '')] : w === 'opp' ? ['bad', 'l’adversaire prend' + (zero ? ' (supply 0, personne ne conteste)' : '')] : ['', t.pa || t.pb ? 'égalité : pas de changement' : 'personne : pas de changement']; }
+const supTxt = u => curSup(u) + (hasAb(u, 'COMMANDER') ? ' +1' : '');
+/* rappels des bonus qui restent à saisir avec + / − */
+function mkBonusHTML(){
+  const L = [], on = arr => arr.filter(u => u.loc === 'table');
+  const all = on(S.units).map(u => [u, 'toi']).concat(on(S.opp.units).map(u => [u, 'adversaire']));
+  const cmd = all.filter(([u]) => hasAb(u, 'COMMANDER'));
+  if (cmd.length) L.push('<b>Commander</b> (+1) est déjà compté pour ' + cmd.map(([u]) => esc(unitName(u))).join(', ') + '.');
+  all.filter(([u]) => (u.upgrades || []).includes('Domineering_Presence')).forEach(([u, w]) => L.push(`<b>Domineering Presence</b> (${esc(unitName(u))}, ${w}) : +1 à une autre unité amie à 6" ou moins (bouton +).`));
+  all.filter(([u]) => hasAb(u, 'PLAGUE_WARDEN')).forEach(([u, w]) => L.push(`<b>Plague Warden</b> (${esc(unitName(u))}, ${w}) : −1 (minimum 0) pour chaque unité ennemie infestée à 6" ou moins de Stukov (bouton −).`));
+  all.filter(([u]) => hasAb(u, 'FREEDOM_FIGHTERS')).forEach(([u, w]) => L.push(`<b>Freedom Fighters</b> (${esc(unitName(u))}, ${w}) : les unités amies à 8" ou moins comptent au moins 1 pour contester (bouton + pour une unité à 0).`));
+  (S.spent || []).filter(e => e.r === S.round && e.key === 'ADDITIONAL_SUPPLY_DEPOTS').forEach(e => L.push(`<b>Additional Supply Depots</b> (carte Supply Depot) utilisée ce round${e.who ? ' sur ' + esc(e.who) : ''} : +1 (bouton +).`));
+  return L.length ? `<div class="note"><span class="lbl">Bonus de supply</span>${L.join('<br>')}</div>` : '';
+}
 function applyControl(){
-  const sum = (ids, adj, arr) => ids.reduce((a, id) => { const u = arr.find(x => x.id === id); return a + (u && u.loc === 'table' && !isBur(u) ? curSup(u) : 0); }, 0) + (adj || 0);
   liveMarkers().forEach(mk => {
-    let a = sum(mk.me, mk.meAdj, S.units), b = sum(mk.opp, mk.oppAdj, S.opp.units);
-    if (mk.pick === 'me'){ a = 1; b = 0; } else if (mk.pick === 'opp'){ a = 0; b = 1; } else if (mk.pick === 'none'){ a = b = 0; }
+    let w = mkWinner(mkTally(mk));
+    if (mk.pick === 'me') w = 'me'; else if (mk.pick === 'opp') w = 'opp'; else if (mk.pick === 'none') w = null;
     mk.prev = mk.owner; mk.gained = null;
-    if (a > b) mk.owner = 'me'; else if (b > a) mk.owner = 'opp';
+    if (w) mk.owner = w;
     if (mk.prev === 'opp' && mk.owner === 'me') mk.gained = 'me';
     if (mk.prev === 'me' && mk.owner === 'opp') mk.gained = 'opp';
   });
@@ -1699,12 +1727,12 @@ function renderScore(){
   const unused = readyRes();
   const ctrlFull = `<div class="panel"><h2>1 · Contrôle des marqueurs</h2>
     <p class="sub">Coche les unités qui contestent chaque marqueur : au moins une figurine à 3", en ligne de vue, même élévation, unité en cohésion. Volants et BURROWED ne contestent pas. C’est la somme du supply actuel qui compte. Le contrôle reste au dernier propriétaire tant que l’autre ne fait pas mieux.</p>
-    <div class="mkgrid">${lm.map(mk => { const a = sumOf(mk.me, S.units, mk.meAdj), b = sumOf(mk.opp, S.opp.units, mk.oppAdj);
-      const r = a > b ? ['ok','tu prends'] : b > a ? ['bad','l’adversaire prend'] : ['', a + b ? 'égalité : pas de changement' : 'personne : pas de changement'];
+    ${mkBonusHTML()}<div class="mkgrid">${lm.map(mk => { const T = mkTally(mk), a = T.a, b = T.b;
+      const r = mkResTxt(T);
       return `<div class="mkc"><div class="row"><span class="mkid ${mk.aff.toLowerCase()}">${mk.id}</span><span class="small muted">${mkRel(mk)}${sm === 'sabotage' ? ' · Sabotage ' + mk.sab : ''}${sm === 'activated_round' ? ' · activé round ' + mk.actRound : ''}</span>
         <span class="pill ${mk.owner === 'me' ? 'ok' : mk.owner === 'opp' ? 'bad' : ''}" style="margin-left:auto">${mk.owner === 'me' ? 'à toi' : mk.owner === 'opp' ? 'à l’adversaire' : 'neutre'}</span></div>
-        <div class="small"><span class="lbl">Toi · ${a}</span> ${mine.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|me|${u.id}" ${mk.me.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité</span>'}</div>
-        <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
+        <div class="small"><span class="lbl">Toi · ${a}</span> ${mine.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|me|${u.id}" ${mk.me.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${supTxt(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité</span>'}</div>
+        <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${supTxt(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
           <span class="stp"><button data-mkadj="${mk.id}|opp|-1">−</button><button data-mkadj="${mk.id}|opp|1">+</button></span>${mk.oppAdj ? ` <span class="mono">${mk.oppAdj > 0 ? '+' : ''}${mk.oppAdj}</span>` : ''}</div>
         <span class="pill ${r[0]}">${r[1]}</span></div>`; }).join('') || '<p class="muted">Aucun marqueur actif.</p>'}</div>
     <div class="row" style="margin-top:8px"><button class="btn pri" id="applyMk">Appliquer le contrôle</button><span class="small muted">Les +/− adverses servent pour les bonus de supply (capacités) ou une armée non saisie.</span></div></div>`;
@@ -1712,18 +1740,18 @@ function renderScore(){
   const picked = lm.filter(mk => mk.pick).length;
   const ctrlGuided = `<div class="panel"><h2>1 · Contrôle des marqueurs</h2>
     <p class="sub">Pour chaque marqueur, compare le supply actuel des unités qui le contestent : au moins une figurine à 3", qui le voit, au même niveau, unité en cohésion. Volants et BURROWED ne comptent pas. Le plus haut total prend le marqueur. « Personne » (égalité ou aucune unité) : il reste à son propriétaire actuel.</p>
-    <div class="mkguide">${lm.map(mk => { const a = sumOf(mk.me, S.units, mk.meAdj), b = sumOf(mk.opp, S.opp.units, mk.oppAdj), o = own(mk);
+    ${mkBonusHTML()}<div class="mkguide">${lm.map(mk => { const T = mkTally(mk), a = T.a, b = T.b, o = own(mk);
       return `<div class="mkg ${mk.pick ? 'done' : ''}"><div class="row"><span class="mkid ${mk.aff.toLowerCase()}">${mk.id}</span><span class="small muted">${mkRel(mk)}${sm === 'sabotage' ? ' · Sabotage ' + mk.sab : ''}</span><span class="pill ${o[0]}" style="margin-left:auto">actuel : ${o[1]}</span></div>
         <div class="mkbtns"><button class="btn big ${mk.pick === 'me' ? 'on me' : ''}" data-mkpick="${mk.id}|me">Moi</button><button class="btn big ${mk.pick === 'opp' ? 'on opp' : ''}" data-mkpick="${mk.id}|opp">Adversaire</button><button class="btn big ${mk.pick === 'none' ? 'on' : ''}" data-mkpick="${mk.id}|none">Personne</button></div>
         ${a || b ? `<div class="small muted">Comptage coché : toi ${a} · adversaire ${b}</div>` : ''}</div>`; }).join('') || '<p class="muted">Aucun marqueur actif.</p>'}</div>
     <details class="capsub"><summary>Compter le supply unité par unité</summary>
     <p class="sub">Coche les unités qui contestent chaque marqueur : au moins une figurine à 3", en ligne de vue, même élévation, unité en cohésion. Volants et BURROWED ne contestent pas. C’est la somme du supply actuel qui compte. Le contrôle reste au dernier propriétaire tant que l’autre ne fait pas mieux.</p>
-    <div class="mkgrid">${lm.map(mk => { const a = sumOf(mk.me, S.units, mk.meAdj), b = sumOf(mk.opp, S.opp.units, mk.oppAdj);
-      const r = a > b ? ['ok','tu prends'] : b > a ? ['bad','l’adversaire prend'] : ['', a + b ? 'égalité : pas de changement' : 'personne : pas de changement'];
+    ${mkBonusHTML()}<div class="mkgrid">${lm.map(mk => { const T = mkTally(mk), a = T.a, b = T.b;
+      const r = mkResTxt(T);
       return `<div class="mkc"><div class="row"><span class="mkid ${mk.aff.toLowerCase()}">${mk.id}</span><span class="small muted">${mkRel(mk)}${sm === 'sabotage' ? ' · Sabotage ' + mk.sab : ''}${sm === 'activated_round' ? ' · activé round ' + mk.actRound : ''}</span>
         <span class="pill ${mk.owner === 'me' ? 'ok' : mk.owner === 'opp' ? 'bad' : ''}" style="margin-left:auto">${mk.owner === 'me' ? 'à toi' : mk.owner === 'opp' ? 'à l’adversaire' : 'neutre'}</span></div>
-        <div class="small"><span class="lbl">Toi · ${a}</span> ${mine.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|me|${u.id}" ${mk.me.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité</span>'}</div>
-        <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${curSup(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
+        <div class="small"><span class="lbl">Toi · ${a}</span> ${mine.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|me|${u.id}" ${mk.me.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${supTxt(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité</span>'}</div>
+        <div class="small"><span class="lbl">Adversaire · ${b}</span> ${theirs.map(u => `<label class="chk"><input type="checkbox" data-mkc="${mk.id}|opp|${u.id}" ${mk.opp.includes(u.id) && !isBur(u) ? 'checked' : ''} ${isBur(u) ? 'disabled' : ''}> ${esc(unitName(u))} ${isBur(u) ? '<span class="small muted">(BURROWED : ne conteste pas)</span>' : `<b class="mono">${supTxt(u)}</b>`}</label>`).join(' ') || '<span class="muted">aucune unité saisie</span>'}
           <span class="stp"><button data-mkadj="${mk.id}|opp|-1">−</button><button data-mkadj="${mk.id}|opp|1">+</button></span>${mk.oppAdj ? ` <span class="mono">${mk.oppAdj > 0 ? '+' : ''}${mk.oppAdj}</span>` : ''}</div>
         <span class="pill ${r[0]}">${r[1]}</span></div>`; }).join('') || '<p class="muted">Aucun marqueur actif.</p>'}</div>
     </details>
