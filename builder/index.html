@@ -1049,6 +1049,7 @@ function renderGen(){
   if(!genRes){h+=`<div class="panel"><p class="hint" style="padding-top:12px">Choisissez l'adversaire puis lancez la génération. Chaque liste proposée respecte les règles de liste et peut être chargée dans l'onglet Liste pour être ajustée.</p></div>`;return h;}
   const G=genRes;
   if(G.race!==race){h+=`<div class="panel"><p class="hint" style="padding-top:12px">Les derniers résultats concernent les ${RLABEL[G.race]}. Relancez la génération pour les ${RLABEL[race]}.</p></div>`;return h;}
+  if(!g.allFac&&G.lists.length&&G.lists.every(x=>x.fk!==state.faction[race])){const ofk=G.lists[0].fk;h+=`<div class="panel"><p class="hint" style="padding-top:12px">Les derniers résultats concernent ${esc(nm(ofk,R.faction_cards[ofk]))}. Relancez la génération pour ${esc(nm(state.faction[race],R.faction_cards[state.faction[race]]))}.</p></div>`;return h;}
   h+=`<p class="tags" style="margin:0">${G.built} listes construites, ${G.valid} passent les filtres. Adversaire type : ${G.prof.units.length} unités ${RLABEL[G.prof.race]}${G.prof.fac?' ('+esc(nm(G.prof.fac,DB.races[G.prof.race].faction_cards[G.prof.fac]))+')':''}${G.prof.hidden?', dont des unités capables de devenir HIDDEN':''}.</p>`;
   if(!G.lists.length){h+=`<ul class="issues"><li class="warn">Aucune liste ne passe les filtres. Baissez le budget minimum, décochez un rôle obligatoire${G.colUsed?' ou désactivez la limite de collection':''}.</li></ul>`;return h;}
   h+=`<div class="gen-grid">`+G.lists.map((x,i)=>{
