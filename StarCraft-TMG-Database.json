@@ -1,9 +1,9 @@
 {
  "metadata": {
   "game": "StarCraft: Tabletop Miniatures Game (Archon Studio)",
-  "database_version": "2.6.2",
+  "database_version": "2.7.0",
   "schema_version": "2.0-unified",
-  "last_updated": "2026-11-01",
+  "last_updated": "2026-11-26",
   "cost_table_version": "Units and Upgrade Points 09.10.2026 (PDF officiel)",
   "status": "COMPLET — 3 races vérifiées carte par carte et recoupées avec la table de coûts officielle Sept 2026.",
   "sources": {
@@ -125,7 +125,12 @@
     "date": "2026-10-29",
     "notes": "Zagara / Broodmother : coût 0 minerai (confirmé par l'utilisateur), amélioration désormais achetable. Vileling : profil de supply confirmé. Aucune autre donnée modifiée."
    },
-   "2.6.2 : builder_effect weapon_set ajouté à Hydriodic Bile (Roach, Vile Roach, Corpser Roach) : Acid Saliva gagne Surge Type Light et S Dice D3+1 (texte de la carte inchangé)."
+   "2.6.2 : builder_effect weapon_set ajouté à Hydriodic Bile (Roach, Vile Roach, Corpser Roach) : Acid Saliva gagne Surge Type Light et S Dice D3+1 (texte de la carte inchangé).",
+   {
+    "version": "2.7.0",
+    "date": "2026-11-26",
+    "notes": "Zerg : Faction Card Stukov's Forces (Ashes of the UED, Infestation, Hostile Incubation) ; cartes Virus Weighted Pustule et Hungering Infestation (rangées dans creep_cards, champ virus=true) ; unités Stukov (Héros), Infested Marine (6 fig., 160), Infested Trooper (3 fig., 210), Infested Goliath (180) et Infested Siege Tank (220) (copies des unités Terran, coûts CP convertis en BM, no_burrow) ; structure Infested Missile Turret. Source : app officielle. Wild Mutation fixé à 10 minéraux (l'app affiche 1). Statut INFESTATION ajouté aux keyword_rules. Aucune donnée existante modifiée."
+   }
   ]
  },
  "army_building_rules": {
@@ -177,7 +182,8 @@
   "RESPAWN(X)": "Return up to X Destroyed models to this Unit. The return cannot increase the Unit's Current Supply Value: do not return a model if doing so would push the Unit into a higher Supply bracket. Set each returned model in Base-to-Base contact with an existing model in the Unit. Returned models cannot be set Within the Engagement Range of any Enemy Unit. If a model cannot be set legally, it cannot be returned. (Texte officiel fourni par l'utilisateur.)",
   "EVADE": "Damage Pool : each die remaining in this pool inflicts Damage equal to the weapon's Damage characteristic. If the target Unit is eligible for an Evade Roll, the defender rolls all dice in this pool against the Unit's Evade characteristic before Damage is applied. Each die that meets or exceeds the Evade value is a success and is discarded. Remaining dice inflict Damage as normal. (Texte officiel fourni par l'utilisateur.) Evade Roll: If eligible, each die result equal to or higher than the Evade characteristic is saved and discarded. (Texte officiel.) Aucune unité n'a droit à l'Evade par défaut : seules les règles qui écrivent « is eligible to make an Evade Roll » l'accordent (confirmé par l'utilisateur).",
   "HIDDEN": "This Unit cannot be selected as the target of a Ranged Attack or any LoS-requiring Special Ability unless the acting model is Within 4\" of it. A HIDDEN Unit is immune to the IMPACT keyword. A HIDDEN Unit may make an Evade Roll against every attack targeting it. HIDDEN is classified as a Status. (Texte officiel fourni par l'utilisateur.)",
-  "INSTANT": "Enemy Units cannot declare or resolve Reaction abilities in response to attacks made with this weapon. (Texte officiel fourni par l'utilisateur.)"
+  "INSTANT": "Enemy Units cannot declare or resolve Reaction abilities in response to attacks made with this weapon. (Texte officiel fourni par l'utilisateur.)",
+  "INFESTATION": "Statut (Stukov's Forces). Posé par Spread Infestation (Stukov, Infested Trooper) ou propagé par l'Infested Missile Turret. Compte comme un DEBUFF pour les capacités spéciales (Restoration le retire). Retiré par Admiral of the Infested et Bio-Kill Switch. Sans autre précision, il expire à la fin du round (règle générale des capacités actives, partie 2.7.1)."
  },
  "races": {
   "ZERG": {
@@ -308,6 +314,48 @@
        "text": "If the active Unit contains more models than the combined number of models in all Engaged Enemy Units, its Close Combat Weapons gain INSTANT and PRECISION (4)."
       }
      }
+    },
+    "Stukovs_Forces": {
+     "display_name": "Stukov's Forces",
+     "race": "ZERG",
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "unique": true,
+     "resource": "BM",
+     "resource_generated": 1,
+     "starting_army_slots": {
+      "CORE": 4,
+      "ELITE": 2,
+      "HERO": 1
+     },
+     "card_version": "app",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "abilities": {
+      "ASHES_OF_THE_UED": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "During Army Building, you may include Units with the Terran Faction Tag and both Ground and Mechanical Combat Tags in your army. Those Units gain the Infested Combat Tag. Treat any CP cost for those Units' Special Abilities as BM. These Units cannot gain the BURROWED Status.",
+       "display_name": "Ashes of the UED"
+      },
+      "INFESTATION": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "During Army Building, select exactly one Virus Card and add it to your Army List, paying its listed cost (if any)."
+      },
+      "HOSTILE_INCUBATION": {
+       "type": "ACTIVE",
+       "phase": "MOVEMENT",
+       "text": "If there is no Friendly Infested Missile Turret on the battlefield, set a Friendly Infested Missile Turret Unit anywhere on the GROUND LEVEL of the battlefield more than 10\" away from any Enemy model. This Round, the Missile Turret is not eligible to use its Special Abilities (excluding Structure).",
+       "builder_effect": {
+        "kind": "creep_source",
+        "weight": 1.5,
+        "detection": true,
+        "note": "L'Infested Missile Turret (SOURCE OF CREEP 6\", DETECTION 8\", anti-air)."
+       }
+      }
+     }
     }
    },
    "creep_cards": {
@@ -396,6 +444,58 @@
        "type": "PASSIVE",
        "phase": "ANY",
        "text": "If an Enemy Unit ends a Move, Deploy, Run, Charge or Disengage action Within 1\" of a Friendly Creep Tumor token, remove that token from the battlefield."
+      }
+     }
+    },
+    "Weighted_Pustule": {
+     "display_name": "Weighted Pustule",
+     "virus": true,
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "unique": true,
+     "gas_cost": 5,
+     "card_version": "app",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "abilities": {
+      "FETID_TOUCH": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "While an Enemy Unit has the INFESTATION Status, it cannot resolve the PLACE and set effects and cannot be returned to Reserves.",
+       "display_name": "Fetid Touch"
+      },
+      "STUKOVS_CREEP": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "If an Enemy Unit ends a Move, Deploy, Run, Charge or Disengage action Within 1\" of a Friendly Creep Tumor token, remove that token from the battlefield. Creep Tumor tokens have STAY IN PLAY and DISPLACEMENT.",
+       "display_name": "Stukov's Creep"
+      }
+     }
+    },
+    "Hungering_Infestation": {
+     "display_name": "Hungering Infestation",
+     "virus": true,
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "unique": true,
+     "gas_cost": 10,
+     "card_version": "app",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "abilities": {
+      "GROWING_INFESTATION": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "While an Enemy Unit has the INFESTATION Status, it is not eligible to use or to be targeted by any Enemy Reaction Special Ability, except Restoration.",
+       "display_name": "Growing Infestation"
+      },
+      "STUKOVS_CREEP": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "If an Enemy Unit ends a Move, Deploy, Run, Charge or Disengage action Within 1\" of a Friendly Creep Tumor token, remove that token from the battlefield. Creep Tumor tokens have STAY IN PLAY and DISPLACEMENT.",
+       "display_name": "Stukov's Creep"
       }
      }
     }
@@ -2676,6 +2776,821 @@
       }
      },
      "upgrades": {}
+    },
+    "Stukov": {
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "card_version": "app",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "display_name": "Stukov",
+     "unique": true,
+     "combat_role": "TACTICIAN",
+     "army_slot": "HERO",
+     "combat_tags": [
+      "Biological",
+      "Infested",
+      "Ground"
+     ],
+     "base_mm": null,
+     "role_note": "Rôle de combat non affiché dans l'app : classé TACTICIAN par défaut (utilisé seulement par le générateur).",
+     "stats": {
+      "shield": 0,
+      "speed": 7,
+      "speed_last_model": null,
+      "armour": "4+",
+      "evade": "6+",
+      "hp": 10,
+      "size": 2
+     },
+     "supply_profile": [
+      {
+       "models_min": 1,
+       "models_max": 1,
+       "supply": 1
+      }
+     ],
+     "composition_options": [
+      {
+       "models": 1,
+       "mineral_cost": 240,
+       "supply_value": 1
+      }
+     ],
+     "abilities": {
+      "COMMANDER": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "Treat this Unit's Supply characteristic as increased by 1 for Controlling and Contesting Mission Markers, completing objectives, and resolving Disengage checks."
+      },
+      "PLAGUE_WARDEN": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "Treat the Supply characteristic of any Enemy Unit that has the INFESTATION Status and is Within 6\" as reduced by 1 (to a minimum of 0) for Controlling and Contesting Mission Markers, and completing objectives.",
+       "display_name": "Plague Warden"
+      },
+      "SPREAD_INFESTATION": {
+       "type": "ACTIVE",
+       "phase": "MOVEMENT",
+       "cost": {
+        "BM": 1
+       },
+       "text": "Target an Enemy Unit Within 8\". The targeted Unit gains the INFESTATION Status. For the purposes of resolving Special Abilities, this effect is treated as a DEBUFF.",
+       "display_name": "Spread Infestation"
+      },
+      "ADMIRAL_OF_THE_INFESTED": {
+       "type": "ACTIVE",
+       "phase": "MOVEMENT",
+       "cost": {
+        "BM": 1
+       },
+       "text": "Target an Enemy Unit Within 8\" that has the INFESTATION Status. That Unit counts as Activated in this Phase (set an Activation Marker next to it) and remove the INFESTATION Status from that Unit. You may target any Non-Unique Infested Friendly Unit that is Within 8\" of the previously targeted Enemy Unit. Remove the Activation Marker from that targeted Friendly Unit.",
+       "display_name": "Admiral of the Infested"
+      },
+      "BIO_KILL_SWITCH": {
+       "type": "ACTIVE",
+       "phase": "ASSAULT",
+       "cost": {
+        "BM": 0
+       },
+       "text": "Each Enemy Unit with the INFESTATION Status on the Battlefield suffers Damage (2). Immediately after this Special Ability is resolved, Remove the INFESTATION Status from Units that suffered Damage.",
+       "display_name": "Bio-Kill Switch"
+      },
+      "CORRODE_ARMOR": {
+       "type": "REACTION",
+       "phase": "ASSAULT",
+       "cost": {
+        "BM": 1
+       },
+       "text": "Immediately after this Unit resolves a Ranged Attack against an Enemy Unit, the targeted Unit suffers the DEBUFF Armour (1).",
+       "display_name": "Corrode Armor"
+      },
+      "DEVASTATING_CHARGE": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "Immediately after this Unit completes a successful Charge, resolve the IMPACT (6) 4+ effect."
+      }
+     },
+     "weapons": {
+      "CORROSIVE_BLAST": {
+       "phase": "ASSAULT",
+       "rng": 8,
+       "target": "Ground",
+       "roa": 3,
+       "hit": "3+",
+       "surge_type": [
+        "Light",
+        "Armoured"
+       ],
+       "s_dice": "D3",
+       "dmg": 1,
+       "keywords": []
+      },
+      "INFESTED_ARM": {
+       "phase": "COMBAT",
+       "rng": "E",
+       "target": "Ground",
+       "roa": 3,
+       "hit": "3+",
+       "surge_type": "Armoured",
+       "s_dice": "D3",
+       "dmg": 2,
+       "keywords": []
+      }
+     },
+     "upgrades": {}
+    },
+    "Infested_Marine": {
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "card_version": "app",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "display_name": "Infested Marine",
+     "unique": false,
+     "combat_role": "DAMAGE DEALER",
+     "army_slot": "CORE",
+     "combat_tags": [
+      "Biological",
+      "Infested",
+      "Light",
+      "Ground"
+     ],
+     "base_mm": null,
+     "role_note": "Rôle de combat non affiché dans l'app : DAMAGE DEALER comme le Marine.",
+     "stats": {
+      "shield": 0,
+      "speed": 3,
+      "speed_last_model": 6,
+      "armour": "4+",
+      "evade": "6+",
+      "hp": 2,
+      "size": 2
+     },
+     "supply_profile": [
+      {
+       "models_min": 1,
+       "models_max": 3,
+       "supply": 1
+      },
+      {
+       "models_min": 4,
+       "models_max": 6,
+       "supply": 2
+      }
+     ],
+     "composition_options": [
+      {
+       "models": 6,
+       "mineral_cost": 160,
+       "supply_value": 2
+      }
+     ],
+     "abilities": {
+      "LIVE_FOR_THE_SWARM": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "When this Unit attacks an Enemy Unit with the INFESTATION Status or a Unit Within 6\" of any Source of Creep or Creep Tumor, its Infested C-14 Rifle and all Close Combat Attacks gain PRECISION (2).",
+       "display_name": "Live for the Swarm!"
+      },
+      "DETONATION": {
+       "type": "REACTION",
+       "phase": "ANY",
+       "cost": {
+        "BM": 1
+       },
+       "text": "Immediately before any models in this Unit are Destroyed, Enemy Units Within 2\" suffer HITS 1 (1) for each model in this Unit that will be Destroyed.",
+       "display_name": "Detonation"
+      },
+      "DEVASTATING_CHARGE": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "Immediately after this Unit completes a successful Charge, resolve the IMPACT (2) 4+ effect."
+      }
+     },
+     "weapons": {
+      "INFESTED_C_14_RIFLE": {
+       "phase": "ASSAULT",
+       "rng": 12,
+       "target": "All",
+       "roa": 2,
+       "hit": "4+",
+       "surge_type": "Light",
+       "s_dice": "D3",
+       "dmg": 1,
+       "keywords": [
+        "BURST FIRE 6\" (2)"
+       ]
+      },
+      "STRIKE": {
+       "phase": "COMBAT",
+       "rng": "E",
+       "target": "Ground",
+       "roa": 1,
+       "hit": "4+",
+       "surge_type": null,
+       "s_dice": null,
+       "dmg": 1,
+       "keywords": []
+      }
+     },
+     "upgrades": {
+      "Burrow_Ambush": {
+       "phase": "MOVEMENT",
+       "mineral_cost": {
+        "6": 20
+       },
+       "type": "PASSIVE",
+       "text": "When this Unit is nominated to deploy from the Reserves, it may resolve the PLACE (18) effect from the controlling player's Entry Edge. No model may be set Within 10\" of any Enemy model. This Unit's Activation ends.",
+       "upgrade_kind": "ABILITY",
+       "display_name": "Burrow Ambush"
+      },
+      "Plagued_Munitions": {
+       "phase": "ASSAULT",
+       "mineral_cost": {
+        "6": 10
+       },
+       "type": "PASSIVE",
+       "text": "Immediately after an attack with the Infested C-14 Rifle, if the attacked Unit suffered Damage, it also suffers NON-LETHAL Damage (1).",
+       "upgrade_kind": "ABILITY",
+       "display_name": "Plagued Munitions"
+      },
+      "Infested_Missile_Launcher_Acid_Blast": {
+       "phase": "ASSAULT",
+       "mineral_cost": {
+        "6": 20
+       },
+       "for_weapon": "INFESTED_C_14_RIFLE",
+       "upgrade_kind": "WEAPON_REPLACEMENT",
+       "specialist": true,
+       "cost_table_type": "SPECIALIST",
+       "display_name": "Infested Missile Launcher - Acid Blast",
+       "weapon_replacement": {
+        "rng": 6,
+        "target": "All",
+        "roa": 3,
+        "hit": "3+",
+        "surge_type": null,
+        "s_dice": null,
+        "dmg": 1,
+        "keywords": [
+         "CRITICAL HIT (1)",
+         "LONG RANGE (12\")",
+         "PIERCE Armoured (2)",
+         "SPECIALIST"
+        ]
+       }
+      },
+      "Infested_Missile_Launcher_Scourgeshot": {
+       "phase": "ASSAULT",
+       "mineral_cost": {
+        "6": 20
+       },
+       "for_weapon": "INFESTED_C_14_RIFLE",
+       "upgrade_kind": "WEAPON_REPLACEMENT",
+       "specialist": true,
+       "cost_table_type": "SPECIALIST",
+       "display_name": "Infested Missile Launcher - Scourgeshot",
+       "weapon_replacement": {
+        "rng": 12,
+        "target": "All",
+        "roa": 3,
+        "hit": "3+",
+        "surge_type": null,
+        "s_dice": null,
+        "dmg": 1,
+        "keywords": [
+         "BURST FIRE 6\" (2)",
+         "SPECIALIST"
+        ]
+       }
+      },
+      "Wild_Mutation": {
+       "phase": "COMBAT",
+       "mineral_cost": {
+        "6": 10
+       },
+       "upgrade_kind": "WEAPON_ADDED",
+       "display_name": "Wild Mutation",
+       "rules_note": "L'app affiche 1 minéral et « FOR Infested C-14 Rifle » ; coût fixé à 10 et arme de combat ajoutée sans retirer le fusil (décision de l'utilisateur, 26.11.2026).",
+       "weapon_added": {
+        "rng": "E",
+        "target": "Ground",
+        "roa": 2,
+        "hit": "3+",
+        "surge_type": "Armoured",
+        "s_dice": "D3+1",
+        "dmg": 1,
+        "keywords": []
+       }
+      }
+     }
+    },
+    "Infested_Trooper": {
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "card_version": "app",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "display_name": "Infested Trooper",
+     "unique": false,
+     "combat_role": "DAMAGE DEALER",
+     "army_slot": "ELITE",
+     "combat_tags": [
+      "Biological",
+      "Infested",
+      "Light",
+      "Ground"
+     ],
+     "base_mm": null,
+     "role_note": "Rôle de combat non affiché dans l'app : DAMAGE DEALER par défaut.",
+     "stats": {
+      "shield": 0,
+      "speed": 3,
+      "speed_last_model": 6,
+      "armour": "4+",
+      "evade": "6+",
+      "hp": 4,
+      "size": 2
+     },
+     "supply_profile": [
+      {
+       "models_min": 1,
+       "models_max": 1,
+       "supply": 0
+      },
+      {
+       "models_min": 2,
+       "models_max": 3,
+       "supply": 1
+      }
+     ],
+     "composition_options": [
+      {
+       "models": 3,
+       "mineral_cost": 210,
+       "supply_value": 1
+      }
+     ],
+     "abilities": {
+      "LIVE_FOR_THE_SWARM": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "When this Unit attacks an Enemy Unit with the INFESTATION Status or a Unit Within 6\" of any Source of Creep or Creep Tumor, its Infested C-14 Rifle and all Close Combat Attacks gain PRECISION (2).",
+       "display_name": "Live for the Swarm!"
+      },
+      "DETONATION": {
+       "type": "REACTION",
+       "phase": "ANY",
+       "cost": {
+        "BM": 1
+       },
+       "text": "Immediately before any models in this Unit are Destroyed, Enemy Units Within 2\" suffer HITS 1 (2) for each model in this Unit that will be Destroyed.",
+       "display_name": "Detonation"
+      },
+      "SPREAD_INFESTATION": {
+       "type": "ACTIVE",
+       "phase": "MOVEMENT",
+       "cost": {
+        "BM": 1
+       },
+       "text": "Target an Enemy Unit Within 8\". The targeted Unit gains the INFESTATION Status. For the purposes of resolving Special Abilities, this effect is treated as a DEBUFF.",
+       "display_name": "Spread Infestation"
+      },
+      "BURROW_AMBUSH": {
+       "type": "PASSIVE",
+       "phase": "MOVEMENT",
+       "text": "When this Unit is nominated to deploy from the Reserves, it may resolve the PLACE (18) effect from the controlling player's Entry Edge. No model may be set Within 10\" of any Enemy model. This Unit's Activation ends.",
+       "display_name": "Burrow Ambush"
+      },
+      "PLAGUED_MUNITIONS": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "Immediately after an attack with the Infested C-14 Rifle, if the attacked Unit suffered Damage, it also suffers NON-LETHAL Damage (1).",
+       "display_name": "Plagued Munitions"
+      },
+      "DEVASTATING_CHARGE": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "Immediately after this Unit completes a successful Charge, resolve the IMPACT (2) 4+ effect."
+      }
+     },
+     "weapons": {
+      "INFESTED_C_14_RIFLE": {
+       "phase": "ASSAULT",
+       "rng": 12,
+       "target": "All",
+       "roa": 3,
+       "hit": "3+",
+       "surge_type": "Light",
+       "s_dice": "D3",
+       "dmg": 1,
+       "keywords": [
+        "BURST FIRE 6\" (2)"
+       ]
+      },
+      "BAYONET": {
+       "phase": "COMBAT",
+       "rng": "E",
+       "target": "Ground",
+       "roa": 2,
+       "hit": "5+",
+       "surge_type": null,
+       "s_dice": null,
+       "dmg": 1,
+       "keywords": []
+      }
+     },
+     "upgrades": {}
+    },
+    "Infested_Goliath": {
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "combat_role": "DAMAGE DEALER",
+     "army_slot": "ELITE",
+     "combat_tags": [
+      "Armoured",
+      "Mechanical",
+      "Infested",
+      "Ground"
+     ],
+     "base_mm": 80,
+     "stats": {
+      "shield": 0,
+      "speed": 7,
+      "speed_last_model": null,
+      "armour": "4+",
+      "evade": "-",
+      "hp": 10,
+      "size": 3
+     },
+     "supply_profile": [
+      {
+       "models_min": 1,
+       "models_max": 1,
+       "supply": 2
+      }
+     ],
+     "composition_options": [
+      {
+       "models": 1,
+       "mineral_cost": 180,
+       "supply_value": 2
+      }
+     ],
+     "abilities": {
+      "TARGET_LOCK": {
+       "type": "ACTIVE",
+       "phase": "MOVEMENT",
+       "cost": {
+        "BM": 1
+       },
+       "text": "Select one Enemy Unit Within 12\". Whenever a Friendly Goliath Unit targets that enemy with an Autocannon, that weapon gains Surge Type: Light, Armoured, and S Dice: D3+1.",
+       "builder_effect": {
+        "kind": "weapon_mod",
+        "weapon": "AUTOCANNON",
+        "set": {
+         "surge_type": [
+          "Light",
+          "Armoured"
+         ],
+         "s_dice": "D3+1"
+        },
+        "scope": "all_units_of_type"
+       }
+      },
+      "INDOMITABLE": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "While Engaged, this Unit may target and be targeted by Unengaged Enemy Units. In both cases, the defending Unit gains an Evade Roll against those attacks.",
+       "builder_effect": {
+        "kind": "none",
+        "note": "Accorde l'Evade à l'unité qui défend au contact, mais cette unité a Evade « - » : sans effet chiffrable sur elle-même."
+       }
+      },
+      "DEVASTATING_CHARGE": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "Immediately after this Unit completes a successful Charge, resolve the IMPACT(4) 3+ effect."
+      }
+     },
+     "weapons": {
+      "AUTOCANNON": {
+       "phase": "ASSAULT",
+       "rng": 12,
+       "target": "Ground",
+       "roa": 9,
+       "hit": "4+",
+       "surge_type": null,
+       "s_dice": null,
+       "dmg": 1,
+       "keywords": [
+        "LONG RANGE(18\")"
+       ]
+      },
+      "UNDERBELLY_MACHINE_GUN": {
+       "phase": "ASSAULT",
+       "rng": 8,
+       "target": "Ground",
+       "roa": 6,
+       "hit": "3+",
+       "surge_type": "Light",
+       "s_dice": "D3",
+       "dmg": 1,
+       "keywords": [
+        "PINPOINT",
+        "SIDEARM"
+       ]
+      },
+      "HELLFIRE_MISSILES": {
+       "phase": "ASSAULT",
+       "rng": 16,
+       "target": "Flying",
+       "roa": 6,
+       "hit": "3+",
+       "surge_type": "Light",
+       "s_dice": "D3",
+       "dmg": 1,
+       "keywords": [
+        "ANTI-EVADE(1)",
+        "SIDEARM"
+       ]
+      },
+      "STOMP": {
+       "phase": "COMBAT",
+       "rng": "E",
+       "target": "Ground",
+       "roa": 4,
+       "hit": "5+",
+       "surge_type": null,
+       "s_dice": null,
+       "dmg": 1,
+       "keywords": []
+      }
+     },
+     "upgrades": {
+      "Ares_Class_Targeting_System": {
+       "phase": "ANY",
+       "mineral_cost": {
+        "1": 20
+       },
+       "type": "PASSIVE",
+       "text": "This Unit's Autocannon and Underbelly Machine Gun weapons gain PRECISION(1).",
+       "upgrade_kind": "ABILITY",
+       "display_name": "Ares-Class Targeting System"
+      },
+      "Scatter_Missiles": {
+       "phase": "ASSAULT",
+       "mineral_cost": {
+        "1": 30
+       },
+       "for_weapon": "HELLFIRE_MISSILES",
+       "weapon_replacement": {
+        "rng": 18,
+        "target": "Ground",
+        "roa": 6,
+        "hit": "5+",
+        "surge_type": "Light",
+        "s_dice": "D3",
+        "dmg": 1,
+        "keywords": [
+         "INDIRECT FIRE",
+         "LOCKED IN(6)",
+         "LONG RANGE(24\")",
+         "SIDEARM"
+        ]
+       },
+       "upgrade_kind": "WEAPON_REPLACEMENT",
+       "rules_note": "Scatter Missiles et Haywire Missiles (tous deux FOR Hellfire Missiles, SIDEARM) peuvent être pris ensemble : non exclusifs (confirmé par l'utilisateur)."
+      },
+      "Haywire_Missiles": {
+       "phase": "ASSAULT",
+       "mineral_cost": {
+        "1": 40
+       },
+       "for_weapon": "HELLFIRE_MISSILES",
+       "weapon_replacement": {
+        "rng": 12,
+        "target": "Ground",
+        "roa": 3,
+        "hit": "3+",
+        "surge_type": "Armoured",
+        "s_dice": "D3",
+        "dmg": 1,
+        "keywords": [
+         "PIERCE Armoured(3)",
+         "SIDEARM"
+        ]
+       },
+       "upgrade_kind": "WEAPON_REPLACEMENT",
+       "rules_note": "Scatter Missiles et Haywire Missiles (tous deux FOR Hellfire Missiles, SIDEARM) peuvent être pris ensemble : non exclusifs (confirmé par l'utilisateur)."
+      }
+     },
+     "unique": false,
+     "card_version": "app",
+     "display_name": "Infested Goliath",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "ashes_note": "Ashes of the UED (Stukov's Forces) : les coûts en CP de ses capacités sont payés en BM ; l'unité ne peut pas gagner BURROWED.",
+     "no_burrow": true
+    },
+    "Infested_Siege_Tank": {
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "combat_role": "DAMAGE DEALER",
+     "army_slot": "ELITE",
+     "combat_tags": [
+      "Armoured",
+      "Mechanical",
+      "Infested",
+      "Ground"
+     ],
+     "base_mm": 150,
+     "stats": {
+      "shield": 0,
+      "speed": 7,
+      "speed_last_model": null,
+      "armour": "5+",
+      "evade": "-",
+      "hp": 14,
+      "size": 2
+     },
+     "supply_profile": [
+      {
+       "models_min": 1,
+       "models_max": 1,
+       "supply": 2
+      }
+     ],
+     "composition_options": [
+      {
+       "models": 1,
+       "mineral_cost": 220,
+       "supply_value": 2
+      }
+     ],
+     "card_version": "app",
+     "design_note": "Le Shock Cannon requiert le SIEGE MODE Status, qui n'est accessible que via l'upgrade Mode Transformation. Sans cette upgrade, seul le Twin Cannon est utilisable.",
+     "abilities": {
+      "LARGE": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "When this Unit's Leading Model moves, it cannot pass through physical gaps smaller than 3\" wide, regardless of its size. If the Leading Model's path of travel passes through, or any model in this Unit ends its movement on a Size 0 or Size 1 Impassible Terrain piece (excluding Tokens) during any movement action, that terrain piece is immediately removed from the game."
+      },
+      "HEAVY_PLATING": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "When this Unit resolves an Armour Roll, it gains TOUGH (1), provided it does not currently have the SIEGE MODE Status."
+      },
+      "INDOMITABLE": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "While Engaged, this Unit may target and be targeted by Unengaged Enemy Units. In both cases, the defending Unit gains an Evade Roll against those attacks.",
+       "builder_effect": {
+        "kind": "none",
+        "note": "Accorde l'Evade à l'unité qui défend au contact, mais cette unité a Evade « - » : sans effet chiffrable sur elle-même."
+       }
+      },
+      "POINT_BLANK": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "While this Unit has the SIEGE MODE Status, it cannot target Enemy Units it is Engaged with."
+      },
+      "AFTERSHOCK_ROUNDS": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "When this Unit has the SIEGE MODE Status, its Damage characteristic is treated as equal to the Size characteristic of the current target Unit (to a minimum of 1).",
+       "builder_effect": {
+        "kind": "dmg_equals_target_size",
+        "weapons": [
+         "SHOCK_CANNON"
+        ]
+       }
+      },
+      "DEVASTATING_CHARGE": {
+       "type": "PASSIVE",
+       "phase": "ASSAULT",
+       "text": "Immediately after this Unit completes a successful Charge, resolve the IMPACT (4) 3+ effect."
+      }
+     },
+     "weapons": {
+      "TWIN_CANNON": {
+       "phase": "ASSAULT",
+       "rng": 12,
+       "target": "Ground",
+       "roa": 8,
+       "hit": "3+",
+       "surge_type": "Armoured",
+       "s_dice": "D6",
+       "dmg": 1,
+       "keywords": [
+        "PIERCE Armoured(2)"
+       ]
+      },
+      "SHOCK_CANNON": {
+       "phase": "ASSAULT",
+       "rng": 18,
+       "target": "Ground",
+       "roa": "BT+4",
+       "hit": "4+",
+       "surge_type": [
+        "Light",
+        "Armoured"
+       ],
+       "s_dice": "BT",
+       "dmg": 1,
+       "keywords": [
+        "SIEGE MODE Status"
+       ],
+       "note": "BT = Blast Template (voir règles officielles BT/FT). Gabarit centré sur le socle d'un modèle de l'unité Primary (Target Point). Main target : nb de dés = nb de modèles affectés de l'unité ciblée + 4 (le '+4' est un modificateur de RoA). Pas de jet de Surge : Surge Result = nb de modèles affectés (S Dice 'BT'), appliqué si le Combat Tag de la cible correspond (Light ou Armoured). Spillover : chaque autre unité (amie OU ennemie) recouverte, même élévation et même Combat Tag que la Primary → batch séparé, dés = nb de modèles affectés, sans le +4 et sans Surge. Target Ground : n'affecte jamais les modèles Flying.",
+       "requires_upgrade": "Mode_Transformation"
+      },
+      "ROLLING_OVER": {
+       "phase": "COMBAT",
+       "rng": "E",
+       "target": "Ground",
+       "roa": 2,
+       "hit": "2+",
+       "surge_type": null,
+       "s_dice": null,
+       "dmg": 1,
+       "keywords": []
+      }
+     },
+     "upgrades": {
+      "Mode_Transformation": {
+       "phase": "MOVEMENT",
+       "mineral_cost": {
+        "1": 20
+       },
+       "type": "ACTIVE",
+       "cost": {
+        "BM": 1
+       },
+       "text": "The active Unit gains or loses the SIEGE MODE Status. While this Unit has the SIEGE MODE Status, its Size characteristic is treated as if it was 3.",
+       "upgrade_kind": "ABILITY",
+       "builder_effect": {
+        "kind": "unlock",
+        "unlocks_weapons": [
+         "SHOCK_CANNON"
+        ],
+        "auto_include": true,
+        "note": "Donne accès au SIEGE MODE Status : sans cet upgrade, le Shock Cannon et les 3 autres upgrades sont inutilisables. Inclus automatiquement par le générateur (confirmé par l'utilisateur)."
+       }
+      },
+      "Coordinated_Strike": {
+       "phase": "MOVEMENT",
+       "mineral_cost": {
+        "1": 20
+       },
+       "type": "ACTIVE",
+       "cost": {
+        "BM": 0
+       },
+       "text": "Target a Friendly Non-Engaged Unit on the battlefield (Line of Sight is not required). When this Unit resolves a Ranged Attack using the Shock Cannon weapon profile this Round, it may choose to ignore the weapon's standard Range characteristic. If it does, it may target an Enemy Unit that is Within 8\" of, and Visible to, a model of the selected Friendly Unit, treating that model as the acting model.",
+       "upgrade_kind": "ABILITY",
+       "requires_upgrade": "Mode_Transformation"
+      },
+      "Shaped_Blast": {
+       "phase": "ASSAULT",
+       "mineral_cost": {
+        "1": 10
+       },
+       "type": "REACTION",
+       "cost": {
+        "BM": 0
+       },
+       "restriction": "Once per Game",
+       "text": "When this Unit declares a Ranged Attack action. If this Unit has SIEGE MODE Status, its weapon gains PINPOINT and LOCKED IN (4).",
+       "upgrade_kind": "ABILITY",
+       "requires_upgrade": "Mode_Transformation"
+      },
+      "Smart_Shells": {
+       "phase": "ASSAULT",
+       "mineral_cost": {
+        "1": 10
+       },
+       "type": "REACTION",
+       "cost": {
+        "BM": 0
+       },
+       "restriction": "Once per Game",
+       "text": "When this Unit declares a Ranged Attack action. If this Unit has SIEGE MODE Status, its weapon gains INDIRECT FIRE and LONG RANGE (24).",
+       "upgrade_kind": "ABILITY",
+       "requires_upgrade": "Mode_Transformation"
+      }
+     },
+     "unique": false,
+     "display_name": "Infested Siege Tank",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "ashes_note": "Ashes of the UED (Stukov's Forces) : les coûts en CP de ses capacités sont payés en BM ; l'unité ne peut pas gagner BURROWED.",
+     "no_burrow": true
     }
    },
    "summoned_units": {
@@ -2795,6 +3710,107 @@
       "ability": "OMEGA_NETWORK",
       "models_needed": 1
      }
+    },
+    "Infested_Missile_Turret": {
+     "display_name": "Infested Missile Turret",
+     "faction_tags": [
+      "Zerg",
+      "Stukov's Forces"
+     ],
+     "combat_role": "TACTICIAN",
+     "combat_tags": [
+      "Armoured",
+      "Biological",
+      "Infested",
+      "Ground"
+     ],
+     "base_mm": null,
+     "stats": {
+      "shield": 0,
+      "speed": null,
+      "speed_last_model": null,
+      "armour": "5+",
+      "evade": "-",
+      "hp": 8,
+      "size": 3
+     },
+     "purchasable": false,
+     "summoned_by": "HOSTILE_INCUBATION (Stukov's Forces Faction Card ability)",
+     "summoned_from": {
+      "faction_card": "Stukovs_Forces",
+      "ability": "HOSTILE_INCUBATION",
+      "models_needed": 1
+     },
+     "supply_profile": [
+      {
+       "models_min": 1,
+       "models_max": 1,
+       "supply": 0
+      }
+     ],
+     "composition_options": [
+      {
+       "models": 1,
+       "mineral_cost": 0,
+       "supply_value": 0
+      }
+     ],
+     "abilities": {
+      "DETECTION": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "While Enemy Units are Within 8\" of this Unit, they lose the HIDDEN Status."
+      },
+      "SOURCE_OF_CREEP": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "A Friendly or Enemy Ground Zerg Unit Within 6\" of this Unit, counts as being ON CREEP."
+      },
+      "INFESTATION": {
+       "type": "REACTION",
+       "phase": "ANY",
+       "cost": {
+        "BM": 0
+       },
+       "text": "When the Supply of an Enemy Unit with the INFESTATION Status is reduced to 0, or when that Unit is Destroyed, you can apply the INFESTATION Status to another Enemy Unit Within 8\" of that Unit. For the purposes of resolving Special Abilities, this effect is treated as a DEBUFF."
+      },
+      "STRUCTURE": {
+       "type": "PASSIVE",
+       "phase": "ANY",
+       "text": "This Unit cannot be Activated in any Phase and cannot perform actions. Additionally, its Current Supply Value is treated as 0, and it can never Control or Contest Mission Markers, ignoring the standard Zero Supply Exception. This Unit cannot be a target of an ability, unless stated otherwise."
+      },
+      "OCULAR_OVERWATCH": {
+       "type": "REACTION",
+       "phase": "ASSAULT",
+       "cost": {
+        "BM": 0
+       },
+       "text": "When an Enemy Flying Unit ends its Activation Within 14\". This Unit immediately performs a Ranged Attack against that Enemy Unit.",
+       "display_name": "Ocular Overwatch"
+      }
+     },
+     "weapons": {
+      "FIREFLY_MISSILES": {
+       "phase": "ASSAULT",
+       "rng": 14,
+       "target": "Flying",
+       "roa": 8,
+       "hit": "4+",
+       "surge_type": [
+        "Light",
+        "Armoured"
+       ],
+       "s_dice": "D3",
+       "dmg": 1,
+       "keywords": [
+        "ANTI-EVADE (1)"
+       ]
+      }
+     },
+     "unique": false,
+     "card_version": "app",
+     "source": "App officielle StarCraft TMG (captures fournies par l'utilisateur, 26.11.2026)",
+     "upgrades": {}
     }
    }
   },
